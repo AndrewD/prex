@@ -268,7 +268,7 @@ endif
 ifeq ($(TYPE),EXEC)
 $(TARGET): $(OBJS) $(LIBS) $(LD_SCRIPT)
 	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ \
-	$(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC)
+	$(CRTI) $(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC) $(CRTN)
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
