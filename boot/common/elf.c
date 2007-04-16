@@ -54,11 +54,14 @@ load_executable(char *img, struct module *m)
 	u_long phys_base;
 	int i;
 
-	phys_base = load_base;
 	ehdr = (Elf32_Ehdr *)img;
 	phdr = (Elf32_Phdr *)((u_long)ehdr + ehdr->e_phoff);
-	m->phys = load_base;
+#ifdef CONFIG_MMU
 	phys_base = load_base;
+#else
+	phys_base = (u_long)virt_to_phys(phdr->p_vaddr);
+#endif
+	m->phys = phys_base;
 	elf_print("phys addr=%x\n", phys_base);
 
 	/* find ksyms */
@@ -98,29 +101,31 @@ load_executable(char *img, struct module *m)
 			m->bsssz =
 				(size_t)(phdr->p_memsz - phdr->p_filesz);
 			m->bss = m->data + m->datasz;
-			load_base = phys_base + (m->data - m->text);
+			phys_base += (m->data - m->text);
 		}
 		if (phdr->p_filesz > 0) {
-			memcpy((char *)load_base, img + phdr->p_offset,
+			memcpy((char *)phys_base, img + phdr->p_offset,
 			       (size_t)phdr->p_filesz);
 			elf_print("load: offset=%x size=%x\n",
-				load_base, (int)phdr->p_filesz);
+				phys_base, (int)phdr->p_filesz);
 		}
 		if (!(phdr->p_flags & PF_X)) {
 			if (m->bsssz > 0) {
 				/* Zero fill BSS */
-				memset((char *)load_base + m->datasz,
+				memset((char *)phys_base + m->datasz,
 				       0, m->bsssz);
 			}
-			load_base += phdr->p_memsz;
+			phys_base += phdr->p_memsz;
 		}
 	}
-	/* workaround for data/bss size is 0 */
-	if (m->data == 0)
-		load_base = phys_base + m->textsz;
-
-	load_base = PAGE_ALIGN(load_base);
-	m->size = (size_t)(load_base - m->phys);
+	phys_base = PAGE_ALIGN(phys_base);
+#ifndef CONFIG_MMU
+	if (nr_img == 0)
+#endif
+	{
+		load_base = phys_base;
+	}
+	m->size = (size_t)(phys_base - m->phys);
 	m->entry = ehdr->e_entry;
 	elf_print("module size=%x entry=%x\n", m->size, m->entry);
 	return 0;
