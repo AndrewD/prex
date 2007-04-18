@@ -95,6 +95,11 @@
 #define DUMP_BOOT	10
 #define DUMP_KSYM	11
 
+/*
+ * Useful macros
+*/
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 __BEGIN_DECLS
 int	object_create(const char *name, object_t *obj);
 int	object_destroy(object_t obj);

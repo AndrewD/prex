@@ -64,6 +64,7 @@ int cmd_shutdown(int argc, char **argv);
 
 static const char *err_msg[] = {
 	"Syntax error",
+	"Not supported",
 };
 
 struct cmd_entry {
@@ -101,7 +102,8 @@ cmd_help(int argc, char **argv)
 	int i = 0;
 
 	while (cmd_table[i].cmd != NULL) {
-		puts(cmd_table[i].usage);
+		if (cmd_table[i].func)
+			puts(cmd_table[i].usage);
 		i++;
 	}
 	return 0;
@@ -250,7 +252,10 @@ dispatch_cmd(int argc, char **argv)
 
 	while (cmd_table[i].cmd != NULL) {
 		if (!strcmp(argv[0], cmd_table[i].cmd)) {
-			err = (cmd_table[i].func)(argc, argv);
+			if (cmd_table[i].func)
+				err = (cmd_table[i].func)(argc, argv);
+			else
+				err = 2;
 			break;
 		}
 		i++;
@@ -258,6 +263,7 @@ dispatch_cmd(int argc, char **argv)
 	if (cmd_table[i].cmd == NULL)
 		printf("%s: command not found\n", argv[0]);
 	if (err)
-		printf("Error %d:%s\n", err, err_msg[err - 1]);
+		printf("Error %d:%s\n", err,
+		       (err <= ARRAY_SIZE(err_msg)) ? err_msg[err - 1] : NULL);
 	return 0;
 }
