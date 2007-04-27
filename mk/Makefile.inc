@@ -100,14 +100,14 @@ LIBGCC = $(LIBGCC_PATH)libgcc.a
 # Inference rules
 #
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CFLAGS_$@) -c -o $@ $<
 
 %.o: %.s
-	$(AS) -o $@ $<
+	$(AS) $(ASFLAGS) -o $@ $<
 
 %.o: %.S
 	$(CPP) $(ASFLAGS) $< $*.tmp
-	$(AS) -o $@ $*.tmp
+	$(AS) $(ASFLAGS) -o $@ $*.tmp
 	rm -f $*.tmp
 
 #
