@@ -190,7 +190,7 @@ struct timer {
 #define DUMP_TRACE	9
 
 __BEGIN_DECLS
-device_t device_create(struct devio *io, const char *name, int flags);
+device_t device_create(const struct devio *io, const char *name, int flags);
 int	 device_destroy(device_t dev);
 int	 device_broadcast(int event, int force);
 
