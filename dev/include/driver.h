@@ -250,4 +250,22 @@ void	 assert(const char *file, int line, const char *exp);
 #endif
 __END_DECLS
 
+/* Export symbols for drivers. Place the symbol name in .kstrtab and a
+ * struct kernel_symbol in the .ksymtab. The elf loader will use this
+ * information to resolve these symbols in driver modules */
+struct kernel_symbol
+{
+	u_long value;
+	const char *name;
+};
+
+#define EXPORT_SYMBOL(sym)						\
+	static const char __kstrtab_##sym[]				\
+	__attribute__((section(".kstrtab")))				\
+		= #sym;							\
+	static const struct kernel_symbol __ksymtab_##sym		\
+	__attribute__((__used__))					\
+		__attribute__((section(".ksymtab"), unused))		\
+		= { .value = (u_long)&sym, .name = __kstrtab_##sym }
+
 #endif /* !_DRIVER_H */
