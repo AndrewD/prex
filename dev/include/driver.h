@@ -270,4 +270,8 @@ struct kernel_symbol
 		__attribute__((section(".ksymtab"), unused))		\
 		= { .value = (u_long)&sym, .name = __kstrtab_##sym }
 
+/* useful macros to provide information to optimiser */
+#define likely(x) __builtin_expect((!!(x)),1)
+#define unlikely(x) __builtin_expect((!!(x)),0)
+
 #endif /* !_DRIVER_H */
