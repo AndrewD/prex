@@ -1,6 +1,6 @@
 include $(SRCDIR)/mk/own.mk
 
-TARGET=		dev.ko
+TARGET=		dev.o
 TYPE=		DRIVER
 SUBDIR=		$(ARCH) core gen power
 OBJS=		./$(ARCH)/$(PLATFORM)/dev.o \

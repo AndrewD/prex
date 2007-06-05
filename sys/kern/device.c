@@ -57,12 +57,6 @@
 #include <device.h>
 #include <system.h>
 
-/* forward declarations */
-static device_t device_create(const struct devio *, const char *, int);
-static int device_destroy(device_t);
-static int device_broadcast(int, int);
-static void machine_bootinfo(struct boot_info **);
-
 static struct list device_list;		/* list of the device objects */
 
 /*
@@ -134,7 +128,7 @@ device_lookup(const char *name)
  * I/O services to applications.
  * Returns device ID on success, or 0 on failure.
  */
-static device_t
+device_t
 device_create(const struct devio *io, const char *name, int flags)
 {
 	device_t dev;
@@ -173,7 +167,7 @@ device_create(const struct devio *io, const char *name, int flags)
  * the target device, the destroy operating will be pending
  * until its reference count becomes 0.
  */
-static int
+int
 device_destroy(device_t dev)
 {
 	int err = 0;
@@ -380,7 +374,7 @@ device_ioctl(device_t dev, int cmd, u_long arg)
  * device_broadcast will return the error code which is returned
  * by the driver.
  */
-static int
+int
 device_broadcast(int event, int force)
 {
 	device_t dev;
@@ -488,7 +482,7 @@ task__capable(cap_t cap)
 /*
  * Return boot information
  */
-static void
+void
 machine_bootinfo(struct boot_info **info)
 {
 	ASSERT(info != NULL);
@@ -531,6 +525,36 @@ virt__to_phys(void *virt)
 }
 
 /*
+ * Initialize static device drivers.
+ */
+static void
+driver_init(void)
+{
+	struct driver *drv;
+	int order, err;
+	extern struct driver __driver_table, __driver_table_end;
+
+	printk("Load static drivers\n");
+
+	/*
+	 * Call init routine for all device drivers with init order.
+	 * Smaller value will be run first.
+	 */
+	for (order = 0; order < 16; order++) {
+		for (drv = &__driver_table; drv != &__driver_table_end;
+		     drv++) {
+			ASSERT(drv->order < 16);
+			if (drv->order == order) {
+				if (drv->init) {
+					printk("Initializing %s\n", drv->name);
+					err = drv->init();
+				}
+			}
+		}
+	}
+}
+
+/*
  * Initialize device driver module.
  */
 void
@@ -540,6 +564,7 @@ device_init(void)
 	void (*drv_entry)(void);
 
 	list_init(&device_list);
+	driver_init();
 
 	m = &boot_info->driver;
 	if (m == NULL)

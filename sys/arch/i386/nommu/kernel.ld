@@ -32,6 +32,12 @@ SECTIONS
 		*(.ksymtab)
 	} : text
 
+	.driver_table ALIGN(4) : {
+		__driver_table = . ;
+		*(.driver_table)
+		__driver_table_end = . ;
+	} : text
+
 	. = ALIGN(32);
 	.data : {
 		*(.data)

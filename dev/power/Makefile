@@ -1,10 +1,10 @@
 include $(SRCDIR)/mk/own.mk
 
-ifeq ($(CONFIG_PM),y)
 TARGET=		power.o
 TYPE=		OBJECT
-OBJS-y=		pm.o
-OBJS-$(CONFIG_CPUFREQ)+=	cpufreq.o dvs.o
+OBJS-$(CONFIG_PM)+= pm.o
+ifdef CONFIG_CPUFREQ
+OBJS-$(CONFIG_PM)+= cpufreq.o dvs.o
 endif
 
 include $(SRCDIR)/mk/dev.mk

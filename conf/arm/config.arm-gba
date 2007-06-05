@@ -29,16 +29,16 @@ CONFIG_ROM_BOOT=y		# Boot from ROM
 #
 # Device drivers
 #
-CONFIG_KEYBOARD=y		# Keyboard
-CONFIG_CONSOLE=y		# Console
+CONFIG_KEYBOARD=m		# Keyboard
+CONFIG_CONSOLE=m		# Console
 CONFIG_FDD=n			# Floppy disk drive
 CONFIG_MOUSE=n			# Mouse
 CONFIG_RTC=n			# Real time clock
-CONFIG_RAMDISK=y		# RAM disk
-CONFIG_TTY=y			# TTY driver
-CONFIG_PM=y			# Power management
+CONFIG_RAMDISK=m		# RAM disk
+CONFIG_TTY=m			# TTY driver
+CONFIG_PM=m			# Power management
 CONFIG_CPUFREQ=n		# CPU frequency control
-CONFIG_KEYPAD=y			# Keypad
+CONFIG_KEYPAD=m			# Keypad
 
 #
 # Power management

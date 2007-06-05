@@ -2,9 +2,11 @@ include $(SRCDIR)/mk/own.mk
 
 TARGET=		dev.o
 TYPE=		OBJECT
-OBJS-y=		dma.o machdep.o ../i386/delay.o
+OBJS-m=		dma.o machdep.o ../i386/delay.o
 
-OBJS-$(CONFIG_CPUFREQ)+=	../i386/cpu.o
+ifdef CONFIG_CPUFREQ
+OBJS-$(CONFIG_PM)+=		../i386/cpu.o
+endif
 OBJS-$(CONFIG_KEYBOARD)+=	kbd.o
 OBJS-$(CONFIG_CONSOLE)+=	console.o
 OBJS-$(CONFIG_FDD)+=		fdd.o

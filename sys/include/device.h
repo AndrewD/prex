@@ -31,6 +31,19 @@
 #define _DEVICE_H
 
 /*
+ * Driver structure
+ *
+ * "order" is initialize order which must be between 0 and 15.
+ * The driver with order 0 is called first.
+ */
+struct driver {
+	const char	*name;		/* Name of device driver */
+	const int	order;		/* Initialize order */
+	int		(*init)(void);	/* Initialize routine */
+};
+typedef struct driver *driver_t;
+
+/*
  * Device I/O table
  */
 struct devio {

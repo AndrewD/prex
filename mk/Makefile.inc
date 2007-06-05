@@ -17,13 +17,22 @@
 #  TYPE		... Traget type
 #		    e.g. OBJECT,LIBRARY,KERNEL,BINARY,EXEC,DRIVER,OS_IMAGE
 #  SUBDIR	... List of subdirectories
-#  OBJS		... Object files
-#  OBJS-y	... Object files (for drivers)
+#  OBJS		... Object files (not for drivers)
+#  OBJS-y	... Object files
+#  OBJS-m	... Object files for modular driver (only for drivers)
+#  OBJS-	... Disabled Object files
+#  OBJS-$(CONFIG_FOO) ... Object enabled / disabled by conf/config.ARCH-PLATFORM
 #  LIBS		... Libraries
 #  MAP		... Name of map file
 #  DISASM	... Disassemble list file
 #  SYMBOL	... Symbol files
 #
+
+# Variables in conf/$(ARCH)/config.$(ARCH)-$(PLATFORM)
+#
+# CONFIG_FOO=y	... enable feature FOO / build driver FOO into kernel
+# CONFIG_FOO=m	... build driver FOO as a module
+# CONFIG_FOO=*	... set config parameter FOO to *
 
 #
 # Option for cross compile
@@ -142,9 +151,56 @@ endif
 # Rules to link a set of .o files into one .o file
 #
 ifeq ($(TYPE),OBJECT)
+ifeq (,$(findstring __DRIVER__,$(CFLAGS)))
+#
+# normal objects
+#
+# OBJS   unconditionally linked objects
+# OBJS-y conditionally linked based on a CONFIG_* variable
+# OBJS-  disabled objects - associated CONFIG_* variable undefined
+
 $(TARGET): $(OBJS) $(OBJS-y)
-	$(LD) $(LDFLAGS) -r -o $@ $^
+	$(LD) $(LDFLAGS) -r -o $@ $^ $(LIBS)
+
+ifneq (,$(strip $(OBJS-m)))
+$(error $(OBJS-m) must not be OBJ-m, this is only for drivers)
 endif
+
+else
+#
+# driver objects
+#
+# OBJS-y link objects for static drivers (typically set via CONFIG_*)
+# OBJS-m link objects for modular drivers
+# OBJS-  disabled objects
+# OBJS   is no longer used for drivers
+ifneq (,$(strip $(OBJS)))
+$(error $(OBJS) must not be OBJS, this is _not_ for drivers)
+endif
+
+# additional target for modular drivers
+all: $(TARGET:.o=.mo)
+
+# static driver objects
+ifneq (,$(strip $(OBJS-y)))
+$(TARGET): $(OBJS-y)
+	$(LD) $(LDFLAGS) -r -o $@ $^
+else # ensure an object file always exists
+$(TARGET): dummy
+	echo | $(AS) -o $@ -
+endif
+
+# modular driver objects
+ifneq (,$(strip $(OBJS-m)))
+$(TARGET:.o=.mo): $(OBJS-m)
+	$(LD) $(LDFLAGS) -r -o $@ $^
+else
+$(TARGET:.o=.mo): dummy
+	echo | $(AS) -o $@ -
+endif
+
+endif # driver objects
+endif # type opject
 
 #
 # Rules to compile library
@@ -162,7 +218,7 @@ endif
 # Rules to compile kernel
 #
 ifeq ($(TYPE),KERNEL)
-$(TARGET): $(OBJS) $(LIBS) $(LDS_SCRIPT)
+$(TARGET): $(OBJS) $(LIBS) $(LD_SCRIPT)
 	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS) $(LIBGCC)
 	$(ASMGEN)
 ifdef SYMBOL
@@ -175,22 +231,27 @@ endif
 # Rules to compile device driver
 #
 ifeq ($(TYPE),DRIVER)
-$(TARGET):  $(OBJS) $(OBJS-y) $(LDS_SCRIPT)
-	$(LD) --unresolved-symbols=ignore-all $(LDFLAGS) -T $(LD_SCRIPT) -o $@.tmp $(OBJS) $(LIBS) $(LIBGCC)
-	rm -f $@.tmp
-	$(LD) -r $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS) $(LIBGCC)
+# additional target for modular drivers
+all: $(TARGET:.o=.ko)
+
+$(TARGET:.o=.ko):  $(OBJS:.o=.mo) $(LD_SCRIPT)
+	$(LD) -r $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS:.o=.mo) $(LIBS) $(LIBGCC)
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
 endif
 	$(STRIP) --strip-debug --strip-unneeded $@
+
+# staticly linked drivers
+$(TARGET): $(OBJS)
+	$(LD) $(LDFLAGS) -r -o $@ $^
 endif
 
 #
 # Rules to compile binary file
 #
 ifeq ($(TYPE),BINARY)
-$(TARGET): $(OBJS) $(LDS_SCRIPT)
+$(TARGET): $(OBJS) $(LD_SCRIPT)
 	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS) $(LIBGCC)
 	$(ASMGEN)
 ifdef SYMBOL
@@ -203,7 +264,7 @@ endif
 # Rules to compile executable file
 #
 ifeq ($(TYPE),EXEC)
-$(TARGET): $(OBJS) $(LIBS) $(LDS_SCRIPT)
+$(TARGET): $(OBJS) $(LIBS) $(LD_SCRIPT)
 	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ \
 	$(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC)
 	$(ASMGEN)
@@ -271,6 +332,19 @@ ifdef SUBDIR
 	  if [ "$$d" != "_" ] ; then $(MAKE) -C $$d clean; fi; \
 	done);
 endif
-	rm -f Makefile.dep $(TARGET) $(OBJS) $(OBJS-y) $(DISASM) $(MAP) $(SYMBOL) $(CLEANS)
+	rm -f Makefile.dep $(TARGET) $(DISASM) $(MAP) $(SYMBOL) $(CLEANS)
+ifneq (,$(strip $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-)))
+	rm -f $(sort $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-))
+endif
+ifeq ($(TYPE),DRIVER)
+ifneq (,$(strip $(TARGET:.o=.ko) $(OBJS:.o=.mo)))
+	rm -f $(sort $(TARGET:.o=.ko) $(OBJS:.o=.mo))
+endif
+endif
+ifeq ($(TYPE),OBJECT)
+ifneq (,$(findstring __DRIVER__,$(CFLAGS)))
+	rm -f $(TARGET:.o=.mo)
+endif
+endif
 
 .PHONY: dummy
