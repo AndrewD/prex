@@ -50,7 +50,7 @@ struct device {
 	int		ref_count;	/* reference count */
 	int		flags;		/* device characteristics */
 	struct list	link;		/* linkage on device list */
-	struct devio	*devio;		/* device i/o table */
+	const struct devio *devio;		/* device i/o table */
 	char		name[MAXDEVNAME]; /* name of device */
 };
 

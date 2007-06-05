@@ -73,10 +73,30 @@ extern volatile int	irq_level;	/* current interrupt level */
 #endif
 
 extern size_t	 strlcpy(char *, const char *, size_t);
+extern char	*strncpy(char *, const char *, size_t);
 extern int	 strncmp(const char *, const char *, size_t);
 extern size_t	 strnlen(const char *, size_t);
 extern void	*memcpy(void *, const void *, size_t);
 extern void	*memset(void *, int, size_t);
 extern int	 vsprintf(char *, const char *, va_list);
+
+/* Export symbols for drivers. Place the symbol name in .kstrtab and a
+ * struct kernel_symbol in the .ksymtab. The elf loader will use this
+ * information to resolve these symbols in driver modules */
+struct kernel_symbol
+{
+	u_long value;
+	const char *name;
+};
+
+#define __EXPORT_SYMBOL(__n, __v)					\
+	static const char __kstrtab_##__n[]				\
+	__attribute__((section(".kstrtab")))				\
+		= #__n;							\
+	static const struct kernel_symbol __ksymtab_##__n		\
+	__attribute__((__used__))					\
+		__attribute__((section(".ksymtab"), unused))		\
+		= { .value = (u_long)&__v, .name = __kstrtab_##__n }
+#define EXPORT_SYMBOL(sym) __EXPORT_SYMBOL(sym, sym)
 
 #endif /* !_KERNEL_H */

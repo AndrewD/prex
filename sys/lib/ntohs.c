@@ -3,7 +3,6 @@
  * Public domain.
  */
 
-#include <driver.h>
 #include <sys/types.h>
 
 #undef ntohs

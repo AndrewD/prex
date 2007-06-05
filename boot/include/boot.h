@@ -74,4 +74,9 @@ extern void *memcpy(void *dest, const void *src, size_t count);
 extern void *memset(void *dest, int ch, size_t count);
 extern long atol(char *nptr);
 
+struct kernel_symbol
+{
+	u_long value;
+	const char *name;
+};
 #endif /* !_BOOT_H */

@@ -92,6 +92,8 @@
 #define DUMP_VM		7
 #define DUMP_MSGLOG	8
 #define DUMP_TRACE	9
+#define DUMP_BOOT	10
+#define DUMP_KSYM	11
 
 __BEGIN_DECLS
 int	object_create(const char *name, object_t *obj);

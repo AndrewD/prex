@@ -3,13 +3,12 @@
  * Public domain.
  */
 
-#include <driver.h>
 #include <sys/types.h>
 
-#undef htonl
+#undef ntohl
 
 uint32_t
-htonl(x)
+ntohl(x)
 	uint32_t x;
 {
 #if BYTE_ORDER == LITTLE_ENDIAN

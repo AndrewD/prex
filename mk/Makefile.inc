@@ -70,7 +70,7 @@ DEFS=		-D__$(ARCH)__ -D__$(PLATFORM)__ \
 
 CFLAGS+=	-Os -ansi -pedantic -fno-strict-aliasing \
 		-Wall -Wundef -Wstrict-prototypes -Wpointer-arith \
-		$(CONFIG_CFLAGS) $(DEFS)
+		-std=gnu99 $(CONFIG_CFLAGS) $(DEFS)
 
 ifeq ($(NDEBUG),1)
 CFLAGS+=	-fomit-frame-pointer
@@ -176,7 +176,7 @@ endif
 #
 ifeq ($(TYPE),DRIVER)
 $(TARGET):  $(OBJS) $(OBJS-y) $(LDS_SCRIPT)
-	$(LD) --error-unresolved-symbols $(LDFLAGS) -T $(LD_SCRIPT) -o $@.tmp $(OBJS) $(LIBS) $(LIBGCC)
+	$(LD) --unresolved-symbols=ignore-all $(LDFLAGS) -T $(LD_SCRIPT) -o $@.tmp $(OBJS) $(LIBS) $(LIBGCC)
 	rm -f $@.tmp
 	$(LD) -r $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS) $(LIBGCC)
 	$(ASMGEN)

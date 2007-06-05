@@ -107,9 +107,12 @@ extern void assert(const char *file, int line, const char *exp);
 #define DUMP_VM		7
 #define DUMP_MSGLOG	8
 #define DUMP_TRACE	9
+#define DUMP_BOOT	10
+#define DUMP_KSYM	11
 
 #ifdef DEBUG
 extern void	 boot_dump(void);
+extern void	 ksym_dump(void);
 extern int	 log_get(char **, size_t *);
 #endif
 extern int	 debug_dump(int);

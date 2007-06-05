@@ -1,7 +1,7 @@
 /* Linker script for driver */
 OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
-ENTRY(driver_start)
+ENTRY(driver_main)
 PHDRS
 {
 	text PT_LOAD FILEHDR PHDRS;

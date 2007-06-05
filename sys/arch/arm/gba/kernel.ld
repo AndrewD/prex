@@ -22,6 +22,14 @@ SECTIONS
 		*(.rodata.*)
 	} : text
 
+	.kstrtab : {
+		*(.kstrtab)
+	} : text
+
+	.ksymtab ALIGN(4) : {
+		*(.ksymtab)
+	} : text
+
 	.data ALIGN(4) : {
 		*(.data)
 	} : data = 0xff

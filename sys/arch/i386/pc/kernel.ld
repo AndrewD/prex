@@ -24,6 +24,14 @@ SECTIONS
 		*(.rodata.*)
 	} : text
 
+	.kstrtab : {
+		*(.kstrtab)
+	} : text
+
+	.ksymtab ALIGN(4) : {
+		*(.ksymtab)
+	} : text
+
 	. = ALIGN(32);
 	.data : {
 		*(.data)

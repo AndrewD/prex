@@ -51,9 +51,12 @@ struct module
 	u_long	entry;		/* entry address */
 	u_long	text;		/* text address */
 	u_long	data;		/* data address */
+	u_long	bss;		/* bss address */
+	u_long	ksym;		/* ksymtab address */
 	size_t	textsz;		/* text size */
 	size_t	datasz;		/* data size */
 	size_t	bsssz;		/* bss size */
+	size_t	ksymsz;		/* ksymtab size */
 };
 
 /*

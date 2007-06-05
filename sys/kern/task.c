@@ -465,16 +465,39 @@ boot_dump(void)
 	struct module *m;
 	int i;
 
-	printk(" text base data base text size data size bss size   "
-	       "task name\n");
-	printk(" --------- --------- --------- --------- ---------- "
-	       "----------\n");
+	printk(" text base data base  bss base "
+	       "text size data size bss size   task name\n");
+	printk(" --------- --------- --------- "
+	       "--------- --------- ---------- ----------\n");
 
 	m = &boot_info->tasks[0];
 	for (i = 0; i < boot_info->nr_tasks; i++, m++) {
-		printk("  %8x  %8x  %8d  %8d  %8d  %s\n",
-		       m->text, m->data, m->textsz,
-		       m->datasz, m->bsssz, m->name);
+		printk("  %8x  %8x  %8x  %8d  %8d  %8d  %s\n",
+		       m->text, m->data, m->bss,
+		       m->textsz, m->datasz, m->bsssz,
+		       m->name);
+	}
+}
+
+void ksym_dump(void)
+{
+	struct module *m;
+	int i;
+
+	printk(" ksym addr name			 task name\n");
+	printk(" --------- --------------------- ----------\n");
+
+	m = &boot_info->kernel;
+	for (i = 0; i < 2; i++, m++) {
+		struct kernel_symbol *ksym, *ksym_end;
+		if (m->ksym == 0 || m->ksymsz == 0)
+			continue;
+
+		ksym_end = (void *)(m->ksym + m->ksymsz);
+		for (ksym = (void *)m->ksym; ksym < ksym_end; ksym++) {
+			printk("  %8x  %20s  %s\n",
+			       ksym->value, ksym->name, m->name);
+		}
 	}
 }
 #endif

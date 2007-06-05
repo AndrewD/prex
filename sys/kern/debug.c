@@ -247,6 +247,13 @@ debug_dump(int item)
 		log_dump();
 		break;
 #endif
+	case DUMP_BOOT:
+		boot_dump();
+		break;
+	case DUMP_KSYM:
+		ksym_dump();
+		break;
+
 	default:
 		err = 1;
 		break;

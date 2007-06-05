@@ -56,6 +56,8 @@ int cmd_irq(int argc, char **argv);
 int cmd_device(int argc, char **argv);
 int cmd_vm(int argc, char **argv);
 int cmd_dmesg(int argc, char **argv);
+int cmd_boot(int argc, char **argv);
+int cmd_ksym(int argc, char **argv);
 #endif
 int cmd_reboot(int argc, char **argv);
 int cmd_shutdown(int argc, char **argv);
@@ -85,6 +87,8 @@ static struct cmd_entry cmd_table[] = {
 	{ "device"	,cmd_device	,"device   - Dump devices" },
 	{ "vm"		,cmd_vm		,"vm       - Dump virtual memory information" },
 	{ "dmesg"	,cmd_dmesg	,"dmesg    - Dump kernel message log" },
+	{ "boot"	,cmd_boot	,"boot     - Dump boot image information" },
+	{ "ksym"	,cmd_ksym	,"ksym     - Dump kernel symbol information" },
 #endif
 	{ "reboot"	,cmd_reboot	,"reboot   - Reboot system" },
 	{ "shutdown"	,cmd_shutdown	,"shutdown - Shutdown system" },
@@ -208,6 +212,18 @@ int
 cmd_dmesg(int argc, char **argv)
 {
 	sys_debug(DCMD_DUMP, DUMP_MSGLOG);
+	return 0;
+}
+
+int cmd_boot(int argc, char **argv)
+{
+	sys_debug(DCMD_DUMP, DUMP_BOOT);
+	return 0;
+}
+
+int cmd_ksym(int argc, char **argv)
+{
+	sys_debug(DCMD_DUMP, DUMP_KSYM);
 	return 0;
 }
 

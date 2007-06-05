@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 2005, Kohsuke Ohtani
  * All rights reserved.
  *
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
+ * 3. Neither the name of the author nor the names of any co-contributors 
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,21 +27,9 @@
  * SUCH DAMAGE.
  */
 
-/*
- * assert.c - assertion routine
- */
-#include <driver.h>
+#ifndef _STDLIB_H
+#define _STDLIB_H
 
-/*
- * Assertion routine
- *
- * Do not call this routine, but use ASSERT() macro.
- * assert() is called only when the expression is
- * false in ASSERT() macro.
- */
-void
-assert(const char *file, int line, const char *exp)
-{
-	irq_lock();
-	panic("\nAssertion fail!: %s line:%d '%s'\n", file, line, exp);
-}
+extern long atol(char *nptr);
+
+#endif /* !_STDLIB_H */

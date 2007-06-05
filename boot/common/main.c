@@ -216,11 +216,12 @@ setup_image(void)
 static void
 dump_image(struct module *m)
 {
-	printk
-	    ("%s: entry=%x phys=%x size=%x text=%x data=%x textsz=%x datasz=%x bss=%x\n",
-	     m->name, (int)m->entry, (int)m->phys, (int)m->size,
-	     (int)m->text, (int)m->data, (int)m->textsz,
-	     (int)m->datasz, (int)m->bsssz);
+	printk("%s: entry=%x phys=%x size=%x text=%x data=%x bss=%x ksym=%x "
+	       "textsz=%x datasz=%x bsssz=%x ksymsz=%x\n",
+	       m->name, (int)m->entry, (int)m->phys, (int)m->size,
+	       (int)m->text, (int)m->data, (int)m->bss, (int)m->ksym,
+	       (int)m->textsz, (int)m->datasz, (int)m->bsssz,
+	       (int)m->ksymsz);
 }
 
 static void

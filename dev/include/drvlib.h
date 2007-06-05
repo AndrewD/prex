@@ -40,9 +40,5 @@ extern size_t strlcpy(char *dest, const char *src, size_t count);
 extern size_t strnlen(const char *str, size_t count);
 extern void *memcpy(void *dest, const void *src, size_t count);
 extern void *memset(void *dest, int ch, size_t count);
-extern uint32_t htonl(uint32_t);
-extern uint16_t htons(uint16_t);
-extern uint32_t ntohl(uint32_t);
-extern uint16_t ntohs(uint16_t);
 
 #endif /* !_DRVLIB_H */

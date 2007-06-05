@@ -53,75 +53,15 @@
 #include <sched.h>
 #include <exception.h>
 #include <vm.h>
+#include <stdlib.h>
 #include <device.h>
 #include <system.h>
 
 /* forward declarations */
-static device_t device_create(struct devio *, const char *, int);
+static device_t device_create(const struct devio *, const char *, int);
 static int device_destroy(device_t);
 static int device_broadcast(int, int);
 static void machine_bootinfo(struct boot_info **);
-static void machine__reset(void);
-static void machine__idle(void);
-static int task__capable(cap_t cap);
-static void *phys__to_virt(void *);
-static void *virt__to_phys(void *);
-
-#ifndef DEBUG
-static void nosys(void);
-#undef printk
-#define printk nosys
-
-#undef panic
-#define panic machine_reset
-#endif
-
-typedef void (*dkifn_t)(void);
-
-#define DKIENT(func)	(dkifn_t)(func)
-
-/*
- * Driver-Kernel Interface (DKI)
- */
-static const dkifn_t driver_service[] = {
-	/*  0 */ DKIENT(device_create),
-	/*  1 */ DKIENT(device_destroy),
-	/*  2 */ DKIENT(device_broadcast),
-	/*  3 */ DKIENT(umem_copyin),
-	/*  4 */ DKIENT(umem_copyout),
-	/*  5 */ DKIENT(umem_strnlen),
-	/*  6 */ DKIENT(kmem_alloc),
-	/*  7 */ DKIENT(kmem_free),
-	/*  8 */ DKIENT(kmem_map),
-	/*  9 */ DKIENT(page_alloc),
-	/* 10 */ DKIENT(page_free),
-	/* 11 */ DKIENT(page_reserve),
-	/* 12 */ DKIENT(irq_attach),
-	/* 13 */ DKIENT(irq_detach),
-	/* 14 */ DKIENT(irq_lock),
-	/* 15 */ DKIENT(irq_unlock),
-	/* 16 */ DKIENT(timer_callout),
-	/* 17 */ DKIENT(timer_stop),
-	/* 18 */ DKIENT(timer_delay),
-	/* 19 */ DKIENT(timer_count),
-	/* 20 */ DKIENT(timer_hook),
-	/* 21 */ DKIENT(sched_lock),
-	/* 22 */ DKIENT(sched_unlock),
-	/* 23 */ DKIENT(sched_tsleep),
-	/* 24 */ DKIENT(sched_wakeup),
-	/* 25 */ DKIENT(sched_dpc),
-	/* 26 */ DKIENT(task__capable),
-	/* 27 */ DKIENT(exception_post),
-	/* 28 */ DKIENT(machine_bootinfo),
-	/* 29 */ DKIENT(machine__reset),
-	/* 30 */ DKIENT(machine__idle),
-	/* 31 */ DKIENT(phys__to_virt),
-	/* 32 */ DKIENT(virt__to_phys),
-	/* 33 */ DKIENT(debug_attach),
-	/* 34 */ DKIENT(debug_dump),
-	/* 35 */ DKIENT(printk),
-	/* 36 */ DKIENT(panic),
-};
 
 static struct list device_list;		/* list of the device objects */
 
@@ -195,7 +135,7 @@ device_lookup(const char *name)
  * Returns device ID on success, or 0 on failure.
  */
 static device_t
-device_create(struct devio *io, const char *name, int flags)
+device_create(const struct devio *io, const char *name, int flags)
 {
 	device_t dev;
 	size_t len;
@@ -480,7 +420,6 @@ device_info(struct info_device *info)
 {
 	u_long index, target = info->cookie;
 	device_t dev;
-	struct devio *io;
 	list_t head, n;
 
 	sched_lock();
@@ -489,7 +428,6 @@ device_info(struct info_device *info)
 	head = &device_list;
 	for (n = list_first(head); n != head; n = list_next(n), index++) {
 		dev = list_entry(n, struct device, link);
-		io = dev->devio;
 		if (index == target)
 			break;
 	}
@@ -510,7 +448,7 @@ void
 device_dump(void)
 {
 	device_t dev;
-	struct devio *io;
+	const struct devio *io;
 	list_t head, n;
 
 	printk("Device dump:\n");
@@ -599,7 +537,7 @@ void
 device_init(void)
 {
 	struct module *m;
-	void (*drv_entry)(const dkifn_t *);
+	void (*drv_entry)(void);
 
 	list_init(&device_list);
 
@@ -607,11 +545,82 @@ device_init(void)
 	if (m == NULL)
 		return;
 
-	drv_entry = (void (*)(const dkifn_t *))m->entry;
+	drv_entry = (void (*)(void))m->entry;
 	if (drv_entry == NULL)
 		return;
 	/*
 	 * Call all driver initialization functions.
 	 */
-	drv_entry(driver_service);
+	drv_entry();
 }
+
+#undef machine_idle
+#undef machine_reset
+#undef phys_to_virt
+#undef virt_to_phys
+#undef task_capable
+
+/* export the functions used by drivers */
+EXPORT_SYMBOL(device_create);
+EXPORT_SYMBOL(device_destroy);
+EXPORT_SYMBOL(device_broadcast);
+EXPORT_SYMBOL(umem_copyin);
+EXPORT_SYMBOL(umem_copyout);
+EXPORT_SYMBOL(umem_strnlen);
+EXPORT_SYMBOL(kmem_alloc);
+EXPORT_SYMBOL(kmem_free);
+EXPORT_SYMBOL(kmem_map);
+EXPORT_SYMBOL(page_alloc);
+EXPORT_SYMBOL(page_free);
+EXPORT_SYMBOL(page_reserve);
+EXPORT_SYMBOL(irq_attach);
+EXPORT_SYMBOL(irq_detach);
+EXPORT_SYMBOL(irq_lock);
+EXPORT_SYMBOL(irq_unlock);
+EXPORT_SYMBOL(timer_callout);
+EXPORT_SYMBOL(timer_stop);
+EXPORT_SYMBOL(timer_delay);
+EXPORT_SYMBOL(timer_count);
+EXPORT_SYMBOL(timer_hook);
+EXPORT_SYMBOL(sched_lock);
+EXPORT_SYMBOL(sched_unlock);
+EXPORT_SYMBOL(sched_tsleep);
+EXPORT_SYMBOL(sched_wakeup);
+EXPORT_SYMBOL(sched_dpc);
+__EXPORT_SYMBOL(task_capable, task__capable);
+EXPORT_SYMBOL(exception_post);
+EXPORT_SYMBOL(machine_bootinfo);
+__EXPORT_SYMBOL(machine_reset, machine__reset);
+__EXPORT_SYMBOL(machine_idle, machine__idle);
+__EXPORT_SYMBOL(phys_to_virt, phys__to_virt);
+__EXPORT_SYMBOL(virt_to_phys, virt__to_phys);
+EXPORT_SYMBOL(debug_attach);
+EXPORT_SYMBOL(debug_dump);
+#ifdef DEBUG
+EXPORT_SYMBOL(printk);
+EXPORT_SYMBOL(panic);
+EXPORT_SYMBOL(assert);
+#else
+__EXPORT_SYMBOL(printk, nosys);
+__EXPORT_SYMBOL(panic, machine__reset);
+__EXPORT_SYMBOL(assert, nosys);
+#endif
+
+/* export library functions */
+EXPORT_SYMBOL(enqueue);         /* queue.c */
+EXPORT_SYMBOL(dequeue);
+EXPORT_SYMBOL(queue_insert);
+EXPORT_SYMBOL(queue_remove);
+
+#ifdef CONFIG_LITTLE_ENDIAN
+EXPORT_SYMBOL(htonl);
+EXPORT_SYMBOL(htons);
+EXPORT_SYMBOL(ntohl);
+EXPORT_SYMBOL(ntohs);
+#endif
+EXPORT_SYMBOL(strncpy);
+EXPORT_SYMBOL(strlcpy);
+EXPORT_SYMBOL(strncmp);
+EXPORT_SYMBOL(strnlen);
+EXPORT_SYMBOL(memcpy);
+EXPORT_SYMBOL(memset);
