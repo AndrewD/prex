@@ -9,4 +9,5 @@ CPPFLAGS+=	$(INCLUDE) -DKERNEL
 LDFLAGS+=	-static -nostdlib
 LINTFLAGS+=	-DKERNEL
 
+-include $(SRCDIR)/boot/$(ARCH)/$(PLATFORM)/boot.mk
 include $(SRCDIR)/mk/Makefile.inc

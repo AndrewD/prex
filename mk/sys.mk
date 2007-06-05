@@ -13,4 +13,5 @@ ifeq ($(CONFIG_KTRACE),y)
 CFLAGS+= -finstrument-functions
 endif
 
+-include $(SRCDIR)/sys/arch/$(ARCH)/$(PLATFORM)/sys.mk
 include $(SRCDIR)/mk/Makefile.inc

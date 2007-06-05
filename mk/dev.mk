@@ -13,4 +13,5 @@ ifeq ($(KTRACE),1)
 CFLAGS+=	-finstrument-functions
 endif
 
+-include $(SRCDIR)/dev/$(ARCH)/$(PLATFORM)/dev.mk
 include $(SRCDIR)/mk/Makefile.inc
