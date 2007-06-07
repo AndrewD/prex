@@ -64,10 +64,10 @@ extern void printk(const char *fmt, ...);
  * If debugger is attached, break into it.
  */
 #ifdef DEBUG
-extern void panic(const char *fmt, ...);
+extern void panic(const char *fmt, ...) __attribute__((noreturn));
 #else
-extern void machine_reset(void);
-#define panic(fmt...)	machine_reset()
+extern void machine_reset(void) __attribute__((noreturn));
+#define panic(fmt...) machine_reset()
 #endif
 
 /*

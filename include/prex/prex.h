@@ -167,7 +167,7 @@ int	sem_getvalue(sem_t *sem, u_int *value);
 
 int	sys_info(int type, void *buf);
 int	sys_log(const char *);
-void	sys_panic(const char *);
+void	sys_panic(const char *) __attribute__((noreturn));
 int	sys_time(u_long *ticks);
 int	sys_debug(int cmd, ...);
 

@@ -65,7 +65,7 @@ extern void reserve_memory(u_long start, size_t size);
 extern void start_kernel(unsigned int entry, unsigned int boot_info);
 extern int relocate_rel(Elf32_Rel *, Elf32_Addr, char *);
 extern int relocate_rela(Elf32_Rela *, Elf32_Addr, char *);
-extern void panic(const char *msg);
+extern void panic(const char *msg) __attribute__((noreturn));
 
 extern char *strncpy(char *dest, const char *src, size_t count);
 extern int strncmp(const char *src, const char *tgt, size_t count);

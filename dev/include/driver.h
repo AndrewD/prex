@@ -241,7 +241,7 @@ int	 debug_dump(int index);
 
 #ifdef DEBUG
 void	 printk(const char *fmt, ...);
-void	 panic(const char *fmt, ...);
+void	 panic(const char *fmt, ...) __attribute__((noreturn));
 void	 assert(const char *file, int line, const char *exp);
 #define ASSERT(exp) do { if (!(exp)) \
 	assert(__FILE__, __LINE__, #exp); } while (0)
