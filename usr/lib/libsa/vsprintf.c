@@ -112,6 +112,8 @@ vsprintf(char *buf, const char *fmt, va_list args)
 		}
 		base = 10;
 		sign = 0;
+		if (*fmt == 'l')
+			fmt++;
 		switch (*fmt) {
 		case 'c':
 			*p++ = (unsigned char)va_arg(args, int);
@@ -126,6 +128,9 @@ vsprintf(char *buf, const char *fmt, va_list args)
 					break;
 			}
 			continue;
+		case 'p':
+			pad = '0';
+			width = 8;
 		case 'X':
 		case 'x':
 			base = 16;
