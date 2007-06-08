@@ -240,7 +240,7 @@ void	 debug_attach(void (*func)(char *));
 int	 debug_dump(int index);
 
 #ifdef DEBUG
-void	 printk(const char *fmt, ...);
+void	 printk(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 void	 panic(const char *fmt, ...) __attribute__((noreturn));
 void	 assert(const char *file, int line, const char *exp);
 #define ASSERT(exp) do { if (!(exp)) \
