@@ -274,4 +274,9 @@ struct kernel_symbol
 #define likely(x) __builtin_expect((!!(x)),1)
 #define unlikely(x) __builtin_expect((!!(x)),0)
 
+/*
+ * Useful macros
+ */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #endif /* !_DRIVER_H */

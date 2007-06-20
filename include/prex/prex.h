@@ -97,7 +97,7 @@
 
 /*
  * Useful macros
-*/
+ */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 __BEGIN_DECLS
