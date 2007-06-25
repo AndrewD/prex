@@ -67,6 +67,17 @@ extern int relocate_rel(Elf32_Rel *, Elf32_Addr, char *);
 extern int relocate_rela(Elf32_Rela *, Elf32_Addr, char *);
 extern void panic(const char *msg) __attribute__((noreturn));
 
+#ifdef DEBUG
+#define ASSERT(exp)	do 						\
+		if (!(exp)) {						\
+			printk("\nAssertion failed: %s line:%d '%s'\n", \
+			       __FILE__, __LINE__, #exp);		\
+			panic(NULL);					\
+		} while (0)
+#else
+#define ASSERT(exp)	do {} while (0)
+#endif
+
 extern char *strncpy(char *dest, const char *src, size_t count);
 extern int strncmp(const char *src, const char *tgt, size_t count);
 extern size_t strnlen(const char *str, size_t count);
@@ -79,4 +90,9 @@ struct kernel_symbol
 	u_long value;
 	const char *name;
 };
+
+/*
+ * Useful macros
+ */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif /* !_BOOT_H */
