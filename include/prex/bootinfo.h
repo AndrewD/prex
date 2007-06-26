@@ -86,6 +86,11 @@ struct video_cfg
  */
 struct boot_info
 {
+	struct {
+		u_long clock;
+		u_long reset;
+		u_long reserved[30];
+	} sys;			/* size fixed to 128 bytes */
 	struct video_cfg video;
 	struct mem_map	main_mem;	/* main memory */
 	struct mem_map	reserved[NRESMEM];	/* system reserved memory */
