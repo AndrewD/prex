@@ -124,6 +124,9 @@ vsprintf(char *buf, const char *fmt, va_list args)
 			break;
 		case 'u':
 			break;
+		case '%':
+			*p++ = '%';
+			continue;
 		default:
 			continue;
 		}
