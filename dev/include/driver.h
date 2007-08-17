@@ -280,4 +280,37 @@ struct kernel_symbol
  */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
+/* REVIST: this has a hard coded timeout and isn't safe (race between
+ * condition test and sleep) but it's a start */
+#define SLP_TIMEOUT 2
+#define wait_event_interruptible(event, condition)			\
+	({								\
+		int __ret = 0, __ctr = 100;				\
+		while (!(condition) && __ctr-- > 0) {			\
+			__ret = sched_tsleep(&event, 10);		\
+			if (__ret != SLP_TIMEOUT)			\
+				break;					\
+			if (condition) {				\
+				__ret = 0;				\
+				break;					\
+			}						\
+		}							\
+		(__ret != 0) ? -ETIMEDOUT : 0;				\
+	})
+
+/* spin until condition true or timeout expires */
+#define spin_condition(condition, timeout)				\
+	({								\
+		long __max = timeout;					\
+		long __rem = __max;					\
+		u_long __until = timer_count() + __max;			\
+		while (!(condition)) {					\
+			__rem = (long)__until - (long)timer_count();	\
+			if (__rem < 0)					\
+				break;					\
+			sched_yield();					\
+		}							\
+		(__rem < 0) ? -ETIMEDOUT : __max - __rem;		\
+	})
+
 #endif /* !_DRIVER_H */
