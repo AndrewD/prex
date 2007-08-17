@@ -214,7 +214,8 @@ static int
 devfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 {
 	struct info_device info;
-	int err, i;
+	int err;
+	off_t i;
 
 	dprintf("devfs_readdir offset=%d\n", fp->f_offset);
 

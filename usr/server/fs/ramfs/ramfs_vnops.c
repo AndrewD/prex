@@ -426,7 +426,7 @@ static int
 ramfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 {
 	struct ramfs_node *node, *dir_node;
-	int i;
+	off_t i;
 
 	mutex_lock(&ramfs_lock);
 

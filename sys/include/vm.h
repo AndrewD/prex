@@ -42,7 +42,7 @@ struct region {
 	struct region	*sh_next;
 	u_long		addr;		/* base address */
 	size_t		size;		/* size */
-	int		flags;		/* flag */
+	u_int		flags;		/* flag */
 #ifdef CONFIG_MMU
 	u_long		phys;		/* physical address */
 #endif

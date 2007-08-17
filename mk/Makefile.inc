@@ -87,6 +87,9 @@ else
 CFLAGS+=	-fno-omit-frame-pointer -DDEBUG -g
 endif
 
+CFLAGS+=	-Wsign-compare
+ASFLAGS+=	-W
+
 CPPFLAGS+=	$(DEFS)
 ASFLAGS+=	$(DEFS) -D__ASSEMBLY__
 ifdef MAP

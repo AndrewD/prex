@@ -248,7 +248,7 @@ int
 dispatch_cmd(int argc, char **argv)
 {
 	int i = 0;
-	int err = 0;
+	u_int err = 0;
 
 	while (cmd_table[i].cmd != NULL) {
 		if (!strcmp(argv[0], cmd_table[i].cmd)) {

@@ -270,8 +270,8 @@ static int
 arfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 {
 	struct ar_hdr *hdr;
-	int blkno, i, err;
-	off_t off;
+	int blkno, err;
+	off_t off, i;
 	size_t size;
 	mount_t mp;
 	char *p;
