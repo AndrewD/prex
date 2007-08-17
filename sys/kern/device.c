@@ -612,6 +612,7 @@ EXPORT_SYMBOL(sched_unlock);
 EXPORT_SYMBOL(sched_tsleep);
 EXPORT_SYMBOL(sched_wakeup);
 EXPORT_SYMBOL(sched_dpc);
+EXPORT_SYMBOL(sched_yield);
 __EXPORT_SYMBOL(task_capable, task__capable);
 EXPORT_SYMBOL(exception_post);
 EXPORT_SYMBOL(machine_bootinfo);

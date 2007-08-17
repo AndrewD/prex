@@ -224,6 +224,7 @@ void	 sched_unlock(void);
 int	 sched_tsleep(struct event *evt, u_long timeout);
 void	 sched_wakeup(struct event *evt);
 void	 sched_dpc(struct dpc *dpc, void (*func)(void *), void *arg);
+void	 sched_yield(void);
 #define	 sched_sleep(event)  sched_tsleep((event), 0)
 
 int	 exception_post(task_t task, int exc);
