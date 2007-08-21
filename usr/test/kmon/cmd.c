@@ -249,7 +249,9 @@ dispatch_cmd(int argc, char **argv)
 {
 	int i = 0;
 	u_int err = 0;
+	extern int optind, optreset;
 
+	optreset = optind = 1;	/* allow cmds to use getopt normally */
 	while (cmd_table[i].cmd != NULL) {
 		if (!strcmp(argv[0], cmd_table[i].cmd)) {
 			if (cmd_table[i].func)
