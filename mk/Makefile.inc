@@ -88,6 +88,7 @@ CFLAGS+=	-fno-omit-frame-pointer -DDEBUG -g
 endif
 
 CFLAGS+=	-Wsign-compare
+CFLAGS +=	-Werror-implicit-function-declaration
 ASFLAGS+=	-W
 
 CPPFLAGS+=	$(DEFS)
