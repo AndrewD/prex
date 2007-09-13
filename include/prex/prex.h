@@ -159,7 +159,7 @@ int	mutex_unlock(mutex_t *mu);
 
 int	cond_init(cond_t *cond);
 int	cond_destroy(cond_t *cond);
-int	cond_wait(cond_t *cond, mutex_t *mu);
+int	cond_wait(cond_t *cond, mutex_t *mu, u_long timeout);
 int	cond_signal(cond_t *cond);
 int	cond_broadcast(cond_t *cond);
 

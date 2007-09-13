@@ -118,7 +118,7 @@ cond_destroy(cond_t *cond)
  * call library must call cond_wait() again if it gets EINTR as error.
  */
 int
-cond_wait(cond_t *cond, mutex_t *mtx)
+cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 {
 	cond_t c;
 	int err, rc;
@@ -144,8 +144,10 @@ cond_wait(cond_t *cond, mutex_t *mtx)
 		return err;
 	}
 
-	rc = sched_sleep(&c->event);
-	if (rc == SLP_INTR)
+	rc = sched_tsleep(&c->event, timeout);
+	if (rc == SLP_TIMEOUT)
+		err = ETIMEDOUT;
+	else if (rc == SLP_INTR)
 		err = EINTR;
 	sched_unlock();
 

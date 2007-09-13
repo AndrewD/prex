@@ -89,7 +89,7 @@ extern void	 mutex_setprio(thread_t, int);
 
 extern int	 cond_init(cond_t *);
 extern int	 cond_destroy(cond_t *);
-extern int	 cond_wait(cond_t *, mutex_t *);
+extern int	 cond_wait(cond_t *, mutex_t *, u_long timeout);
 extern int	 cond_signal(cond_t *);
 extern int	 cond_broadcast(cond_t *);
 
