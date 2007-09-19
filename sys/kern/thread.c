@@ -71,7 +71,7 @@ thread_alloc(void)
 static void
 thread_free(thread_t th)
 {
-
+	th->magic = 0;
 	kmem_free(th->kstack);
 	kmem_free(th);
 }
