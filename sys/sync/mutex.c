@@ -392,7 +392,7 @@ prio_inherit(thread_t waiter)
 
 		/* Fail safe... */
 		ASSERT(count < MAXINHERIT);
-		if (count >= MAXINHERIT)
+		if (count++ >= MAXINHERIT)
 			break;
 
 	} while (m != NULL);
