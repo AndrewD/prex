@@ -145,11 +145,9 @@ endif
 #
 # Rules to process sub-directory
 #
-ifdef SUBDIR
 .PHONY: $(SUBDIR)
-$(SUBDIR): dummy
-	$(MAKE) -C $@
-endif
+$(SUBDIR):
+	$(MAKE) -C $@ $(MAKECMDGOALS)
 
 #
 # Rules to link a set of .o files into one .o file
@@ -305,12 +303,7 @@ C_SRCS = $(wildcard *.c) $(wildcard *.S)
 # Depend
 #
 .PHONY: depend dep
-depend dep:
-ifdef SUBDIR
-	@(for d in $(SUBDIR) _ ; do \
-	  if [ "$$d" != "_" ] ; then $(MAKE) -C $$d depend; fi; \
-	done);
-endif
+depend dep: $(SUBDIR)
 	rm -f Makefile.dep
 	@(for d in $(C_SRCS) _ ; do \
 	  if [ "$$d" != "_" ] ; then \
@@ -330,12 +323,7 @@ lint:
 # Clean up
 #
 .PHONY: clean
-clean:
-ifdef SUBDIR
-	@(for d in $(SUBDIR) _ ; do \
-	  if [ "$$d" != "_" ] ; then $(MAKE) -C $$d clean; fi; \
-	done);
-endif
+clean: $(SUBDIR)
 	rm -f Makefile.dep $(TARGET) $(DISASM) $(MAP) $(SYMBOL) $(CLEANS)
 ifneq (,$(strip $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-)))
 	rm -f $(sort $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-))
