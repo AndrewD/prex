@@ -100,6 +100,10 @@
  */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
+/* macros to provide information to optimiser */
+#define likely(x) __builtin_expect((!!(x)),1)
+#define unlikely(x) __builtin_expect((!!(x)),0)
+
 __BEGIN_DECLS
 int	object_create(const char *name, object_t *obj);
 int	object_destroy(object_t obj);
