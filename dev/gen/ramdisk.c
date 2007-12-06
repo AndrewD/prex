@@ -143,7 +143,7 @@ ramdisk_init(void)
 	img_size = rd->size;
 	if (img_size == 0)
 		return -1;
-	printk("RAM disk at 0x%08x (%dK bytes)\n", img_start, img_size/1024);
+	printk("RAM disk at 0x%p (%dK bytes)\n", img_start, img_size/1024);
 
 	/* Create device object */
 	ramdisk_dev = device_create(&ramdisk_io, "ram0", DF_BLK);

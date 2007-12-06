@@ -95,5 +95,5 @@ calibrate_delay(void)
 	}
 	delay_count *= 1000;	/* count per 1sec */
 	delay_count /= 1000;	/* count per 1ms */
-	printk("ok count=%d\n", delay_count);
+	printk("ok count=%lu\n", delay_count);
 }
