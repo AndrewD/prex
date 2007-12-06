@@ -85,6 +85,7 @@ ifeq ($(NDEBUG),1)
 CFLAGS+=	-fomit-frame-pointer
 else
 CFLAGS+=	-fno-omit-frame-pointer -DDEBUG -g
+CPPFLAGS+=	-DDEBUG -g
 endif
 
 CFLAGS+=	-Wsign-compare
