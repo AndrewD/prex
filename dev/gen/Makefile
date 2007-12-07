@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 TARGET=	gen.o
 TYPE=	OBJECT
 OBJS-m=	null.o zero.o

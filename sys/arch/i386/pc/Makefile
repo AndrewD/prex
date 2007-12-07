@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 TARGET=	platform.o
 TYPE=	OBJECT
 OBJS=	../i386/locore.o \

@@ -1,4 +1,3 @@
-include $(SRCDIR)/mk/own.mk
 SUBDIR=		init
 
 ifeq ($(CONFIG_CMDBOX),y)

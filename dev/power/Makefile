@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 TARGET=		power.o
 TYPE=		OBJECT
 OBJS-$(CONFIG_PM)+= pm.o

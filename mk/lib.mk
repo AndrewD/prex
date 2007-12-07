@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/usr/include -I$(SRCDIR)/include
 
 ASFLAGS+=	$(INCLUDE)

@@ -1,8 +1,6 @@
 #
 # Test for kernel
 #
-include $(SRCDIR)/mk/own.mk
-
 SUBDIR=		task thread ipc timer exception fault deadlock sem mutex \
 		cap dvs ipc_mt kmon
 

@@ -127,10 +127,10 @@ gettarget()
 setparm()
 {
 	echo "$1=$2"
-	echo "$1=$2" >>$CONFIG_MK
 	if [ "$2" = "n" ] ; then
 		echo "#undef $1" >>$CONFIG_H
 	else
+		echo "export $1=$2" >>$CONFIG_MK
 		echo "#define $1 $2" >>$CONFIG_H
 	fi
 }
@@ -145,9 +145,9 @@ setgccoption()
 parseconfig()
 {
 	while read line; do
-		word=`expr "x$line" : 'x\(CONFIG_[A-Za-z0-9_=]*\)'`
+		word=`expr "x$line" : 'x\(CONFIG_[A-Za-z0-9_]*=[^ 	]*\)'`
 		param=`expr "x$word" : 'x\([^=]*\)='`
-		value=`expr "x$word" : 'x[^=]*=\([A-Za-z0-9]*\)'`
+		value=`expr "x$word" : 'x[^=]*=\(.*\)'`
 		if [ -n "$param" ] ; then
 		    setparm "$param" "$value"
 		fi
@@ -181,11 +181,11 @@ main()
 	#
 	# Check arch/platform setting
 	#
-	echo "SRCDIR=$srcdir" >> $CONFIG_MK
-	echo "ARCH=$arch" >> $CONFIG_MK
-	echo "PLATFORM=$platform" >> $CONFIG_MK
-	[ "x$cross" != x ] && echo "CROSS_COMPILE=$cross" >> $CONFIG_MK
-	[ "x$nodebug" != x ] && echo "NDEBUG=1" >> $CONFIG_MK
+	echo "export SRCDIR=$srcdir" >> $CONFIG_MK
+	echo "export ARCH=$arch" >> $CONFIG_MK
+	echo "export PLATFORM=$platform" >> $CONFIG_MK
+	[ "x$cross" != x ] && echo "export CROSS_COMPILE=$cross" >> $CONFIG_MK
+	[ "x$nodebug" != x ] && echo "export NDEBUG=1" >> $CONFIG_MK
 	echo "" >> $CONFIG_MK
 
 	#

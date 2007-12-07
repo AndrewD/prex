@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/sys/arch/$(ARCH)/include \
 		-I$(SRCDIR)/sys/include -I$(SRCDIR)/include
 

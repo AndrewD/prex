@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 TARGET=		bootldr
 TYPE=		BINARY
 SUBDIR=		lib $(ARCH) common

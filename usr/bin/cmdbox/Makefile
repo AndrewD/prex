@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 PROG=	cmdbox
 SRCS=	main.c cmd_conf.c
 CFLAGS+= -DCMDBOX

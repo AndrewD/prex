@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 TARGET=		prex
 TYPE=		KERNEL
 SUBDIR=		lib arch kern mem ipc sync

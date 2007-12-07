@@ -1,7 +1,5 @@
 LIB=	$(SRCDIR)/usr/lib/libc.a
 
-include $(SRCDIR)/mk/own.mk
-
 include $(SRCDIR)/usr/lib/prex/Makefile.inc
 include $(SRCDIR)/usr/lib/posix/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/ctype/Makefile.inc

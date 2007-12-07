@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 TARGET=		dev.o
 TYPE=		OBJECT
 OBJS-m= 	machdep.o

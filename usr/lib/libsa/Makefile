@@ -1,7 +1,5 @@
 LIB=	$(SRCDIR)/usr/lib/libsa.a
 
-include $(SRCDIR)/mk/own.mk
-
 SRCS=	__libc_init.c _exit.c _stdio.c getchar.c \
 	putchar.c puts.c printf.c \
 	vsprintf.c assert.c sprintf.c

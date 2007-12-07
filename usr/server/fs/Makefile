@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 PROG=		fs
 SUBDIR=		vfs
 OBJS=		./vfs/vfscore.o

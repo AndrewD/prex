@@ -1,5 +1,3 @@
-include $(SRCDIR)/mk/own.mk
-
 TARGET=	mem.o
 TYPE=	OBJECT
 OBJS=	page.o kmem.o
