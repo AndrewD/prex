@@ -1,0 +1,102 @@
+body {
+	font-family: Verdana, Tahoma, sans-serif;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	color: black;
+}
+
+h1, h2 {
+	font-family: Tahoma, sans-serif;
+}
+
+h2 {
+	color: #666;
+	border-bottom: 1px solid #999;
+}
+
+#header {
+	padding: 20px 15px 10px 30px;
+	border-bottom: 1px solid #999;
+	background-color: #cccccc;
+}
+
+#logo {
+	color: #333;
+}
+
+#motto {
+	color: #666;
+}
+
+#tdmenu {
+	font-size: 0.8em;
+	width: 18%;
+	border-right: 1px solid #999;
+}
+
+#tdmenu div {
+	margin: 0.5em; 
+	padding: 12px 15px;
+	-moz-border-radius: 15px;
+	border: solid 1px #999;
+	background-color: #e5e5e5;
+}
+
+#menu {
+	font-family: Verdana, sans-serif;
+}
+
+#menu a {
+	text-decoration: none;
+	color: #3f47bf;
+	font-weight: bold;
+}
+
+#menu a:hover {
+	text-decoration: underline;
+	color: black;
+}
+
+#directory {
+	font-size: 0.8em;
+	font-weight: bold;
+	padding: 5px 20px;
+	border-bottom: 1px solid #999;
+	background-color: #e5e5e5;
+}
+
+#main {
+	font-size: 0.8em;
+	height: 300px;
+	padding: 20px;
+}
+
+#main pre {
+	font-size: 1.2em;
+	margin: 1em 1em 1em 2em;
+	border: 1px solid #999;
+	padding: 1em;
+	background-color: #eee; 
+}
+
+.table {
+	font-size: 1em;
+	background-color: #eee; 
+}
+
+.table th {
+	background-color: #ccc; 
+}
+
+.check {
+	background-color: #00ffff; 
+}
+
+#footer {
+	font-size: 0.6em;
+        color: #666;
+	padding: 10px;
+	border-top: solid 1px #999;
+	background-color: #cccccc;
+}

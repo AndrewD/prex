@@ -1,0 +1,63 @@
+body {
+	font-family: Verdana, Tahoma, sans-serif;
+	padding: 0;
+	margin: 0;
+	color: black;
+}
+
+h1, h2 {
+	font-family: Tahoma, sans-serif;
+}
+
+h2 {
+	color: #666;
+	border-bottom: 1px solid #999;
+}
+
+#header {
+	display: none
+}
+
+#tdmenu {
+	display: none
+}
+
+#directory {
+	display: none
+}
+
+#main {
+	font-size: 0.8em;
+	height: 300px;
+	width: 1024px;
+	padding: 20px;
+}
+
+#main pre {
+	font-size: 1.2em;
+	margin: 1em 1em 1em 2em;
+	border: 1px solid #999;
+	padding: 1em;
+	background-color: #eee; 
+}
+
+.table {
+	font-size: 1em;
+}
+
+#main a {
+	text-decoration: none;
+	color: black;
+}
+
+.table th {
+	background-color: #ccc; 
+}
+
+.check {
+	background-color: #00ffff; 
+}
+
+#footer {
+	display: none
+}

@@ -1,0 +1,4 @@
+ASFLAGS +=
+CFLAGS +=
+CPPFLAGS +=
+OBJCOPYFLAGS = -I elf32-i386 -O binary -R .note -R .comment -S

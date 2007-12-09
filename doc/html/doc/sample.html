@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <title>Prex Sample Codes</title>
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+  <meta name="keywords" content="Prex, embedded, real-time, operating system, RTOS, open source, free">
+  <meta name="author" content="Kohsuke Ohtani">
+  <link rel="stylesheet" type="text/css" href="../default.css" media="screen">
+  <link rel="stylesheet" type="text/css" href="../print.css" media="print">
+</head>
+<body>
+<table id="content" border="0" cellpadding="0" cellspacing="0" width=100%>
+  <tbody>
+
+    <tr>
+      <td id="header" colspan="2" style="vertical-align: top;">
+      <a href="http://prex.sourceforge.net/">
+      <img alt="Prex logo" src="../logo.gif" border="0"
+       style="width: 240px; height: 60px;"></a><br>
+      <sup><strong>Embedded Real-Time Operating System</strong></sup>
+      </td>
+    </tr>
+
+    <tr>
+      <td id="directory" style="vertical-align: top;">
+      <a href="http://prex.sourceforge.net/">Prex Home</a> /
+      <a href="index.html">Document Index</a> /
+      Sample Codes
+    </tr>
+
+    <tr>
+      <td id="main" style="vertical-align: top;">
+      <h1>Sample Codes</h1>
+
+<i>Version 1.0, 2005/09/01</i>
+
+<h3>Table of Contents</h3>
+<ul>
+  <li><a href="#run">Running a new thread</a></li>
+  <li><a href="#ptmr">Periodic timer</a></li>
+</ul>
+<br>
+
+<h2 id="run">Running a new thread</h2>
+<p>
+This is a sample to create and run a new thread in the same task.
+</p>
+<pre>
+int thread_run(void *start, void *stack, thread_t *th)
+{
+        thread_t t;
+        int err;
+
+        err = thread_create(task_self(), &amp;t);
+        if (err)
+                 return err;
+
+        err = thread_load(t, start, stack);
+        if (err)
+                 return err;
+
+        err = thread_resume(t);
+        if (err)
+                 return err;
+
+        *th = t;
+        return 0;
+}
+</pre>
+
+
+<h2 id="ptmr">Periodic timer</h2>
+<p>
+This is a sample to show a message per 100msec starting after 5sec.
+</p>
+<pre>
+int main()
+{
+        int count = 0;
+
+        sys_log("periodic timer test program\n");
+
+        /* Setup timer */
+        timer_periodic(thread_self(), 5000, 100);
+
+        while (count++ < 5) {
+                timer_waitperiod();
+                sys_log("Hello!\n");
+        }
+
+        /* Cancel timer */
+        timer_periodic(thread_self(), 0, 0);
+        return 0;
+}
+</pre>
+
+      </td>
+    </tr>
+    <tr>
+      <td id="footer"  style="vertical-align: top;">
+      Powered by:
+      <a href="http://sourceforge.net/">
+      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
+      alt="SourceForge.net Logo" border="0" height="31" width="88"
+      align="left"></a>
+      <div style="text-align:right;">
+      Copyright&copy; 2005 Kohsuke Ohtani<br>
+      Last modified 2005-03-06<br>
+      </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+</body>
+</html>
