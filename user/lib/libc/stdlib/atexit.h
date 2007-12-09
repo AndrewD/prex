@@ -32,10 +32,7 @@
 /* must be at least 32 to guarantee ANSI conformance */
 #define	ATEXIT_SIZE	32
 
-struct atexit {
-	struct atexit *next;		/* next in list */
-	int ind;			/* next index in this table */
-	void (*fns[ATEXIT_SIZE])();	/* the table itself */
-};
+typedef void (*exit_fnc)(void);
 
-extern struct atexit *__atexit;	/* points to head of LIFO stack */
+extern exit_fnc __atexit_list[ATEXIT_SIZE];
+extern int __atexit_index;

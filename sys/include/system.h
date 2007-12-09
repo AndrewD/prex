@@ -58,7 +58,7 @@ struct info_kernel {
 #define KERNEL_INFO(ki) \
 { \
 	SYSNAME, \
-	"Unkown", \
+	"Unknown", \
 	str(VERSION) "." str(PATCHLEVEL) "." str(SUBLEVEL), \
 	__DATE__ " " __TIME__, \
 	str(__ARCH__) "-" str(__PLATFORM__) \

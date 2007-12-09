@@ -76,11 +76,8 @@ struct gate_desc {
 
 /*
  * Linear memory description for lgdt and lidt instructions.
- * The compiler tries to put l_addr on a long boundary, so you
- * must use &l.limit as the argument to lgdt() and friends.
  */
 struct desc_p {
-	u_short pad;
 	u_short limit;
 	u_long base;
 } __attribute__ ((packed));

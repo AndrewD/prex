@@ -55,7 +55,6 @@
 static int rtc_read();
 static int rtc_init();
 
-#ifdef CONFIG_RTC
 /*
  * Driver structure
  */
@@ -64,7 +63,6 @@ struct driver rtc_drv __driver_entry = {
 	/* order */	4,
 	/* init */	rtc_init,
 };
-#endif
 
 static struct devio rtc_io = {
 	/* open */	NULL,

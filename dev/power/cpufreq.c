@@ -36,8 +36,6 @@
 #include <pm.h>
 #include "dvs.h"
 
-#ifdef CONFIG_CPUFREQ
-
 /* #define DEBUG_CPUFREQ 1 */
 
 #ifdef DEBUG_CPUFREQ
@@ -55,7 +53,7 @@ static int cpufreq_init(void);
  * Driver structure
  */
 struct driver cpufreq_drv __driver_entry = {
-	/* name */	"CPU Freqency Control",
+	/* name */	"CPU Frequency Control",
 	/* order */	3,		/* Must larger than pm driver */
 	/* init */	cpufreq_init,
 };
@@ -124,4 +122,3 @@ static int cpufreq_init(void)
 	return 0;
 }
 
-#endif /* CONFIG_CPUFREQ */

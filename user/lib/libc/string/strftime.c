@@ -54,7 +54,7 @@ static const char *Bfmt[] = {
 
 static size_t gsize;
 static char *pt;
-static int _add __P((char *));
+static int _add __P((const char *));
 static int _conv __P((int, int, int));
 static int _secs __P((const struct tm *));
 static size_t _fmt __P((const char *, const struct tm *));
@@ -79,7 +79,7 @@ strftime(s, maxsize, format, t)
 
 static size_t
 _fmt(format, t)
-	register const char *format;
+	const char *format;
 	const struct tm *t;
 {
 	for (; *format; ++format) {
@@ -249,8 +249,8 @@ _secs(t)
 	const struct tm *t;
 {
 	static char buf[15];
-	register time_t s;
-	register char *p;
+	time_t s;
+	char *p;
 	struct tm tmp;
 
 	/* Make a copy, mktime(3) modifies the tm struct. */
@@ -266,7 +266,7 @@ _conv(n, digits, pad)
 	int n, digits, pad;
 {
 	static char buf[10];
-	register char *p;
+	char *p;
 
 	for (p = buf + sizeof(buf) - 2; n > 0 && p > buf; n /= 10, --digits)
 		*p-- = n % 10 + '0';
@@ -277,7 +277,7 @@ _conv(n, digits, pad)
 
 static int
 _add(str)
-	register char *str;
+	const char *str;
 {
 	for (;; ++pt, --gsize) {
 		if (!gsize)

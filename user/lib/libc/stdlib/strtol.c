@@ -32,7 +32,6 @@ static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <limits.h>
-#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 
@@ -47,13 +46,13 @@ long
 strtol(nptr, endptr, base)
 	const char *nptr;
 	char **endptr;
-	register int base;
+	int base;
 {
-	register const char *s = nptr;
-	register unsigned long acc;
-	register int c;
-	register unsigned long cutoff;
-	register int neg = 0, any, cutlim;
+	const char *s = nptr;
+	unsigned long acc;
+	int c;
+	unsigned long cutoff;
+	int neg = 0, any, cutlim;
 
 	/*
 	 * Skip white space and pick up leading +/- sign if any.
@@ -62,7 +61,7 @@ strtol(nptr, endptr, base)
 	 */
 	do {
 		c = *s++;
-	} while (isspace(c));
+	} while (c == ' ');
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -98,11 +97,12 @@ strtol(nptr, endptr, base)
 	cutlim = cutoff % (unsigned long)base;
 	cutoff /= (unsigned long)base;
 	for (acc = 0, any = 0;; c = *s++) {
-		if (isdigit(c))
+		if (c >= '0' && c <= '9')
 			c -= '0';
-		else if (isalpha(c))
-			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
-		else
+		else if (c >= 'A' && c <= 'F')
+			c -= ('A' - 10);
+		else if (c >= 'a' && c <= 'f')
+			c -= ('a' - 10);
 			break;
 		if (c >= base)
 			break;

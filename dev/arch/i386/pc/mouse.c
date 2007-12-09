@@ -62,7 +62,6 @@ static int mouse_open();
 static int mouse_close();
 static int mouse_read();
 
-#ifdef CONFIG_MOUSE
 /*
  * Driver structure
  */
@@ -71,7 +70,6 @@ struct driver mouse_drv __driver_entry = {
 	/* order */	6,
 	/* init */	mouse_init,
 };
-#endif
 
 static struct devio mouse_io = {
 	/* open */	mouse_open,

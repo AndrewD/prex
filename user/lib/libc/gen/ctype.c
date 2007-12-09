@@ -32,7 +32,7 @@
  */
 #include <ctype.h>
 
-unsigned char _ctype[] = {0x00,                        /* EOF     */
+const unsigned char _ctype[] = {0x00,                  /* EOF     */
 _C,_C,_C,_C,_C,_C,_C,_C,                               /* 0-7     */
 _C,_C|_S,_C|_S,_C|_S,_C|_S,_C|_S,_C,_C,                /* 8-15    */
 _C,_C,_C,_C,_C,_C,_C,_C,                               /* 16-23   */

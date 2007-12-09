@@ -42,6 +42,9 @@
 #include <page.h>
 #include "../i386/cpu.h"
 
+/* #define SCREEN_80x25 1 */
+#define SCREEN_80x50 1
+
 #ifdef DEBUG
 
 typedef void (*print_func)(char);
@@ -56,8 +59,14 @@ static print_func print_handler;	/* Pointer to print handler */
 #define VID_ATTR	0x0F00
 #define VID_PORT	0x03d4
 #define VID_RAM		0xB8000
+
+#ifdef SCREEN_80x25
 #define SCR_WIDTH	80
 #define SCR_HIGHT	25
+#else
+#define SCR_WIDTH	80
+#define SCR_HIGHT	50
+#endif
 
 /* Screen info */
 static short *vram;

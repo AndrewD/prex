@@ -156,7 +156,8 @@ void irq_detach(int handle)
 	interrupt_mask(irq->vector);
 	irq_unlock();
 	irq_table[irq->vector] = NULL;
-	__thread_terminate(irq->thread);
+	if (irq->thread)
+		__thread_terminate(irq->thread);
 	kmem_free(irq);
 	return;
 }

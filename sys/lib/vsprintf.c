@@ -116,9 +116,11 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 			str = va_arg(args, char *);
 			if (str == NULL)
 				str = "<NULL>";
-			for (; *str; str++) {
+			for (; *str && width != 0; str++, width--) {
 				*p++ = *str;
 			}
+			while (width-- > 0)
+				*p++ = pad;
 			continue;
 		case 'X':
 		case 'x':

@@ -44,12 +44,12 @@ void
 exit(status)
 	int status;
 {
-	register struct atexit *p;
-	register int n;
+	int i = __atexit_index;
 
-	for (p = __atexit; p; p = p->next)
-		for (n = p->ind; --n >= 0;)
-			(*p->fns[n])();
+	while (i) {
+		__atexit_list[i]();
+		i--;
+	}
 	if (__cleanup)
 		(*__cleanup)();
 	_exit(status);

@@ -1,3 +1,67 @@
+2007-06-20  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/include/param.h: Update version to 0.5.0.
+
+	* user/test/fileio/main.c: Added test program for file system.
+	* user/test/fileio/fslib.c: Likewise.
+	* user/test/fileio/fslib.h: Likewise.
+	* user/test/fileio/Makefile: Likewise.
+
+	* user/server/fs/*: Adde file system server. This includes VFS
+	framework, buffer cache, ramfs, devfs, and arfs (archive fs).
+	
+2007-06-17  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* mk/Makefile.inc: Optimized build speed for cygwin.
+
+	* configure: Removed dependency to 'sed' and added confiure script
+	for build process.
+	* mk/Makefile.inc: Likewise.
+	* mk/own.mk: Likewise.
+
+	* boot/arch/i386/pc/head.s: Changed file name to head.S.
+
+2007-06-16  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	Applied following patches posted by Andrew Dennison.
+
+	* dev/power/cpufreq.c: Fixed typos.
+	* sys/include/system.h: Likewise.
+	* user/bin/kmon/cmd.c: Likewise.
+
+	* mk/Makefile.inc: Added more dependencies and intermediate elf file.
+	for binary output
+
+	* boot/include/types.h: Added C99 types for boot too.
+
+	* sys/kern/irq.c (irq_detach): Fixed crash in irq_detach() when not
+	using an ist.
+
+	* dev/include/driver.h: Const correctness, fix timer_delay() prototype
+	for drivers.
+	* kern/sys/device.c: Likewise.
+
+	* sys/kern/timer.c: Fixed spelling in comment.
+
+	* sys/lib/vsprintf.c (vsprintf): support field width for %s.
+
+	* convert config to makefile variables and autogenerate config.h.
+
+	* convert driver selection to makefile based CONFIG variable.
+
+2007-06-02  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* mk/prog.mk: Support BSD style makefile for POSIX applications.
+	PROG and SRCS macro is supported now.
+
+2007-05-02  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/arch/i386/i386/cpu.h: Removed pad data from desc_p. This
+	was an obsolete hack for msvc compiler.
+
+	* boot/common/elf.c (elf_load): Corrected the macro to get
+	the kernel load address. phys_to_virt => virt_to_phys.
+
 2007-04-13  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
 	* sys/include/param.h: Update version to 0.4.3.

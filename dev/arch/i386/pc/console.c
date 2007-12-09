@@ -34,15 +34,27 @@
 #include <string.h>
 #include <io.h>
 
-#define VID_PORT	0x03d4
+/* #define SCREEN_80x25 1 */
+#define SCREEN_80x50 1
+
+#define CRTC_INDEX	0x3d4
+#define CRTC_DATA	0x3d5
+#define GRAC_INDEX	0x3ce
+#define GRAC_DATA	0x3cf
+
 #define VID_RAM		0xB8000
+
+#ifdef SCREEN_80x25
 #define SCR_WIDTH	80
 #define SCR_HIGHT	25
+#else
+#define SCR_WIDTH	80
+#define SCR_HIGHT	50
+#endif
 
 static int console_init();
 static int console_write();
 
-#ifdef CONFIG_CONSOLE
 /*
  * Driver structure
  */
@@ -51,7 +63,6 @@ struct driver console_drv __driver_entry = {
 	/* order */	10,
 	/* init */	console_init,
 };
-#endif
 
 static struct devio console_io = {
 	/* open */	NULL,
@@ -91,10 +102,10 @@ static void move_cursor(void)
 	int pos = pos_y * SCR_WIDTH + pos_x;
 
 	irq_lock();
-	outb(0x0e, VID_PORT);
-	outb((u_char)(pos >> 8), VID_PORT + 1);
-	outb(0x0f, VID_PORT);
-	outb((u_char)(pos & 0xff), VID_PORT + 1);
+	outb(0x0e, CRTC_INDEX);
+	outb((u_char)(pos >> 8), CRTC_DATA);
+	outb(0x0f, CRTC_INDEX);
+	outb((u_char)(pos & 0xff), CRTC_DATA);
 	irq_unlock();
 }
 
@@ -103,13 +114,13 @@ static void reset_cursor(void)
 	int offset;
 
 	irq_lock();
-	outb(0x0e, VID_PORT);
-	offset = inb(VID_PORT + 1);
+	outb(0x0e, CRTC_INDEX);
+	offset = inb(CRTC_DATA);
 	offset <<= 8;
-	outb(0x0f, VID_PORT);
-	offset += inb(VID_PORT + 1);
-	pos_x = offset % 80;
-	pos_y = offset / 80;
+	outb(0x0f, CRTC_INDEX);
+	offset += inb(CRTC_DATA);
+	pos_x = offset % SCR_WIDTH;
+	pos_y = offset / SCR_WIDTH;
 	irq_unlock();	
 }
 
@@ -125,14 +136,16 @@ static void new_line(void)
 
 static void clear_screen(void)
 {
+#if GRAPHICS_MODE
+#else
 	int i;
 
 	for (i = 0; i < SCR_WIDTH * SCR_HIGHT; i++)
 		vram[i] = ' ' | (attrib << 8);
-
 	pos_x = 0;
 	pos_y = 0;
 	move_cursor();
+#endif
 }
 
 /*

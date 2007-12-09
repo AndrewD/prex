@@ -1,6 +1,8 @@
 #
 # Test for kernel
 #
+include $(PREX_SRC)/conf/config.mk
+
 SUBDIRS	=  task thread ipc timer except fault deadlock sem mutex \
 	cap dvs ipc_mt
 
@@ -17,5 +19,11 @@ SUBDIRS += kbd time zero fdd console ramdisk
 # Test for library
 #
 SUBDIRS += errno malloc
+
+
+#
+# Test for servers
+#
+SUBDIRS += fileio
 
 include $(PREX_SRC)/mk/Makefile.inc

@@ -1,6 +1,8 @@
 #
 # Make rules to build object module.
 #
+include $(PREX_SRC)/mk/own.mk
+
 INC_FLAGS += -I$(PREX_SRC)/conf \
 	-I$(PREX_SRC)/user/arch/$(PREX_ARCH) \
 	-I$(PREX_SRC)/user/include

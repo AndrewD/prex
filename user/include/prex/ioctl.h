@@ -34,7 +34,12 @@
  * Format definition for 'ioctl' commands is compatible with BSDs.
  */
 
+
 #define	IOCPARM_MASK	0x1fff		/* parameter length, at most 13 bits */
+#define	IOCPARM_LEN(x)	(((x) >> 16) & IOCPARM_MASK)
+#define	IOCBASECMD(x)	((x) & ~(IOCPARM_MASK << 16))
+#define	IOCGROUP(x)	(((x) >> 8) & 0xff)
+
 #define	IOC_VOID	0x20000000	/* no parameters */
 #define	IOC_OUT		0x40000000	/* copy out parameters */
 #define	IOC_IN		0x80000000U	/* copy in parameters */

@@ -1,0 +1,124 @@
+#! /bin/sh
+#
+# Prex configuration script
+#
+
+[ ! -d conf ] && { echo "configure: must be run from the top source level"; exit 1; }
+
+while [ $# != 0 ]
+do
+	case $1 in
+	--*=*)
+		option=`expr "x$1" : 'x\([^=]*\)='`
+		optarg=`expr "x$1" : 'x[^=]*=\(.*\)'`
+		;;
+	--*)
+		option=$1
+		;;
+	*)
+		echo "configure: unrecognized option $1"
+		exit 1
+		;;
+	esac
+
+	case $option in
+	--help)
+		echo "Usage: configure [options]"
+		echo " General options:"
+		echo "  --target=TARGET         target system"
+		echo "  --cross-compile=PREFIX  prefix for cros-compile tools"
+		echo "  --no-debug              disable all debug code"
+		echo " Supported targets:"
+		echo "  i386-pc i386-nommu arm-gba"
+		exit 0
+		;;
+	--target)
+		target=$optarg ;;
+	--cross-compile)
+		cross=$optarg ;;
+	--no-debug)
+		nodebug=1 ;;
+	*)
+		echo "configure: unrecognized option $1"
+		exit 1
+		;;		
+	esac
+	shift
+done
+
+default_target=0
+if [ "x$target" = x ] ; then
+	target="i386-pc"
+	default_target=1
+fi
+
+srcdir=`pwd`
+
+arch=`expr "x$target" : 'x\([^=]*\)-'`
+platform=`expr "x$target" : 'x[^=]*-\(.*\)'`
+
+host_name=`uname -s`
+case $host_name in
+	CYGWIN*)
+		if [ x$cross = x ]; then
+			case $arch in
+			i386)    cross="i386-elf-" ;;
+			arm)     cross="arm-elf-" ;;
+			powerpc) cross="powerpc-eabi-" ;;
+			sh)      cross="sh-elf-" ;;
+			mips)    cross="mips-elf-" ;;
+			esac
+		fi
+		;;
+esac
+
+CONFIG_IN=$srcdir/conf/config.$arch-$platform
+CONFIG_MK=$srcdir/conf/config.mk
+CONFIG_H=$srcdir/conf/config.h
+
+[ ! -f $CONFIG_IN ] && { echo "configure: can not find conf/config.$arch-$platform"; exit 1; }
+
+echo "Processing configuration file..."
+
+echo "#" > $CONFIG_MK
+echo "# Automatically generated from $CONFIG_IN." >> $CONFIG_MK
+echo "# Don't edit!" >> $CONFIG_MK
+echo "#" >> $CONFIG_MK
+
+echo "/*" > $CONFIG_H
+echo " * Automatically generated from $CONFIG_IN." >> $CONFIG_H
+echo " * Don't edit!" >> $CONFIG_H
+echo " */" >> $CONFIG_H
+
+echo "PREX_SRC=$srcdir" >> $CONFIG_MK
+echo "PREX_ARCH=$arch" >> $CONFIG_MK
+echo "PREX_PLATFORM=$platform" >> $CONFIG_MK
+[ "x$cross" != x ] && echo "CROSS_COMPILE=$cross" >> $CONFIG_MK
+[ "x$nodebug" != x ] && echo "NDEBUG=1" >> $CONFIG_MK
+
+echo "" >> $CONFIG_MK
+
+while read line
+do
+	word=`expr "x$line" : 'x\(CONFIG_[A-Za-z0-9_=]*\)'`
+	param=`expr "x$word" : 'x\([^=]*\)='`
+	value=`expr "x$word" : 'x[^=]*=\([A-Za-z0-9]*\)'`
+	if [ -n "$param" ] ; then
+		echo "$word"
+		echo "$word" >> $CONFIG_MK
+		if [ "$value" = "n" ] ; then
+			echo "#undef $param" >> $CONFIG_H
+		else
+			echo "#define $param $value" >> $CONFIG_H
+		fi
+	fi
+done < $CONFIG_IN
+
+if [ $default_target = 1 ]; then
+	echo
+	echo "Warning: '--target' option was not specified."
+	echo "The target system was set to 'i386-pc' as default."
+	echo
+fi
+
+exit 0

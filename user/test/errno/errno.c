@@ -34,7 +34,7 @@
 #include <string.h>
 #include <stdio.h>
 
-extern int sys_nerr;
+extern const int sys_nerr;
 
 int main(int argc, char *argv[])
 {

@@ -30,8 +30,7 @@
 /*
  * meminfo.c - getting memory information
  */
-#include <config.h>
-#include <bootinfo.h>
+#include <boot.h>
 
 extern u_long lo_mem;
 extern u_long hi_mem;
@@ -49,8 +48,8 @@ void get_meminfo(struct boot_info *boot_info)
 	hi_mem = 0;
 #endif
 	boot_info->main_mem.start = 0;
-	boot_info->main_mem.size = (1024 + hi_mem) * 1024;
+	boot_info->main_mem.size = (size_t)((1024 + hi_mem) * 1024);
 
 	boot_info->reserved[0].start = ((u_long)lo_mem * 1024);
-	boot_info->reserved[0].size = (1024 - lo_mem) * 1024;
+	boot_info->reserved[0].size = (size_t)((1024 - lo_mem) * 1024);
 }

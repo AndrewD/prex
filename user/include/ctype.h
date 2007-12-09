@@ -39,7 +39,7 @@
 #define _X  0x40		/* hex digit */
 #define _SP 0x80		/* hard space (0x20) */
 
-extern unsigned char _ctype[];
+extern const unsigned char _ctype[];
 
 #define isalnum(c) ((int)((_ctype+1)[c]&(_U|_L|_D)))
 #define isalpha(c) ((int)((_ctype+1)[c]&(_U|_L)))

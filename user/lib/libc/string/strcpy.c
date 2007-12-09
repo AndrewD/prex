@@ -36,8 +36,8 @@ static char sccsid[] = "@(#)strcpy.c	8.1 (Berkeley) 6/4/93";
 
 char *
 strcpy(to, from)
-	register char *to;
-	register const char *from;
+	char *to;
+	const char *from;
 {
 	char *save = to;
 

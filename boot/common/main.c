@@ -96,11 +96,11 @@ static int load_image(struct ar_hdr *hdr, struct img_info *info)
 static void setup_ramdisk(struct ar_hdr *hdr)
 {
 	struct mem_info *ram_disk;
-	u_long size;
+	size_t size;
 
 	if (strncmp((char *)&hdr->eol, EOLSIG, 2))
 		return;
-	size = atol((char *)&hdr->size);
+	size = (size_t)atol((char *)&hdr->size);
 	if (size == 0)
 		return;
 
@@ -195,7 +195,7 @@ static void setup_image(void)
 	 * This includes kernel, driver, and boot tasks.
 	 */
 	boot_info->boot_modules.start = load_start;
-	boot_info->boot_modules.size = load_base - load_start;
+	boot_info->boot_modules.size = (size_t)(load_base - load_start);
 }
 
 #ifdef DEBUG_BOOT

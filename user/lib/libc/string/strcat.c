@@ -35,8 +35,8 @@ static char sccsid[] = "@(#)strcat.c	8.1 (Berkeley) 6/4/93";
 
 char *
 strcat(s, append)
-	register char *s;
-	register const char *append;
+	char *s;
+	const char *append;
 {
 	char *save = s;
 

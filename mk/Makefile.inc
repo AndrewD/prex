@@ -11,11 +11,10 @@
 # Optional environment variables
 #
 #  NDEBUG        ... 0 for debug, 1 for release (default: 0)
-#  CROSS_COMPILE ... Prefix of tools for cross compile
 #  KTRACE        ... 1 for the kernel function trace (default: 0)
 #  LIBGCC_PATH   ... Full path for libgcc.a
+#  CROSS_COMPILE ... Prefix of tools for cross compile
 #
-
 # Variables in local Makefile
 #
 #  TARGET	... Target file name
@@ -23,10 +22,12 @@
 #		    e.g. OBJECT,LIBRARY,KERNEL,BINARY,EXEC,DRIVER,OS_IMAGE
 #  SUBDIRS	... List of subdirectories
 #  OBJS		... Object files
+#  OBJS-y	... Object files (for drivers)
 #  LIBS		... Libraries
 #  MAP		... Name of map file
 #  DISASM	... Disassemble list file
 #  SYMBOL	... Symbol files
+#
 
 #
 # Option for cross compile
@@ -61,9 +62,9 @@ ASMGEN	= $(OBJDUMP) $@ --disassemble-all > $(DISASM)
 endif
 
 #
-# Architecture dependent options
+# System dependent options
 #
-include $(PREX_SRC)/mk/Makefile.$(PREX_ARCH)
+include $(PREX_SRC)/mk/own.mk
 
 #
 # Flags
@@ -79,7 +80,9 @@ CFLAGS += -DDEBUG -g
 endif
 
 # Correct gcc behavior for some distributions.
-CFLAGS += $(shell if $(CC) -fno-stack-protector -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo "-fno-stack-protector"; fi)
+SSP_FLAG ?= $(shell if $(CC) -fno-stack-protector -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo "-fno-stack-protector"; fi)
+export SSP_FLAG
+CFLAGS += $(SSP_FLAG)
 
 ifdef MAP
 LDFLAGS += -Map $(MAP)
@@ -93,6 +96,7 @@ LDFLAGS	+=
 
 LINT_FLAGS = -D__lint__ $(DEF_FLAGS) -nolib -weak -fcnuse -nestcomment \
 	-retvalother -fullinitblock
+
 # 
 # Specify path for libgcc.a
 #
@@ -120,6 +124,20 @@ endif
 all: $(SUBDIRS) $(TARGET)
 
 #
+# Check configuration
+#
+ifeq (0, ${MAKELEVEL})
+# add dependency on config.h
+$(SUBDIRS):$(PREX_SRC)/conf/config.h
+
+$(PREX_SRC)/conf/config.h: dummy
+	@if [ ! -f $@ ]; then \
+		echo 'You must run `configure` before make.' ;\
+		exit 1 ;\
+	fi
+endif
+
+#
 # Rules to process sub-directory
 #
 ifdef SUBDIRS
@@ -129,11 +147,11 @@ $(SUBDIRS): dummy
 endif
 
 #
-# Rules to compile a set of .o files into one .o file
+# Rules to link a set of .o files into one .o file
 #
 ifeq ($(TYPE),OBJECT)
-$(TARGET): $(OBJS)
-	$(LD) $(LDFLAGS) $(EXTRA_LDFLAGS) -r -o $@ $(OBJS) $(LIBS)
+$(TARGET): $(OBJS) $(OBJS-y)
+	$(LD) $(LDFLAGS) $(EXTRA_LDFLAGS) -r -o $@ $^ $(LIBS)
 endif
 
 #
@@ -151,7 +169,7 @@ endif
 # Rules to compile kernel
 #
 ifeq ($(TYPE),KERNEL)
-$(TARGET): $(OBJS) $(LIBS)
+$(TARGET): $(OBJS) $(LIBS) $(LDS_SCRIPT)
 	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS)
 	$(ASMGEN)
 ifdef SYMBOL
@@ -164,7 +182,7 @@ endif
 # Rules to compile device driver
 #
 ifeq ($(TYPE),DRIVER)
-$(TARGET):  $(OBJS)
+$(TARGET):  $(OBJS-y) $(LDS_SCRIPT)
 	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS)
 	$(ASMGEN)
 ifdef SYMBOL
@@ -177,9 +195,12 @@ endif
 # Rules to compile binary file
 #
 ifeq ($(TYPE),BINARY)
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) $(LDS_SCRIPT)
 	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) $(EXTRA_LDFLAGS) -o $@ $(OBJS) $(LIBS)
 	$(ASMGEN)
+ifdef SYMBOL
+	cp $@ $(SYMBOL)
+endif
 	$(OBJCOPY) $(OBJCOPYFLAGS) $@
 endif
 
@@ -187,7 +208,7 @@ endif
 # Rules to compile executable file
 #
 ifeq ($(TYPE),EXEC)
-$(TARGET): $(OBJS) $(LIBS)
+$(TARGET): $(OBJS) $(LIBS) $(LDS_SCRIPT)
 	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) $(EXTRA_LDFLAGS) -o $@ \
 	$(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC_PATH)libgcc.a
 	$(ASMGEN)
@@ -218,7 +239,7 @@ endif
 
 -include Makefile.dep
 
-SRCS = $(wildcard *.c) $(wildcard *.S)
+C_SRCS = $(wildcard *.c) $(wildcard *.S)
 
 #
 # Depend
@@ -231,7 +252,7 @@ ifdef SUBDIRS
 	done);
 endif
 	$(RM) -f Makefile.dep
-	@(for d in $(SRCS) _ ; do \
+	@(for d in $(C_SRCS) _ ; do \
 	  if [ "$$d" != "_" ] ; then \
 	  $(CPP) -M $(CPPFLAGS) $$d >> Makefile.dep; fi; \
 	done);
@@ -240,7 +261,7 @@ endif
 #
 .PHONY: lint
 lint:
-	@(for d in $(SRCS) _ ; do \
+	@(for d in $(C_SRCS) _ ; do \
 	  if [ "$$d" != "_" ] ; then \
 	  $(LINT) $(LINT_FLAGS) $(INC_FLAGS) $$d; fi; \
 	done);
@@ -255,20 +276,6 @@ ifdef SUBDIRS
 	  if [ "$$d" != "_" ] ; then $(MAKE) -C $$d clean; fi; \
 	done);
 endif
-	$(RM) -f Makefile.dep
-	$(RM) -f $(OBJS)
-	$(RM) -f $(TARGET)
-ifdef DISASM
-	$(RM) -f $(DISASM)
-endif
-ifdef MAP
-	$(RM) -f $(MAP)
-endif
-ifdef SYMBOL
-	$(RM) -f $(SYMBOL)
-endif
-ifdef CLEANS
-	$(RM) -f $(CLEANS)
-endif
+	$(RM) -f Makefile.dep $(TARGET) $(OBJS) $(OBJS-y) $(DISASM) $(MAP) $(SYMBOL) $(CLEANS)
 
 .PHONY: dummy

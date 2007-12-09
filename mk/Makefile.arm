@@ -1,7 +1,0 @@
-#
-# Make option for arm
-#
-ASFLAGS +=
-CFLAGS += -mcpu=arm7tdmi -mtune=arm7tdmi
-CPPFLAGS +=
-OBJCOPYFLAGS = -I elf32-littlearm -O binary -R .note -R .comment -S

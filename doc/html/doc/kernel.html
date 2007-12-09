@@ -9,22 +9,31 @@
   <link rel="stylesheet" type="text/css" href="../print.css" media="print">
 </head>
 <body>
-<table id="content" border="0" cellpadding="0" cellspacing="0" width=100%>
+<table id="content" cellpadding="0" cellspacing="0">
   <tbody>
 
     <tr>
-      <td id="header" colspan="2" style="vertical-align: top;">
-      <a href="http://prex.sourceforge.net/">
-      <img alt="Prex logo" src="../logo.gif" border="0"
-       style="width: 240px; height: 60px;"></a><br>
-      <sup><strong>Embedded Real-Time Operating System</strong></sup>
+      <td id="header" colspan="2" valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+          <td id="logo">
+            <a href="http://prex.sourceforge.net/">
+            <img alt="Prex logo" src="../img/logo.gif" border="0"
+            style="width: 281px; height: 56px;"></a>
+          </td>
+          <td id="brief" align="right" valign="bottom">
+            An Open Source, Royalty-free,<br>
+	    Real-time Operating System
+          </td>
+        </tr>
+        </table>
       </td>
     </tr>
 
     <tr>
       <td id="directory" style="vertical-align: top;">
-      <a href="http://prex.sourceforge.net/">Prex Home</a> /
-      <a href="index.html">Document Index</a> /
+      <a href="http://prex.sourceforge.net/">Prex Home</a> >
+      <a href="index.html">Document Index</a> >
       Kernel Internals
     </tr>
 
@@ -255,7 +264,7 @@ The initial states of newly created thread are as follow:
 </p>
 
 <i><b>Table 1. Initial thread state</b></i>
-<table class="table" border="1" width="60%" cellspacing="0">
+<table border="1" width="60%" cellspacing="0">
 <tbody>
 <tr>
   <th>Data type</th>
@@ -306,7 +315,7 @@ and pthread_create() in the POSIX emulation library.
 </p>
 
 <i><b>Table 2. Usage of thread_create()/thread_load()</b></i>
-<table class="table" border="1" width="80%" cellspacing="0">
+<table border="1" width="80%" cellspacing="0">
 <tbody>
 <tr>
   <th>Library routine</th>
@@ -407,7 +416,7 @@ The initial task states are as follow:
 </p>
 
 <i><b>Table 3. Initial task state</b></i>
-<table class="table" border="1" width="60%" cellspacing="0">
+<table border="1" width="60%" cellspacing="0">
 <tbody>
 <tr>
   <th>Data type</th>
@@ -505,7 +514,7 @@ There are following 4 events to switch thread:
 </p>
 
 <i><b>Table 4. Events to switch thread</b></i>
-<table class="table" border="1" width="90%" cellspacing="0">
+<table border="1" width="90%" cellspacing="0">
 <tbody>
 <tr>
   <th>Event</th>
@@ -810,7 +819,7 @@ The following pre-defined exceptions are raised by kernel itself.
 </p>
 
 <i><b>Table 5. Kernel exceptions</b></i>
-<table class="table" border="1" width="80%" cellspacing="0">
+<table border="1" width="80%" cellspacing="0">
 <tbody>
 <tr>
   <th>Exception</th>
@@ -1047,20 +1056,15 @@ There are following debugging support functions:
 </ul>
     </tr>
 
-    <tr>
-      <td id="footer"  style="vertical-align: top;">
-      Powered by:
-      <a href="http://sourceforge.net/">
-      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
-      alt="SourceForge.net Logo" border="0" height="31" width="88"
-      align="left"></a>
-      <div style="text-align:right;">
-      Copyright&copy; 2005 Kohsuke Ohtani<br>
-      Last modified 2005-12-31<br>
-      </div>
-      </td>
-    </tr>
   </tbody>
 </table>
+
+      <div id="footer" style="text-align:center;">
+      <a href="http://sourceforge.net">
+      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
+      alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
+      Copyright&copy; 2005-2007 Kohsuke Ohtani
+      </div>
+
 </body>
 </html>

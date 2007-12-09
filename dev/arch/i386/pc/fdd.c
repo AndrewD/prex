@@ -137,7 +137,6 @@ typedef struct io_req *ioreq_t;
 #define IO_FORMAT	3	/* not supported */
 #define IO_CANCEL	4
 
-#ifdef CONFIG_FDD
 /*
  * Driver structure
  */
@@ -146,7 +145,6 @@ struct driver fdd_drv __driver_entry = {
 	/* order */	5,
 	/* init */	fdd_init,
 };
-#endif
 
 static struct devio fdd_io = {
 	/* open */	fdd_open,

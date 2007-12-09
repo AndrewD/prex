@@ -37,8 +37,8 @@ static char sccsid[] = "@(#)strmode.c	8.3 (Berkeley) 8/15/94";
 
 void
 strmode(mode, p)
-	register mode_t mode;
-	register char *p;
+	mode_t mode;
+	char *p;
 {
 	 /* print type */
 	switch (mode & S_IFMT) {

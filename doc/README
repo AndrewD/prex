@@ -59,23 +59,25 @@ Step 2: Prepare Sources
 Step 3: Configure
 
   Setup target architecture and platform.
-  The following sample shows about i386-pc target.
+  The following sample shows for i386-pc target.
 
-  $ export PREX_ARCH=i386
-  $ export PREX_PLATFORM=pc
-  $ export PREX_SRC=/usr/src/prex-X.X.X
+  $ ./configure --target=i386-pc
 
   If you cross compile Prex from a different architecture and/or OS,
-  you have to set CROSS_COMPILE variable. The following sample shows
-  the compiling Prex on Cygwin.
-
-  $ export CROSS_COMPILE=i386-elf-
+  you have to set --cross-compile option. Please check other options
+  with --help option for 'configure'.
 
 Step 4: Build
 
   Run make (and pray :)
 
   $ make
+
+
+Note) If you want to run 'make' in the subdirectory, you have to set the
+      PREX_SRC as follow.
+
+  $ export PREX_SRC=/usr/src/prex-X.X.X
 
 
 Directory Structure
@@ -114,6 +116,7 @@ Prex source code is divided into the following directories:
 	arch		Architecture/platform dependent code
 	include		Header files
 	lib		User libraries
+	server		System servers
 	bin		System utilities
 	test		Function test programs
 	sample		Sample programs

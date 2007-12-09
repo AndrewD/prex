@@ -36,11 +36,11 @@ static char sccsid[] = "@(#)strtok.c	8.1 (Berkeley) 6/4/93";
 
 char *
 strtok(s, delim)
-	register char *s;
-	register const char *delim;
+	char *s;
+	const char *delim;
 {
-	register char *spanp;
-	register int c, sc;
+	char *spanp;
+	int c, sc;
 	char *tok;
 	static char *last;
 

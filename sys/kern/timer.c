@@ -301,7 +301,7 @@ static void alarm_callback(void *task)
  * It schedules an alarm exception.
  *
  * @delay:  delay time in milli-second. If delay is 0, stop the timer
- * @remain: remaining time of the precious alarm request.
+ * @remain: remaining time of the previous alarm request.
  *
  * EXC_ALRM is sent to the caller task when specified delay time
  * is passed.

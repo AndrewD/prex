@@ -38,9 +38,9 @@ static char sccsid[] = "@(#)ffs.c	8.1 (Berkeley) 6/4/93";
  */
 int
 ffs(mask)
-	register int mask;
+	int mask;
 {
-	register int bit;
+	int bit;
 
 	if (mask == 0)
 		return(0);

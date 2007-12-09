@@ -9,22 +9,31 @@
   <link rel="stylesheet" type="text/css" href="../print.css" media="print">
 </head>
 <body>
-<table id="content" border="0" cellpadding="0" cellspacing="0" width=100%>
+<table id="content" cellpadding="0" cellspacing="0">
   <tbody>
 
     <tr>
-      <td id="header" colspan="2" style="vertical-align: top;">
-      <a href="http://prex.sourceforge.net/">
-      <img alt="Prex logo" src="../logo.gif" border="0"
-       style="width: 240px; height: 60px;"></a><br>
-      <sup><strong>Embedded Real-Time Operating System</strong></sup>
+      <td id="header" colspan="2" valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+          <td id="logo">
+            <a href="http://prex.sourceforge.net/">
+            <img alt="Prex logo" src="../img/logo.gif" border="0"
+            style="width: 281px; height: 56px;"></a>
+          </td>
+          <td id="brief" align="right" valign="bottom">
+            An Open Source, Royalty-free,<br>
+	    Real-time Operating System
+          </td>
+        </tr>
+        </table>
       </td>
     </tr>
 
     <tr>
       <td id="directory" style="vertical-align: top;">
-      <a href="http://prex.sourceforge.net/">Prex Home</a> /
-      <a href="index.html">Document Index</a> /
+      <a href="http://prex.sourceforge.net/">Prex Home</a> >
+      <a href="index.html">Document Index</a> >
       Driver Development Guide
     </tr>
 
@@ -41,10 +50,12 @@
   <li><a href="#gen">General Information</a></li>
   <li><a href="#inst">Installing a New Driver</a></li>
   <li><a href="#obj">Device Object</a></li>
-  <li><a href="#int">Interrupt Handling</a></li>
   <li><a href="#init">Driver Initialization</a></li>
   <li><a href="#io">Device I/O Routines</a></li>
   <li><a href="#msg">Driver Message</a></li>
+  <li><a href="#int">Interrupt Handling</a></li>
+  <li><a href="#timer">Timers</a></li>
+  <li><a href="#dpc">Deferred Procedure Call</a></li>
   <li><a href="#filter">I/O Filter</a></li>
   <li><a href="#sample">Sample Driver</a></li>
 </ul>
@@ -76,17 +87,27 @@
 </p>
 
 
-<h2 id="int">Interrupt Handling</h2>
-<p>
-</p>
-
-
 <h2 id="io">Device I/O Routines</h2>
 <p>
 </p>
 
 
 <h2 id="msg">Driver Message</h2>
+<p>
+</p>
+
+
+<h2 id="int">Interrupt Handling</h2>
+<p>
+</p>
+
+
+<h2 id="timer">Timers</h2>
+<p>
+</p>
+
+
+<h2 id="dpc">Deferred Procedure Call</h2>
 <p>
 </p>
 
@@ -104,20 +125,15 @@
       </td>
     </tr>
 
-    <tr>
-      <td id="footer"  style="vertical-align: top;">
-      Powered by:
-      <a href="http://sourceforge.net/">
-      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
-      alt="SourceForge.net Logo" border="0" height="31" width="88"
-      align="left"></a>
-      <div style="text-align:right;">
-      Copyright&copy; 2005 Kohsuke Ohtani<br>
-      Last modified 2005-09-01<br>
-      </div>
-      </td>
-    </tr>
   </tbody>
 </table>
+
+      <div id="footer" style="text-align:center;">
+      <a href="http://sourceforge.net">
+      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
+      alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
+      Copyright&copy; 2005-2007 Kohsuke Ohtani
+      </div>
+
 </body>
 </html>

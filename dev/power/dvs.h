@@ -47,5 +47,7 @@ extern void dvs_enable(void);
 extern void dvs_disable(void);
 extern void dvs_init(void);
 
+extern void cpufreq_setpolicy(int policy);
+
 extern int pm_getpolicy(void);
 #endif /* !_DVS_H */

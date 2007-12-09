@@ -38,7 +38,6 @@
 static int console_init();
 static int console_write();
 
-#ifdef CONFIG_CONSOLE
 /*
  * Driver structure
  */
@@ -56,7 +55,6 @@ static struct devio console_io = {
 	/* ioctl */ NULL,
 	/* event */ NULL,
 };
-#endif
 
 static device_t console_dev;
 static uint16_t *vram = CONSOLE_MAP;

@@ -44,11 +44,11 @@ static char sccsid[] = "@(#)strxfrm.c	8.1 (Berkeley) 6/4/93";
  */
 size_t
 strxfrm(dst, src, n)
-	register char *dst;
+	char *dst;
 	const char *src;
 	size_t n;
 {
-	register size_t srclen, copysize;
+	size_t srclen, copysize;
 
 	/*
 	 * Since locales are unimplemented, this is just a copy.

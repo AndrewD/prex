@@ -1,6 +1,8 @@
 #
 # Make options to build user mode libraries.
 #
+include $(PREX_SRC)/mk/own.mk
+
 TYPE = LIBRARY
 
 INC_FLAGS += -I$(PREX_SRC)/conf \

@@ -144,7 +144,7 @@ static void gdt_init(void)
 	/* Load GDT */
 	gdt_p.limit = sizeof(gdt) - 1;
 	gdt_p.base = (u_long)&gdt;
-	lgdt(&gdt_p.limit);
+	lgdt(&gdt_p);
 
 	/* Reset code, data and stack selectors */
 	set_cs(KERNEL_CS);
@@ -188,7 +188,7 @@ static void idt_init(void)
 	/* Load IDT */
 	idt_p.limit = sizeof(idt) - 1;
 	idt_p.base = (u_long)&idt;
-	lidt(&idt_p.limit);
+	lidt(&idt_p);
 }
 
 /*
@@ -220,7 +220,7 @@ void trap_set(int vec, void *handler)
 	idt_set(vec, handler, KERNEL_CS, ST_KERN | ST_TRAP_GATE);
 	idt_p.limit = sizeof(idt) - 1;
 	idt_p.base = (u_long)&idt;
-	lidt(&idt_p.limit);
+	lidt(&idt_p);
 }
 #endif
 

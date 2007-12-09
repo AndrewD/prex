@@ -36,8 +36,6 @@
 #include <pm.h>
 #include "dvs.h"
 
-#ifdef CONFIG_PM
-
 /* #define DEBUG_PM 1 */
 
 #ifdef DEBUG_PM
@@ -269,7 +267,7 @@ static int pm_ioctl(device_t dev, int cmd, u_long arg)
 		}
 		break;
 	case PMIOC_SET_POLICY:
-		err = pm_setpolicy(arg);
+		err = pm_setpolicy((int)arg);
 		break;
 	case PMIOC_GET_POLICY:
 		policy = pm_getpolicy();
@@ -300,5 +298,3 @@ static int pm_init(void)
 	       (power_policy == PM_POWERSAVE) ? "power save" : "performance");
 	return 0;
 }
-
-#endif /* CONFIG_PM */

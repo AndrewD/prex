@@ -47,7 +47,6 @@ static int kbd_open();
 static int kbd_close();
 static int kbd_read();
 
-#ifdef CONFIG_KEYBOARD
 /*
  * Driver structure
  */
@@ -56,7 +55,6 @@ struct driver kbd_drv __driver_entry = {
 	/* order */	4,
 	/* init */	kbd_init,
 };
-#endif
 
 static struct devio kbd_io = {
 	/* open */	kbd_open,
@@ -102,7 +100,9 @@ static const u_char shift_map[] = {
 
 static device_t kbd_dev;	/* Device object */
 static int kbd_irq;		/* Handle for keyboard irq */
+#if 0
 static int nr_open;		/* Open count */
+#endif
 static struct event io_event = EVENT_INIT(io_event, "kbd");
 
 static u_char kbdq[KBDQ_SIZE];	/* Queue for ascii character */

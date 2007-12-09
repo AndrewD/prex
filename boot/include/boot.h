@@ -32,9 +32,9 @@
 
 #include <config.h>
 #include <types.h>
+#include <bootinfo.h>
 #include <platform.h>
 #include <arch.h>
-#include <bootinfo.h>
 
 /* #define DEBUG_BOOT		1 */
 /* #define DEBUG_BOOT_IMAGE	1 */

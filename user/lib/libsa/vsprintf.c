@@ -33,7 +33,8 @@
 
 #include <stdarg.h>
 #include <string.h>
-#include <ctype.h>
+
+#define isdigit(c)  ((unsigned)((c) - '0') < 10)
 
 static int divide(long *n, int base)
 {

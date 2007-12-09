@@ -1,0 +1,69 @@
+#
+# Prex configuration file
+#
+
+#
+# System paramters
+#
+CONFIG_HZ=100			# Ticks/second of the clock
+CONFIG_TIME_SLICE=50		# Context switch ratio (msec)
+CONFIG_PAGE_SIZE=2048		# Physical/logical page size
+CONFIG_OPEN_MAX=8		# Max open files per process
+CONFIG_BUF_CACHE=8		# Blocks for buffer cache
+CONFIG_FS_THREADS=1		# Number of file system threads
+
+#
+# Platform settings
+#
+CONFIG_MMU=n			# Memory management unit
+CONFIG_CACHE=n			# Cache memory
+CONFIG_FPU=n			# Floating point unit
+CONFIG_XIP=y			# Execution in place
+CONFIG_LITTLE_ENDIAN=y		# Byte order
+CONFIG_BIG_ENDIAN=n		# Byte order
+CONFIG_ROM_BOOT=y		# Boot from ROM
+
+#
+# Device drivers
+#
+CONFIG_KEYBOARD=y		# Keyboard
+CONFIG_CONSOLE=y		# Console
+CONFIG_FDD=n			# Floppy disk drive
+CONFIG_MOUSE=n			# Mouse
+CONFIG_RTC=n			# Real time clock
+CONFIG_RAMDISK=y		# RAM disk
+
+#
+# Power management
+#
+CONFIG_PM=n			# Power management support
+CONFIG_PM_POWERSAVE=n		# Power policy: Battery optimized
+CONFIG_PM_PERFORMANCE=n		# Power policy: Parformance optimized
+CONFIG_CPUFREQ=n		# CPU frequency control
+CONFIG_DVS_EMULATION=n		# Dynamic voltage scaling emulation
+
+#
+# File system
+#
+CONFIG_FS=y			# File system support
+CONFIG_DEVFS=y			# Device file system
+CONFIG_RAMFS=y			# RAM file system
+CONFIG_ARFS=y			# Archive file system
+
+#
+# Diagnostic options
+#
+CONFIG_DIAG_SCREEN=y		# Diagnostic via screen
+CONFIG_DIAG_VBA=n		# Diagnostic via VBA emulater
+
+#
+# Kernel hacking
+#
+CONFIG_KDUMP=n			# Kernel dump
+CONFIG_DMESG=n			# Enable ring buffer for diagnostic message
+CONFIG_KTRACE=n			# Kernel function trace
+CONFIG_GDB=n			# GDB stub
+CONFIG_DEBUG_VM=n		# Debug virtual memory allocator
+CONFIG_DEBUG_PAGE=n		# Debug page allocator
+CONFIG_DEBUG_KMEM=n		# Debug kernel memory allocator
+CONFIG_MIN_MEMORY=n		# Test under limited memory size

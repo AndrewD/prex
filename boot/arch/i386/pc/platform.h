@@ -39,9 +39,9 @@
 /* Boot location */
 #define BOOTINFO_ADDR	0x00003000
 #define BOOTINFO_SIZE	0x00001000
-#define LOADER_START	0x00040000		
+#define BOOTSTACK_END	0x00003000
+#define LOADER_START	0x00040000
 #define ARCHIVE_START	0x00042000
-
 
 #ifndef __ASSEMBLY__
 extern void putc(int);

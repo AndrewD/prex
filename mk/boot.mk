@@ -1,6 +1,8 @@
 #
 # Make options for Boot Loader
 #
+include $(PREX_SRC)/mk/own.mk
+
 INC_FLAGS = -I$(PREX_SRC)/conf \
 	-I$(PREX_SRC)/boot/arch/$(PREX_ARCH)/include \
 	-I$(PREX_SRC)/boot/include

@@ -39,12 +39,12 @@ memccpy(t, f, c, n)
 	void *t;
 	const void *f;
 	int c;
-	register size_t n;
+	size_t n;
 {
 
 	if (n) {
-		register unsigned char *tp = t;
-		register const unsigned char *fp = f;
+		unsigned char *tp = t;
+		const unsigned char *fp = f;
 		do {
 			if ((*tp++ = *fp++) == c)
 				return (t);

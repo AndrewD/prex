@@ -49,7 +49,6 @@ static int ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno);
 static int ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno);
 static int ramdisk_init(void);
 
-#ifdef CONFIG_RAMDISK
 /*
  * Driver structure
  */
@@ -58,7 +57,6 @@ struct driver ramdisk_drv __driver_entry = {
 	/* order */	6,
 	/* init */	ramdisk_init,
 };
-#endif
 
 static struct devio ramdisk_io = {
 	/* open */	NULL,

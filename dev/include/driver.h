@@ -88,7 +88,7 @@ typedef int *device_t;
 /*
  * Device Object
  */
-extern device_t device_create(devio_t io, char *name);
+extern device_t device_create(devio_t io, const char *name);
 extern int device_delete(device_t dev);
 extern int device_broadcast(int event, int force);
 
@@ -253,7 +253,7 @@ typedef struct timer *timer_t;
  */
 extern void timer_timeout(timer_t tmr, void (*func)(u_long), u_long arg, u_long msec);
 extern void timer_stop(timer_t tmr);
-extern void timer_delay(u_long msec);
+extern u_long timer_delay(u_long msec);
 extern u_long timer_count(void);
 extern void timer_hook(hook_t hook, void (*func)(void *));
 extern void timer_unhook(hook_t hook);

@@ -9,22 +9,31 @@
   <link rel="stylesheet" type="text/css" href="../print.css" media="print">
 </head>
 <body>
-<table id="content" border="0" cellpadding="0" cellspacing="0" width=100%>
+<table id="content" cellpadding="0" cellspacing="0">
   <tbody>
 
     <tr>
-      <td id="header" colspan="2" style="vertical-align: top;">
-      <a href="http://prex.sourceforge.net/">
-      <img alt="Prex logo" src="../logo.gif" border="0"
-       style="width: 240px; height: 60px;"></a><br>
-      <sup><strong>Embedded Real-Time Operating System</strong></sup>
+      <td id="header" colspan="2" valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+          <td id="logo">
+            <a href="http://prex.sourceforge.net/">
+            <img alt="Prex logo" src="../img/logo.gif" border="0"
+            style="width: 281px; height: 56px;"></a>
+          </td>
+          <td id="brief" align="right" valign="bottom">
+            An Open Source, Royalty-free,<br>
+	    Real-time Operating System
+          </td>
+        </tr>
+        </table>
       </td>
     </tr>
 
     <tr>
       <td id="directory" style="vertical-align: top;">
-      <a href="http://prex.sourceforge.net/">Prex Home</a> /
-      <a href="index.html">Document Index</a> /
+      <a href="http://prex.sourceforge.net/">Prex Home</a> >
+      <a href="index.html">Document Index</a> >
       Technology Overview
     </tr>
 
@@ -34,8 +43,18 @@
 
 <i>Version 1.1, 2005/09/01</i>
 
+<h3>Table of Contents</h3>
+<ul>
+  <li><a href="#component">Prex Components</a></li>
+  <li><a href="#microkernel">Microkernel</a></li>
+  <li><a href="#driver">Device Drivers</a></li>
+  <li><a href="#server">System Servers/a></li>
+  <li><a href="#lib">Emulation Libraries</a></li>
+  <li><a href="#loader">Boot Loader</a></li>
+</ul>
+<br>
 
-<h2>Prex Components</h2>
+<h2 id="component">Prex Components</h2>
 <p>
 The following figure illustrates the Prex components.
 </p>
@@ -64,7 +83,7 @@ real-time task can work without any system servers.
 
 </p>
 
-<h2>Microkernel</h2>
+<h2 id="microkernel">Microkernel</h2>
 
 The design policies for the Prex kernel are as follows:
 <ul>
@@ -89,7 +108,7 @@ Kernel has responsibility to handle the following items.
   <li><b>System</b> - provides some useful system functions. e.g. statistics, log, time etc.</li>
 </ul>
 
-<h2>Device Drivers</h2>
+<h2 id="driver">Device Drivers</h2>
 <p>
 Prex device drivers work in kernel mode.
 All device drivers are stored in one single driver module, and this is
@@ -112,7 +131,7 @@ for device drivers.
   <li>Debug service</li>
 </ul>
 
-<h2>System Servers</h2>
+<h2 id="server">System Servers</h2>
 <p>
 The Prex tasks can communicate with each other by sending message to the
 specific object, as illustrated below.
@@ -148,7 +167,7 @@ For example, the proxy server will forward a received message to
 the remote proxy server via network.
 </p>
 
-<h2>Emulation Libraries</h2>
+<h2 id="lib">Emulation Libraries</h2>
 <p>
 Prex provides some libraries to emulate POSIX interfaces. They will include
 standard UNIX system calls, pthread, and real-time extension.
@@ -173,7 +192,7 @@ The developers will benefit from the source level compatibility of
 existing applications.
 </p>
 
-<h2>Boot Loader</h2>
+<h2 id="loader">Boot Loader</h2>
 <p>
 Prex provides the OS boot loader if it is required on the target platform.
 The boot loader will support the following minimum functions:
@@ -194,20 +213,15 @@ Note: It's better to use existing boot loader if possible.
       </td>
     </tr>
 
-    <tr>
-      <td id="footer"  style="vertical-align: top;">
-      Powered by:
-      <a href="http://sourceforge.net/">
-      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
-      alt="SourceForge.net Logo" border="0" height="31" width="88"
-      align="left"></a>
-      <div style="text-align:right;">
-      Copyright&copy; 2005 Kohsuke Ohtani<br>
-      Last modified 2005-09-01<br>
-      </div>
-      </td>
-    </tr>
   </tbody>
 </table>
+
+      <div id="footer" style="text-align:center;">
+      <a href="http://sourceforge.net">
+      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
+      alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
+      Copyright&copy; 2005-2007 Kohsuke Ohtani
+      </div>
+
 </body>
 </html>

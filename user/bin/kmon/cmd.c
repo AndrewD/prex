@@ -85,7 +85,7 @@ static struct cmd_entry cmd_table[] = {
 	{ "timer"	,cmd_timer	,"timer    - Dump system timers" },
 	{ "irq"		,cmd_irq	,"irq      - Dump irq information" },
 	{ "device"	,cmd_device	,"device   - Dump devices" },
-	{ "vm"		,cmd_vm		,"vm       - Dump virutal memory information" },
+	{ "vm"		,cmd_vm		,"vm       - Dump virtual memory information" },
 	{ "dmesg"	,cmd_dmesg	,"dmesg    - Dump kernel message log" },
 #endif
 	{ "reboot"	,cmd_reboot	,"reboot   - Reboot system" },

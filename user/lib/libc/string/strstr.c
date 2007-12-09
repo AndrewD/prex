@@ -42,10 +42,10 @@ static char sccsid[] = "@(#)strstr.c	8.1 (Berkeley) 6/4/93";
  */
 char *
 strstr(s, find)
-	register const char *s, *find;
+	const char *s, *find;
 {
-	register char c, sc;
-	register size_t len;
+	char c, sc;
+	size_t len;
 
 	if ((c = *find++) != 0) {
 		len = strlen(find);

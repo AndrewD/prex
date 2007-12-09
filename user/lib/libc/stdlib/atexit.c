@@ -38,7 +38,8 @@ static char sccsid[] = "@(#)atexit.c	8.2 (Berkeley) 7/3/94";
 #include <stdlib.h>
 #include "atexit.h"
 
-struct atexit *__atexit;	/* points to head of LIFO stack */
+exit_fnc __atexit_list[ATEXIT_SIZE];
+int __atexit_index = 0;
 
 /*
  * Register a function to be performed at exit.
@@ -47,18 +48,9 @@ int
 atexit(fn)
 	void (*fn)();
 {
-	static struct atexit __atexit0;	/* one guaranteed table */
-	register struct atexit *p;
-
-	if ((p = __atexit) == NULL)
-		__atexit = p = &__atexit0;
-	else if (p->ind >= ATEXIT_SIZE) {
-		if ((p = malloc(sizeof(*p))) == NULL)
-			return (-1);
-		p->ind = 0;
-		p->next = __atexit;
-		__atexit = p;
-	}
-	p->fns[p->ind++] = fn;
-	return (0);
+	if (__atexit_index >= ATEXIT_SIZE)
+		return -1;
+	__atexit_list[__atexit_index] = fn;
+	__atexit_index++;
+	return 0;
 }

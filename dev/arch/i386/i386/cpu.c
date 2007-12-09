@@ -90,8 +90,6 @@
 
 /* #define DEBUG_CPU */
 
-#ifdef CONFIG_CPUFREQ
-
 #ifdef DEBUG_CPU
 #define cpu_dbg(x,y...) printk("%s: "x, __FUNCTION__, ##y)
 #else
@@ -668,5 +666,3 @@ static int cpu_init(void)
 	printk("CPU brand: %s\n", cpu_info.name);
 	return 0;
 }
-
-#endif /* CONFIG_CPUFREQ */

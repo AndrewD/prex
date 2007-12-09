@@ -48,12 +48,12 @@ static char sccsid[] = "@(#)strsep.c	8.1 (Berkeley) 6/4/93";
  */
 char *
 strsep(stringp, delim)
-	register char **stringp;
-	register const char *delim;
+	char **stringp;
+	const char *delim;
 {
-	register char *s;
-	register const char *spanp;
-	register int c, sc;
+	char *s;
+	const char *spanp;
+	int c, sc;
 	char *tok;
 
 	if ((s = *stringp) == NULL)

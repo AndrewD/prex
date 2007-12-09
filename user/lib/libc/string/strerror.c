@@ -37,17 +37,17 @@ char *
 strerror(num)
 	int num;
 {
-	extern int sys_nerr;
-	extern char *sys_errlist[];
+	extern const int sys_nerr;
+	extern const char *sys_errlist[];
 #define	UPREFIX	"Unknown error: "
 	static char ebuf[40] = UPREFIX;		/* 64-bit number + slop */
-	register unsigned int errnum;
-	register char *p, *t;
+	unsigned int errnum;
+	char *p, *t;
 	char tmp[40];
 
 	errnum = num;				/* convert to unsigned */
 	if (errnum < sys_nerr)
-		return(sys_errlist[errnum]);
+		return((char *)sys_errlist[errnum]);
 
 	/* Do this by hand, so we don't include stdio(3). */
 	t = tmp;

@@ -56,7 +56,7 @@
 #include <system.h>
 
 /* Forward declarations */
-static device_t device_create(devio_t io, char *name);
+static device_t device_create(const devio_t io, const char *name);
 static int device_delete(device_t dev);
 static int device_broadcast(int event, int force);
 static void system_bootinfo(struct boot_info **info);
@@ -157,7 +157,7 @@ static void device_release(device_t dev)
  * Return device ID on success, or NULL on failure.
  * This must be called with scheduler locked.
  */
-static device_t device_lookup(char *name)
+static device_t device_lookup(const char *name)
 {
 	list_t head, n;
 	device_t dev;
@@ -184,7 +184,7 @@ static device_t device_lookup(char *name)
  * I/O services to applications.
  * Returns device ID on success, or 0 on failure.
  */
-static device_t device_create(devio_t io, char *name)
+static device_t device_create(const devio_t io, const char *name)
 {
 	device_t dev;
 	size_t len;

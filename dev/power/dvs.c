@@ -44,8 +44,6 @@
 #include <pm.h>
 #include "dvs.h"
 
-#ifdef CONFIG_CPUFREQ
-
 /* #define DEBUG_DVS 1 */
 
 #ifdef DEBUG_DVS
@@ -258,4 +256,3 @@ void dvs_init(void)
 
 	dvs_capable = 1;
 }
-#endif /* CONFIG_CPUFREQ */

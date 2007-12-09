@@ -35,8 +35,8 @@
  */
 #define SYSNAME		"Prex"
 #define VERSION		0
-#define PATCHLEVEL	4
-#define SUBLEVEL	3
+#define PATCHLEVEL	5
+#define SUBLEVEL	0
 
 /*
  * Clock Rate
