@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ typedef struct semaphore *sem_t;
 #define SEM_MAX		((u_int)((~0u) >> 1))
 #define SEM_MAGIC	0x53656d3f	/* 'Sem?' */
 
-#define sem_valid(s) (kern_area(s) && (s)->magic == SEM_MAGIC)
+#define sem_valid(s) (kern_area(s) && ((s)->magic == SEM_MAGIC))
 
 extern int sem_init(sem_t *sem, u_int value);
 extern int sem_destroy(sem_t *sem);
@@ -75,14 +75,14 @@ typedef struct mutex *mutex_t;
 #define MUTEX_INITIALIZER	(mutex_t)0x4d496e69	/* 'MIni' */
 
 #define mutex_valid(m)  (kern_area(m) && \
-			 (m)->magic == MUTEX_MAGIC && \
-			 (m)->task == cur_task())
+			 ((m)->magic == MUTEX_MAGIC) && \
+			 ((m)->task == cur_task()))
 
-extern int mutex_init(mutex_t *mu);
-extern int mutex_destroy(mutex_t *mu);
-extern int mutex_lock(mutex_t *mu);
-extern int mutex_trylock(mutex_t *mu);
-extern int mutex_unlock(mutex_t *mu);
+extern int mutex_init(mutex_t *mtx);
+extern int mutex_destroy(mutex_t *mtx);
+extern int mutex_lock(mutex_t *mtx);
+extern int mutex_trylock(mutex_t *mtx);
+extern int mutex_unlock(mutex_t *mtx);
 extern void mutex_cleanup(thread_t th);
 extern void mutex_setprio(thread_t th, int prio);
 
@@ -101,12 +101,12 @@ typedef struct cond *cond_t;
 #define COND_INITIALIZER	(cond_t)0x43496e69	/* 'CIni' */
 
 #define cond_valid(c) (kern_area(c) && \
-		       (c)->magic == COND_MAGIC && \
-		       (c)->task == cur_task())
+		       ((c)->magic == COND_MAGIC) && \
+		       ((c)->task == cur_task()))
 
 extern int cond_init(cond_t *cond);
 extern int cond_destroy(cond_t *cond);
-extern int cond_wait(cond_t *cond, mutex_t *mu);
+extern int cond_wait(cond_t *cond, mutex_t *mtx);
 extern int cond_signal(cond_t *cond);
 extern int cond_broadcast(cond_t *cond);
 

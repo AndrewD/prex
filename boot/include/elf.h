@@ -294,6 +294,25 @@ typedef struct {
 
 
 /* Symbol table index */
-#define STN_UNDEF	0		/* undefined */
+#define STN_UNDEF	0	/* undefined */
+
+/*
+ * for st_info
+ */
+
+#define STB_LOCAL	0
+#define STB_GLOBAL	1
+#define STB_WEAK	2
+
+#define STT_NOTYPE	0
+#define STT_OBJECT	1
+#define STT_FUNC	2
+#define STT_SECTION	3
+#define STT_FILE	4
+#define STT_COMMON	5
+#define STT_TLS		6
+
+#define ELF32_ST_BIND(x)	((x) >> 4)
+#define ELF32_ST_TYPE(x)	(((unsigned int)x) & 0xf)
 
 #endif	/* !_ELF_H */

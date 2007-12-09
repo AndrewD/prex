@@ -34,7 +34,8 @@
  * BREAKPOINT()
  *
  * Break into debugger.
- * This works only with debug kernel, and only when debugger is attached.
+ * This works only with a debug version, and only when debugger
+ * is attached.
  */
 #ifdef DEBUG
 #define BREAKPOINT()	breakpoint()
@@ -50,7 +51,6 @@
  */
 #ifdef DEBUG
 extern void printk(const char *fmt, ...);
-extern void printk_attach(void (*handler)(char *));
 #else
 #define printk(fmt...)	do {} while (0)
 #endif
@@ -72,17 +72,16 @@ extern void system_reset(void);
  * ASSERT(exp)
  *
  * If exp is false(zero), stop with source info.
- * This is enabled only when DEBUG build.
- * An asserion check should be used only for invalid kernel condition.
- * It can not be used to check the input argument from user mode because
- * kernel must not do panic for it. The kernel should return an appropriate
- * error code in such case.
+ * This is enabled only when DEBUG build. An asserion check
+ * should be used only for invalid kernel condition.
+ * It can not be used to check the input argument from user
+ * mode because kernel must not do panic for it. The kernel
+ * should return an appropriate error code in such case.
  */
 #ifdef DEBUG
-extern void assert(const char *file, int line, const char *func,
-		   const char *exp);
+extern void assert(const char *file, int line, const char *exp);
 #define ASSERT(exp)	do { if (!(exp)) \
-    assert(__FILE__, __LINE__, __FUNCTION__, #exp); } while (0)
+    assert(__FILE__, __LINE__, #exp); } while (0)
 #else
 #define ASSERT(exp)	do {} while (0)
 #endif
@@ -90,34 +89,34 @@ extern void assert(const char *file, int line, const char *func,
 /*
  * IRQ_ASSERT()
  *
- * Assert if processor mode is H/W interrupt level.
- * Some routine can not be called during interrupt level.
- * It can be checked by putting this macro in such routine.
+ * Assert if current processor mode is at interrupt level.
+ * There are some routines that can not be called at interrupt
+ * level. You can catch the invalid function call by driver
+ * with this macro.
  */
 #ifdef DEBUG
 extern volatile int irq_nesting;
 #define IRQ_ASSERT() do { if (irq_nesting > 0) \
-    assert(__FILE__, __LINE__, __FUNCTION__, \
+    assert(__FILE__, __LINE__, \
             "bad irq level"); } while (0)
 #else
 #define IRQ_ASSERT()	do {} while (0)
 #endif
 
+#ifdef CONFIG_KTRACE
 /*
- * Entry for kernel trace
+ * Entry for kernel function trace
  */
-struct trace {
-	int	type;		/* Logging type */
+struct trace_entry {
 	void	*func;		/* Pointer to function */
+	int	type;		/* Function type */
 };
 
-/*
- * Logging types 
- */
-#define FUNC_NONE  0
-#define FUNC_ENTER 1
-#define FUNC_EXIT  2
-
+/* Types of trace function */
+#define FUNC_NONE	0
+#define FUNC_ENTER	1
+#define FUNC_EXIT	2
+#endif /* CONFIG_KTRACE */
 
 /*
  * Command for sys_debug()
@@ -134,7 +133,8 @@ struct trace {
 #define DUMP_IRQ	5
 #define DUMP_DEVICE	6
 #define DUMP_VM		7
-#define DUMP_TRACE	8
+#define DUMP_MSGLOG	8
+#define DUMP_TRACE	9
 
 #ifdef DEBUG
 extern void thread_dump();

@@ -158,8 +158,6 @@ static void init_screen(void)
 #ifdef CONFIG_DIAG_VBA
 /*
  * VBA console
- *
- * FIXME: Move inline code to header file...
  */
 void diag_print(char *buf)
 {

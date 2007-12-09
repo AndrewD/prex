@@ -30,6 +30,10 @@
 #ifndef _MACHINE_PLATFORM_H
 #define _MACHINE_PLATFORM_H
 
+#ifndef __ASSEMBLY__
+#include <bootinfo.h>
+#endif /* !__ASSEMBLY__ */
+
 #define PAGE_OFFSET	0x80000000
 
 /* Boot location */

@@ -30,7 +30,6 @@
 #ifndef _IPC_H
 #define _IPC_H
 
-#include <list.h>
 #include <queue.h>
 
 struct task;
@@ -52,7 +51,7 @@ struct object {
 };
 typedef struct object *object_t;
 
-#define object_valid(obj)  (kern_area(obj) && (obj)->magic == OBJECT_MAGIC)
+#define object_valid(obj)  (kern_area(obj) && ((obj)->magic == OBJECT_MAGIC))
 
 
 /*

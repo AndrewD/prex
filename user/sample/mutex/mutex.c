@@ -53,7 +53,7 @@
 
 static char stack[3][1024];
 static thread_t th_1, th_2, th_3;
-static mutex_t mu_A, mu_B;
+static mutex_t mtx_A, mtx_B;
 
 static void dump_prio(void)
 {
@@ -97,7 +97,7 @@ static void thread_1(void)
 	 *    Thread 3... Prio 101 -> 100
 	 */
 	printf("thread_1: 4) lock B\n");
-	mutex_lock(&mu_B);
+	mutex_lock(&mtx_B);
 
 	printf("thread_1: running\n");
 	dump_prio();
@@ -106,7 +106,7 @@ static void thread_1(void)
 	 * 8) Unlock mutex B
 	 */
 	printf("thread_1: 7) unlock B\n");
-	mutex_unlock(&mu_B);
+	mutex_unlock(&mtx_B);
 
 	dump_prio();
 	printf("thread_1: exit\n");
@@ -124,7 +124,7 @@ static void thread_2(void)
 	 * 2) Lock mutex B
 	 */
 	printf("thread_2: 2) lock B\n");
-	mutex_lock(&mu_B);
+	mutex_lock(&mtx_B);
 	dump_prio();
 
 	/*
@@ -134,7 +134,7 @@ static void thread_2(void)
 	 *    Thread 3... Prio 102 -> 101
 	 */
 	printf("thread_2: 3) lock A\n");
-	mutex_lock(&mu_A);
+	mutex_lock(&mtx_A);
 
 	printf("thread_2: running\n");
 	dump_prio();
@@ -143,7 +143,7 @@ static void thread_2(void)
 	 * 6) Unlock mutex B
 	 */
 	printf("thread_2: 6) unlock B\n");
-	mutex_unlock(&mu_B);
+	mutex_unlock(&mtx_B);
 
 	dump_prio();
 
@@ -151,7 +151,7 @@ static void thread_2(void)
 	 * 7) Unlock mutex A
 	 */
 	printf("thread_2: 8) unlock A\n");
-	mutex_unlock(&mu_A);
+	mutex_unlock(&mtx_A);
 
 	printf("thread_2: exit\n");
 	thread_terminate(th_2);
@@ -169,7 +169,7 @@ static void thread_3(void)
 	 * 1) Lock mutex A
 	 */
 	printf("thread_3: 1) lock A\n");
-	mutex_lock(&mu_A);
+	mutex_lock(&mtx_A);
 	dump_prio();
 
 	/*
@@ -194,14 +194,14 @@ static void thread_3(void)
 	 * 5) Unlock mutex A
 	 */
 	printf("thread_3: 5) unlock A\n");
-	mutex_unlock(&mu_A);
+	mutex_unlock(&mtx_A);
 
 	dump_prio();
 	printf("thread_3: exit\n");
 	thread_terminate(th_3);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	printf("Mutex sample program\n");
 
@@ -213,8 +213,8 @@ int main()
 	/*
 	 * Initialize mutexes.
 	 */
-	mutex_init(&mu_A);
-	mutex_init(&mu_B);
+	mutex_init(&mtx_A);
+	mutex_init(&mtx_B);
 
 	/*
 	 * Create new threads

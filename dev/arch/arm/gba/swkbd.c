@@ -167,7 +167,7 @@ static u_char kbdq_dequeue(void)
  *   Page1 ... Text & Normal keyboard
  *   Page2 ... Text & Shifted keyboard
  */
-void kbd_select(int page)
+static void kbd_select(int page)
 {
 	if (page == 0)
 		REG_DISPCNT = 0x0840;	/* only BG3 */
@@ -184,7 +184,7 @@ void kbd_select(int page)
 /*
  * Toggle keyboard type: normal or shift.
  */
-void kbd_toggle()
+static void kbd_toggle()
 {
 	int page;
 
@@ -211,7 +211,7 @@ static void kbd_timeout(u_long tmp)
  */
 static void move_cursor(void)
 {
-	u_int16_t *oam = OAM;
+	uint16_t *oam = OAM;
 	struct _key_info *ki;
 	int i, x, y;
 
@@ -230,18 +230,18 @@ static void move_cursor(void)
 	case 53: i = 7; break;
 	}
 	if (i != cur_obj) {
-		oam[cur_obj * 4] = (u_int16_t)((oam[cur_obj * 4] & 0xff00) | 160);
-		oam[cur_obj * 4 + 1] = (u_int16_t)((oam[cur_obj * 4 + 1] & 0xfe00) | 240);
+		oam[cur_obj * 4] = (uint16_t)((oam[cur_obj * 4] & 0xff00) | 160);
+		oam[cur_obj * 4 + 1] = (uint16_t)((oam[cur_obj * 4 + 1] & 0xfe00) | 240);
 		cur_obj = i;
 	}
-	oam[i * 4] = (u_int16_t)((oam[i * 4] & 0xff00) | y);
-	oam[i * 4 + 1] = (u_int16_t)((oam[i * 4 + 1] & 0xfe00) | x);
+	oam[i * 4] = (uint16_t)((oam[i * 4] & 0xff00) | y);
+	oam[i * 4 + 1] = (uint16_t)((oam[i * 4 + 1] & 0xfe00) | x);
 }
 
 /*
  * Process key press
  */
-void key_press(void)
+static void key_press(void)
 {
 	struct _key_info *ki;
 	u_char ac;
@@ -444,6 +444,7 @@ static void kbd_input(u_char ch)
 	case K_ENTR:
 #ifdef CONFIG_KDUMP
 		kernel_dump(1);	/* Thread dump */
+		kernel_dump(2);	/* Thread dump */
 		kernel_dump(7);	/* VM dump */
 #endif
 		break;
@@ -462,15 +463,15 @@ out:
 /*
  * Init font
  */
-void init_kbd_image(void)
+static void init_kbd_image(void)
 {
-	u_int8_t bit;
-	u_int16_t val1, val2;
-	u_int16_t *pal = BG_PALETTE;
-	u_int16_t *tile1 = KBD1_TILE;
-	u_int16_t *tile2 = KBD2_TILE;
-	u_int16_t *map1 = KBD1_MAP;
-	u_int16_t *map2 = KBD2_MAP;
+	uint8_t bit;
+	uint16_t val1, val2;
+	uint16_t *pal = BG_PALETTE;
+	uint16_t *tile1 = KBD1_TILE;
+	uint16_t *tile2 = KBD2_TILE;
+	uint16_t *map1 = KBD1_MAP;
+	uint16_t *map2 = KBD2_MAP;
 	int i, j, row, col;
 
 	/* Load tiles for keyboard image */
@@ -496,8 +497,8 @@ void init_kbd_image(void)
 	i = 1;
 	for (row = 1; row < 7; row++) {
 		for (col = 13; col < 29; col++) {
-			map1[row * 32 + col] = (u_int16_t)i;
-			map2[row * 32 + col] = (u_int16_t)(i + 127);
+			map1[row * 32 + col] = (uint16_t)i;
+			map2[row * 32 + col] = (uint16_t)(i + 127);
 			i++;
 		}
 	}
@@ -514,14 +515,14 @@ void init_kbd_image(void)
 /*
  * Initialize keyboard cursor
  */
-void init_cursor(void)
+static void init_cursor(void)
 {
 	int i, j;
-	u_int8_t bit;
-	u_int16_t val;
-	u_int16_t *oam = OAM;
-	u_int16_t *cur = CURSOR_DATA;
-	u_int16_t *pal = SPL_PALETTE;
+	uint8_t bit;
+	uint16_t val;
+	uint16_t *oam = OAM;
+	uint16_t *cur = CURSOR_DATA;
+	uint16_t *pal = SPL_PALETTE;
 	
 	/* Move out all objects */
 	for (i = 0; i < 128; i++) {
@@ -544,9 +545,9 @@ void init_cursor(void)
 	/* Setup cursors */
 	oam = OAM;
 	for (i = 0; i < 7; i++) {
-		oam[0] = (u_int16_t)(0x6000 + 160); /* 256 color, Horizontal */
-		oam[1] = (u_int16_t)(0x8000 + 240); /* 32x16 */
-		oam[2] = (u_int16_t)(i * 16); /* Tile number */
+		oam[0] = (uint16_t)(0x6000 + 160); /* 256 color, Horizontal */
+		oam[1] = (uint16_t)(0x8000 + 240); /* 32x16 */
+		oam[2] = (uint16_t)(i * 16); /* Tile number */
 		oam += 4;
 	}
 	/* for space key */
@@ -560,7 +561,7 @@ void init_cursor(void)
 /*
  * Initialize
  */
-int kbd_init(void)
+static int kbd_init(void)
 {
 	kbd_dev = device_create(&kbd_io, "kbd");
 	ASSERT(kbd_dev);

@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 2005, Kohsuke Ohtani
  * All rights reserved.
  *
@@ -28,20 +28,103 @@
  */
 
 /*
- * assert.c - assertion routine
+ * ipc_mt.c - IPC test for multi threaded servers.
  */
-#include <driver.h>
+
+#include <prex/prex.h>
+#include <prex/message.h>
+#include <stdio.h>
+
+#define NR_THREADS	5
+
+static char stack[NR_THREADS][1024];
 
 /*
- * Assertion routine
- *
- * Do not call this routine, but use ASSERT() macro.
- * assert() is called only when the expression is
- * false in ASSERT() macro.
+ * Run specified thread
  */
-void assert(const char *file, int line, const char *func, const char *exp)
+static int thread_run(void *start, void *stack)
 {
-	irq_lock();
-	panic("\nAssertion fail!: %s line:%d in %s() '%s'\n",
-	      file, line, func, exp);
+	thread_t th;
+	int err;
+
+	err = thread_create(task_self(), &th);
+	if (err)
+		return err;
+
+	err = thread_load(th, start, stack);
+	if (err)
+		return err;
+
+	err = thread_resume(th);
+	if (err)
+		return err;
+
+
+	return 0;
+}
+
+/*
+ * Receiver thread
+ */
+static void receive_thread(void)
+{
+	struct msg msg;
+	object_t obj;
+	int err;
+	
+	printf("Receiver thread is starting...\n");
+
+	thread_setprio(thread_self(), 240);
+	
+	/*
+	 * Find objects.
+	 */
+	err = object_lookup("/test/A", &obj);
+
+	for (;;) {	
+		/*
+		 * Receive message from object.
+		 */
+		printf("Wait message.\n");
+		msg_receive(obj, &msg, sizeof(msg));
+		
+		printf("Message received.\n");
+		/*
+		 * Wait a sec.
+		 */
+		timer_sleep(1000, 0);
+		
+		printf("Reply message.\n");
+		msg_reply(obj, &msg, sizeof(msg));
+
+		for (;;);
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	object_t obj;
+	int err, i;
+
+	printf("IPC test for multi threads\n");
+
+	/*
+	 * Create an object.
+	 */
+	err = object_create("/test/A", &obj);
+	if (err)
+		panic("failed to create object");
+
+	/*
+	 * Start receiver thread.
+	 */
+	for (i = 0; i < NR_THREADS; i++) {
+		err = thread_run(receive_thread, stack[i] + 1024);
+		if (err)
+			panic("failed to run thread");
+	}
+	printf("ok?\n");
+	thread_setprio(thread_self(), 241);
+	for (;;) ;
+	return 0;
 }

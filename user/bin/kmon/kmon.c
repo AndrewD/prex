@@ -43,7 +43,7 @@ static char *arg_list[LINE_MAX];
 
 void get_line(char *line)
 {
-	u_char c;
+	int c;
 	char *p = line;
 	int len = 0;
 
@@ -73,7 +73,7 @@ void get_line(char *line)
 			continue;
 
 		putchar(c);
-		*p = c;
+		*p = (char)c;
 		p++;
 		len++;
 	}
@@ -102,19 +102,19 @@ int parse_line(char *line)
 	return argc;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	char line[LINE_MAX];
-	int argc;
+	int cnt;
 
 	printf("Prex kernel monitor - type 'help' to list commands\n");
 
 	for (;;) {
 		printf("[kmon]$ ");
 		get_line(line);
-		argc = parse_line(line);
-		if (argc) {
-			if (dispatch_cmd(argc, arg_list))
+		cnt = parse_line(line);
+		if (cnt) {
+			if (dispatch_cmd(cnt, arg_list))
 				break;
 		}
 		printf("\n");

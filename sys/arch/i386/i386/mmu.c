@@ -89,8 +89,6 @@ int mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type)
 	case PG_WRITE:
 		pg_type = PTE_USER | PTE_WRITE | PTE_PRESENT;
 		break;
-	default:
-		panic("Invalid MMU mapping");
 	}
 	/* Map all pages */
 	while (size > 0) {
@@ -242,7 +240,7 @@ void mmu_init(void)
 	for (i = 0; i < nr_pte; i++) {
 		/* Allocate new page table */
 		if ((pg = page_alloc(PAGE_SIZE)) == NULL)
-			panic("Failed to build memory map");
+			panic("mmu_init: no memory");
 		pte = phys_to_virt(pg);
 		memset(pte, 0, PAGE_SIZE);
 

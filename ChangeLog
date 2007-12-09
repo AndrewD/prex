@@ -1,3 +1,209 @@
+2007-04-13  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/include/param.h: Update version to 0.4.3.
+
+	* user/test/dvs/dvs.c: Added test case for 50% cpu load for DVS
+	test tool.
+
+2007-04-12  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	The following 5 changes were applied by Andrew Dennison.
+		
+	* boot/common/debug.c: (1) Fixed order of header files.
+	* boot/common/elf.c: Likewise.
+	* boot/common/main.c: Likewise.
+
+	* sys/arch/i386/include/arch.h: (2) Fixed typo.
+	* sys/arch/i386/include/platform.h: Likewise.
+
+	* user/test/Makefile: (3) Modified for i386 specific test tool.
+
+	* user/lib/libc/stdlib/getsubopt.c: (4) Fixed build warning.
+	* user/lib/libc/stdlib/strtol.c: Likewise.
+	* user/lib/libc/stdlib/strtoul.c: Likewise.
+
+	* boot/common/elf.c: (5) Added validation of module symbol while
+	relocating module.
+	* boot/include/elf.h: Likewise.
+
+2007-04-09  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/debug.c: Added "dmesg" framework. The kernel message log
+	can be checked after system boot with this change. User can get this
+	message by F9 key on PC platform.
+	* sys/include/debug.h: Likewise.
+	* sys/include/param.h: Likewise.
+	* dev/include/driver.h: Likewise.
+	* user/include/prex/prex.h: Likewise.
+	* user/bin/kmon/cmd.c: Likewise.
+	* conf/config-arm-gba.h: Likewise.
+	* conf/config-i386-pc.h: Likewise.
+	* conf/config-i386-nommu.h: Likewise.
+
+2007-04-08  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/sched.c (thread_dpc): Support DPC (Deferred Procedure
+	Call). The driver can handle an asynchronous callback event at
+	safer interrupt level.
+	* sys/kern/device.c: Likewise.
+	* sys/include/sched.h: Likewise.
+	* dev/include/driver.h: Likewise.
+
+	* dev/power/dvs.c: Optimized voltage scaling algorithm.
+	* dev/power/cpufreq.c: Likewise.
+	* dev/power/pm.c: Likewise.
+	
+2007-04-07  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/sync/sem.c (sem_post): Fixed a bug in sem_post(). The
+	thread could not get a semaphore when multiple value is set.
+
+	* sys/kern/timer.c: Added timer_hook()/timer_unhook() service
+	for drivers. The power management or profiling driver can get
+	a tick event with these services without using timer call-back.
+	This can reduce the system power consumption.
+	* sys/kern/device.c: Likewise.
+	* sys/include/sched.h: Likewise.
+	* dev/include/driver.h: Likewise.
+
+2007-04-03  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/timer.c (timer_tick): Optimized whole timer related
+	code to minimize timer jitters of periodic timer. The periodic
+	threads can be runnable by one thread switch now.
+	* sys/include/timer.h: Likewise.
+
+2007-03-31  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+	
+	* sys/kern/timer.c (timer_delay): Changed the return type of
+	timer_delay() routine to u_long from int.
+
+	* user/lib/prex/malloc/malloc.c (free): Fixed a page fault
+	when malloc/free is called repeatedly. The data was corrupted
+	for some specific size for allocation.
+
+	* sys/kern/thread.c (thread_resume): Modified to return EINVAL
+	if thread_resume() is called when suspend count was already 0.
+
+2007-03-27  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* */: Replaced all u_int32_t to uint32_t to meet C99 manner.
+
+	* sys/kern/system.c (sys_debug): Added checking CAP_DEBUG capability.
+
+2007-03-24  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/*: Kernel code clean up.
+	
+	* sys/kern/task.c (__task_capable): Modified to define task_capable()
+	as macro to reduce code size.
+
+2007-03-23  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/sync/mutex.c (mutex_unlock): Fixed mutex_unlock() to
+	return EPERM error when the lock count was already 0.
+
+	* sys/kern/thread.c (thread_schedparam): Removed functions to
+	set a different time slice to each thread. Because, I will never
+	use it...
+	* sys/kern/sched.c: Likewise.
+	* sys/include/thread.h: Likewise.
+
+2007-03-22  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* user/lib/prex/malloc/malloc.c (free): Fixed free() in libc
+	to do nothing for free(0).
+
+	* user/lib/prex/malloc/malloc.c (malloc): Refined malloc() for
+	multi-thread applications.
+	* usre/lib/gen/__isthreaded.c: Likewise.
+
+2007-03-20  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* user/lib/libc/random.c: Added random() in libc.
+
+	* user/test/malloc/malloc.c: Added test code for malloc().
+
+	* user/test/ipc_mt/ipc_mt.c: Added IPC test tool for multi-threaded
+	server.
+
+2007-03-18  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* mk/Makefile.inc: Added -fno-stack-protector option for gcc 4.1.
+	The build error occurred with some distributions which enable
+	SSP feature of gcc by default.
+
+2007-03-16  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* test/ipc_mt/*: Added IPC test program for multi-threaded server.
+
+2007-03-07  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* user/arch/arm/systrap.h: Fixed syscall trap macro for ARM
+	processor.
+	* sys/arch/arm/arm/locore.S: Correct getting SWI number in
+	system call handler. These two bug was pointed out by Ying Yin.
+
+2007-02-14  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/main.c: Code clean up.
+	* sys/include/kernel.h: Likewise.
+
+	* sys/kern/system.c: Changed the data format of sys_info(). The
+	kernel information is now compatible with POSIX's utsname.
+	* sys/kern/sched.c: Likewise.
+	* sys/include/system.h: Likewise.
+	* dev/include/driver.h: Likewise.
+	* user/include/prex/prex.h: Likewise.
+
+2007-02-09  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/device.c: Added reference count for the device object
+	to avoid the device removal while I/O operations. device_delete()
+	request will be hold until the target reference count becomes 0.
+	* sys/include/device.h: Likewise.
+
+	* sys/kern/device.c: Added "force" option to device_broadcast
+	driver service. If this option is specified, we will continue
+	the event notification even if some driver returns an error.
+	Otherwise, device_broadcast will quit and return for first
+	driver error.
+	* sys/include/device.h: Likewise.
+
+2007-02-08  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* dev/arch/i386/i386/delay.c: Removed a delay driver. This was
+	changed to generic driver service.
+	* dev/include/delay.h: Likewise.
+	* dev/core/main.c: Likewise.
+	* dev/arch/i386/pc/platform.c: Likewise.
+	* dev/arch/arm/gba/platform.c: Likewise.
+
+2007-02-06  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/timer.c: Fixed system hang when periodic timer is stopped
+	with invalid timer object.
+
+	* sys/sync/mutex.c (prio_inherit): Added checking max mutex count
+	to inherit thread priorities. This was added to prevent the risk
+	of the unexpected heavy loop with preemption disabled. The maximum
+	count to inherit priority is currently set to 10.
+
+2007-02-03  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/syscall.c: Changed sys_stat() system call to sys_info().
+	The interface was extended to get thread/device information from
+	kernel.
+	* sys/kern/system.c: Likewise.
+	* sys/include/system.h: Likewise.
+
+2007-01-30  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/timer.c: Fixed the kernel timer code. There was a small
+	time window that can not handle timer callback. In this case,
+	the callback request was not processed until next tick event.
+	* sys/include/timer.h: Likewise.
+
 2007-01-24  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
 	* sys/include/param.h: Update version to 0.4.2.
@@ -9,11 +215,6 @@
 	* boot/arch/*: Likewise.
 	* dev/arch/*: Likewise.
 	* sys/arch/*: Likewise.
-
-2006-12-20  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
-
-	* sys/sync/mutex.c: Support recursive locking of mutex.
-	* sys/include/sync.h: Likewise.
 
 2006-12-01  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
@@ -36,7 +237,7 @@
 
 2006-11-02  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
-	* sys/ipc/object.c (object_create): Fixed the hangling of EFAULT
+	* sys/ipc/object.c (object_create): Fixed the handling of EFAULT
 	in object_create().
 	
 2006-11-02  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
@@ -207,7 +408,7 @@
 	* sys/arch/arm/arm/locore.S (interrupt_entry): Likewise.
 
 	* boot/common/elf.c: Added ELF object relocation. All boot tasks
-	on NOMMU system are relocated at boot time. In addtion, a driver
+	on NOMMU system are relocated at boot time. In addition, a driver
 	module is also relocated on MMU/NOMMU system.
 	* boot/arch/i386/i386/elf_reloc.c (relocate_rel): Likewise.
 	* boot/arch/arm/arm/elf_reloc.c (relocate_rel): Likewise.
@@ -243,13 +444,13 @@
 2006-01-10  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
 	* dev/arch/i386/pc/fdd.c (fdd_rw): Fixed the hang while continuous
-	data write to FDD. The deadlock occured because of the bad sequence
+	data write to FDD. The deadlock occurred because of the bad sequence
 	of I/O request and scheduling lock.
 
 2006-01-05  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
 	* sys/sync/mutex.c (mutex_cleanup): Added Giang Hu's fix for mutex.
-	The kernel hang occured in some conditions.
+	The kernel hang occurred in some conditions.
 
 2005-12-27  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
@@ -270,7 +471,7 @@
 2005-12-13  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
 	* sys/kern/task.c (task_create): Added vm_inherit argument to
-	task_create() interaface instead of using NULL as task id. It is
+	task_create() interface instead of using NULL as task id. It is
 	changed to return ESRCH if specified task id is NULL.
 
 2005-12-13  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
@@ -336,7 +537,7 @@
 
 	* sys/sync/cond.c : Support a static CV initializer.
 
-	* sys/sync/mutex.c : Changed the arugument type of the kernel synch
+	* sys/sync/mutex.c : Changed the argument type of the kernel synch
 	API for POSIX compatibility.
 	* sys/sync/cond.c : Likewise.
 	* sys/sync/sem.c : Likewise.
@@ -356,7 +557,7 @@
 
 	* sys/include/param.h: Update version to 0.3.0.
 
-	* sys/mem/vm.c (vm_allocate_unlocked): The allocated memoray was
+	* sys/mem/vm.c (vm_allocate_unlocked): The allocated memory was
 	not initialized with 0 in vm_allocate().
 	* sys/mem/vm_nommu.c (vm_allocate_unlocked): Likewise.
 
@@ -376,7 +577,7 @@
 2005-11-04  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
 	* sys/sync/sem.c (sem_post): Fixed the bug in sem_post(). The waiting
-	thread is not unblocked even if the semaphore value becomes posive.
+	thread is not unblocked even if the semaphore value becomes positive.
 
 	* user/test/sem/main.c: Added the test program for the semaphore.
 	
@@ -389,7 +590,7 @@
 	* user/test/bench/io.c: Likewise. (removed)
 
 	* sys/include/stat.h: Added data for timer tick rate in the
-	kernel stastics data.
+	kernel statistics data.
 	* user/include/prex.h: Likewise.
 	* user/test/bench/main.c: Likewise.
 
@@ -579,7 +780,7 @@
 2005-06-09  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
 	* sys/kern/thread.c (thread_schedparam): Removed the error check
-	of maximum scheduing quantum, which is not useless. So, theread can
+	of maximum scheduling quantum, which is not useless. So, thread can
 	specify any scheduling quantum now.
 
 	* sys/arch/i386/i386/context.c: Changed to allow I/O privilege

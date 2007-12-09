@@ -30,6 +30,7 @@
 /*
  * debug.c - loader debug functions
  */
+#include <bootinfo.h>
 #include <boot.h>
 
 /*

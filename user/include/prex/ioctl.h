@@ -42,7 +42,7 @@
 #define	IOC_DIRMASK	0xe0000000
 
 #define _IOC(inout,group,num,len) \
-	(inout | ((len & IOCPARM_MASK) << 16) | ((group) << 8) | (num))
+	(int)(inout | ((len & IOCPARM_MASK) << 16) | ((group) << 8) | (num))
 #define	_IO(g,n)	_IOC(IOC_VOID,	(g), (n), 0)
 #define	_IOR(g,n,t)	_IOC(IOC_OUT,	(g), (n), sizeof(t))
 #define	_IOW(g,n,t)	_IOC(IOC_IN,	(g), (n), sizeof(t))

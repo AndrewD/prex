@@ -36,18 +36,18 @@ static char sccsid[] = "@(#)strftime.c	8.1 (Berkeley) 6/4/93";
 #include <tzfile.h>
 #include <string.h>
 
-static char *afmt[] = {
+static const char *afmt[] = {
 	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
 };
-static char *Afmt[] = {
+static const char *Afmt[] = {
 	"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
 	"Saturday",
 };
-static char *bfmt[] = {
+static const char *bfmt[] = {
 	"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
 	"Oct", "Nov", "Dec",
 };
-static char *Bfmt[] = {
+static const char *Bfmt[] = {
 	"January", "February", "March", "April", "May", "June", "July",
 	"August", "September", "October", "November", "December",
 };

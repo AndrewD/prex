@@ -49,7 +49,7 @@
 
 #ifndef CONFIG_MMU
 
-#if defined(DEBUG) && defined(CONFIG_DEBUG_VM)
+#ifdef CONFIG_DEBUG_VM
 static void vm_error(const char *func, int err);
 
 #define MEMLOG(x,y...) printk(x, ##y)
@@ -62,7 +62,7 @@ static void vm_error(const char *func, int err);
 /* vm mapping for kernel task */
 static struct vm_map kern_map;
 
-/* Forward function */
+/* Forward declarations */
 static int __vm_free(task_t task, void *addr);
 static int __vm_attribute(task_t task, void *addr, int attr);
 static int __vm_map(task_t target, void *addr, size_t size,
@@ -98,7 +98,7 @@ __syscall int vm_allocate(task_t task, void **addr, size_t size,
 		err = ESRCH;
 		goto out;
 	}
-	if (task != cur_task() && !capable(CAP_MEMORY)) {
+	if (task != cur_task() && !task_capable(CAP_MEMORY)) {
 		err = EPERM;
 		goto out;
 	}
@@ -182,7 +182,7 @@ static int __vm_free(task_t task, void *addr)
 	if (!task_valid(task))
 		return ESRCH;
 
-	if (task != cur_task() && !capable(CAP_MEMORY))
+	if (task != cur_task() && !task_capable(CAP_MEMORY))
 		return EPERM;
 
 	if (!user_area(addr))
@@ -240,7 +240,7 @@ static int __vm_attribute(task_t task, void *addr, int attr)
 	if (!task_valid(task))
 		return ESRCH;
 
-	if (task != cur_task() && !capable(CAP_MEMORY))
+	if (task != cur_task() && !task_capable(CAP_MEMORY))
 		return EPERM;
 
 	addr = (void *)PAGE_TRUNC(addr);
@@ -319,7 +319,7 @@ static int __vm_map(task_t target, void *addr, size_t size, void **alloc)
 	if (target == cur_task())
 		return EINVAL;
 
-	if (!capable(CAP_MEMORY))
+	if (!task_capable(CAP_MEMORY))
 		return EPERM;
 
 	if (!user_area(addr))
@@ -328,7 +328,6 @@ static int __vm_map(task_t target, void *addr, size_t size, void **alloc)
 	start = PAGE_TRUNC(addr);
 	end = PAGE_ALIGN(addr + size);
 	size = (size_t)(end - start);
-
 	/*
 	 * Find the region that includes target address
 	 */
@@ -444,16 +443,16 @@ int vm_access(void *addr, size_t size, int type)
 	ASSERT(size);
 	start = (u_long)addr;
 	end = (u_long)addr + size - 1;
-	if ((err = umem_copyin((void *)start, &tmp, 1)) != 0)
+	if ((err = umem_copyin((void *)start, &tmp, 1)))
 		return EFAULT;
 	if (type == ATTR_WRITE) {
-		if ((err = umem_copyout(&tmp, (void *)start, 1)) != 0)
+		if ((err = umem_copyout(&tmp, (void *)start, 1)))
 			return EFAULT;
 	}
-	if ((err = umem_copyin((void *)end, &tmp, 1)) != 0)
+	if ((err = umem_copyin((void *)end, &tmp, 1)))
 		return EFAULT;
 	if (type == ATTR_WRITE) {
-		if ((err = umem_copyout(&tmp, (void *)end, 1)) != 0)
+		if ((err = umem_copyout(&tmp, (void *)end, 1)))
 			return EFAULT;
 	}
 	return 0;
@@ -574,7 +573,7 @@ void vm_dump(void)
 #endif
 
 
-#if defined(DEBUG) && defined(CONFIG_DEBUG_VM)
+#ifdef CONFIG_DEBUG_VM
 static void vm_error(const char *func, int err)
 {
 	printk("Error!!: %s returns err=%x\n", func, err);

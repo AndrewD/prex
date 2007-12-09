@@ -58,7 +58,7 @@ size_t strnlen(const char *str, size_t count)
 	const char *tmp;
 
 	for (tmp = str; count-- && *tmp != '\0'; ++tmp);
-	return tmp - str;
+	return (size_t)(tmp - str);
 }
 
 void *memcpy(void *dest, const void *src, size_t count)

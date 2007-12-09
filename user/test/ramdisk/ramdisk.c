@@ -127,7 +127,7 @@ int test_write(int sector)
 	return 0;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	test_read(0);
 	test_read(1);

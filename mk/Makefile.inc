@@ -50,7 +50,8 @@ OBJCOPY	= $(CROSS_COMPILE)objcopy
 OBJDUMP	= $(CROSS_COMPILE)objdump
 STRIP	= $(CROSS_COMPILE)strip
 LINT	= splint
-#MAKE	= make
+MAKE	= make
+RM	= rm
 #SHELL	= /bin/sh
 ifdef SHELL_PATH
 SHELL	= $(SHELL_PATH)
@@ -62,7 +63,7 @@ endif
 #
 # Architecture dependent options
 #
-include $(PREX_SRC)/make/Makefile.$(PREX_ARCH)
+include $(PREX_SRC)/mk/Makefile.$(PREX_ARCH)
 
 #
 # Flags
@@ -77,6 +78,9 @@ else
 CFLAGS += -DDEBUG -g
 endif
 
+# Correct gcc behavior for some distributions.
+CFLAGS += $(shell if $(CC) -fno-stack-protector -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo "-fno-stack-protector"; fi)
+
 ifdef MAP
 LDFLAGS += -Map $(MAP)
 endif
@@ -85,9 +89,10 @@ ASFLAGS	+=
 CFLAGS	+= -Wall -O2 -fno-strict-aliasing $(DEF_FLAGS)
 CPPFLAGS += $(DEF_FLAGS)
 LDFLAGS	+=
+#MAKEFLAGS += --no-print-directory
 
 LINT_FLAGS = -D__lint__ $(DEF_FLAGS) -nolib -weak -fcnuse -nestcomment \
-	-retvalother
+	-retvalother -fullinitblock
 # 
 # Specify path for libgcc.a
 #
@@ -107,7 +112,7 @@ endif
 %.o: %.S
 	$(CPP) $(CPPFLAGS) $(EXTRA_CPPFLAGS) $< $*.tmp
 	$(AS) $(ASFLAGS) $(EXTRA_ASFLAGS) -o $@ $*.tmp
-	rm -f $*.tmp
+	$(RM) -f $*.tmp
 
 #
 # Target
@@ -139,7 +144,7 @@ $(TARGET): $(OBJS) ar-target
 
 .PHONY: ar-target
 ar-target: $(OBJS)
-	$(AR) $(EXTRA_ARFLAGS) rcs $(TARGET) $?
+	$(AR) $(EXTRA_ARFLAGS) rucs $(TARGET) $?
 endif 
 
 #
@@ -201,13 +206,13 @@ ifdef RDFILES
 	$(AR) rcS ramdisk.a $(RDFILES)
 	$(AR) t ramdisk.a
 	$(AR) rcS tmp.a $(KERNEL) $(DRIVER) $(TASKS) ramdisk.a
-	rm ramdisk.a
+	$(RM) ramdisk.a
 else
 	$(AR) rcS tmp.a $(KERNEL) $(DRIVER) $(TASKS)
 endif
 	$(AR) t tmp.a
 	cat $(LOADER) tmp.a > $@
-	rm tmp.a
+	$(RM) tmp.a
 endif
 
 
@@ -225,7 +230,7 @@ ifdef SUBDIRS
 	  if [ "$$d" != "_" ] ; then $(MAKE) -C $$d depend; fi; \
 	done);
 endif
-	rm -f Makefile.dep
+	$(RM) -f Makefile.dep
 	@(for d in $(SRCS) _ ; do \
 	  if [ "$$d" != "_" ] ; then \
 	  $(CPP) -M $(CPPFLAGS) $$d >> Makefile.dep; fi; \
@@ -250,20 +255,20 @@ ifdef SUBDIRS
 	  if [ "$$d" != "_" ] ; then $(MAKE) -C $$d clean; fi; \
 	done);
 endif
-	rm -f Makefile.dep
-	rm -f $(OBJS)
-	rm -f $(TARGET)
+	$(RM) -f Makefile.dep
+	$(RM) -f $(OBJS)
+	$(RM) -f $(TARGET)
 ifdef DISASM
-	rm -f $(DISASM)
+	$(RM) -f $(DISASM)
 endif
 ifdef MAP
-	rm -f $(MAP)
+	$(RM) -f $(MAP)
 endif
 ifdef SYMBOL
-	rm -f $(SYMBOL)
+	$(RM) -f $(SYMBOL)
 endif
 ifdef CLEANS
-	rm -f $(CLEANS)
+	$(RM) -f $(CLEANS)
 endif
 
 .PHONY: dummy

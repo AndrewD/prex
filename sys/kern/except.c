@@ -79,7 +79,8 @@
 #include <except.h>
 
 /* Event is used only to identify it. */
-static struct event exception_event = EVENT_INIT(exception_event, "exception");
+static struct event exception_event = \
+	EVENT_INIT(exception_event, "exception");
 
 /*
  * Install an exception handler for the current task.
@@ -128,27 +129,25 @@ __syscall int exception_setup(void (*handler)(int, u_long))
  * @exc: exception code
  *
  * The exception pending flag is marked here, and it is processed
- * by exception_deliver() later.
- * If the task want to raise an exception to another task, the
- * caller task must have CAP_KILL capability.
- * It returns error if the exception is sent to the kernel task.
+ * by exception_deliver() later. If the task want to raise an
+ * exception to another task, the caller task must have CAP_KILL
+ * capability. If the exception is sent to the kernel task, this
+ * outine just returns error.
  */
 __syscall int exception_raise(task_t task, int exc)
 {
 	int err = 0;
 
 	sched_lock();
-
 	if (!task_valid(task)) {
-		err = ESRCH;
-		goto out;
+		sched_unlock();
+		return ESRCH;
 	}
-	if (task != cur_task() && !capable(CAP_KILL)) {
-		err = EPERM;
-		goto out;
+	if (task != cur_task() && !task_capable(CAP_KILL)) {
+		sched_unlock();
+		return EPERM;
 	}
 	err = __exception_raise(task, exc);
- out:
 	sched_unlock();
 	return err;
 }
@@ -199,8 +198,8 @@ int __exception_raise(task_t task, int exc)
  */
 __syscall int exception_wait(int *exc)
 {
-	int i, err;
-	u_int32_t bit;
+	int i, result;
+	uint32_t bit;
 
 	if (cur_task()->exc_handler == NULL)
 		return EINVAL;
@@ -209,32 +208,34 @@ __syscall int exception_wait(int *exc)
 
 	sched_lock();
 
+	/* Mark a waiting flag and sleep */
 	cur_thread->wait_exc = 1;
-	err = sched_sleep(&exception_event);
+	result = sched_sleep(&exception_event);
 	cur_thread->wait_exc = 0;
 
-	if (err == SLP_BREAK) {
+	if (result == SLP_BREAK) {
 		sched_unlock();
 		return EINVAL;
 	}
 	for (i = 0; i < NR_EXCEPTIONS; i++) {
-		bit = (u_int32_t)1 << i;
+		bit = (uint32_t)1 << i;
 		if (cur_thread->exc_bitmap & bit)
 			break;
 	}
-	sched_unlock();
 	ASSERT(i != NR_EXCEPTIONS);
-	if (umem_copyout(&i, exc, sizeof(int)) != 0)
+	sched_unlock();
+
+	if (umem_copyout(&i, exc, sizeof(int)))
 		return EFAULT;
 	return EINTR;
 }
 
 /*
  * Post specified exception to current thread.
+ *
  * This is called from architecture dependent code when H/W trap
- * is occurred.
- * If current task does not have exception handler, then current
- * task will be terminated.
+ * is occurred. If current task does not have exception handler,
+ * then current task will be terminated.
  */
 void exception_post(int exc)
 {
@@ -249,10 +250,12 @@ void exception_post(int exc)
 		printk("Task \"%s\"(id:%x) is terminated.\n",
 		       task->name ? task->name : "no name", task);
 
-		/* Teminate current task */
+		/* Terminate current task */
 		task_terminate(task);
-	} else
+	} else {
+		/* Mark pending bit */
 		th->exc_bitmap |= (1 << exc);
+	}
 }
 
 /*
@@ -261,7 +264,6 @@ void exception_post(int exc)
  * All exception is delivered at the time when the control goes back
  * to the user mode.
  * This routine is called from architecture dependent code.
- *
  * Some application may use longjmp() during its signal handler.
  * So, current context must be saved to user mode stack.
  */
@@ -269,20 +271,20 @@ void exception_deliver(void)
 {
 	thread_t th = cur_thread;
 	void (*handler)(int, u_long);
-	u_int32_t bit;
+	uint32_t bit;
 	int exc;
 
 	sched_lock();
 	handler = cur_task()->exc_handler;
 	if (handler != NULL && th->exc_bitmap) {
 		for (exc = 0; exc < NR_EXCEPTIONS; exc++) {
-			bit = (u_int32_t)1 << exc;
+			bit = (uint32_t)1 << exc;
 			if (th->exc_bitmap & bit)
 				break;
 		}
 		ASSERT(exc != NR_EXCEPTIONS);
-		context_save(&th->context, exc);
-		context_set(&th->context, USER_ENTRY, (u_long)handler);
+		context_save(&th->ctx, exc);
+		context_set(&th->ctx, USER_ENTRY, (u_long)handler);
 		th->exc_bitmap &= ~bit;
 	}
 	sched_unlock();
@@ -299,6 +301,6 @@ __syscall int exception_return(void *regs)
 {
 	if ((regs == NULL) || !user_area(regs))
 		return EFAULT;
-	context_restore(&cur_thread->context, regs);
+	context_restore(&cur_thread->ctx, regs);
 	return 0;
 }

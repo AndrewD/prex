@@ -47,10 +47,10 @@
  */
 
 struct dirent {
-	u_int32_t d_fileno;		/* file number of entry */
-	u_int16_t d_reclen;		/* length of this record */
-	u_int8_t  d_type; 		/* file type, see below */
-	u_int8_t  d_namlen;		/* length of string in d_name */
+	uint32_t d_fileno;		/* file number of entry */
+	uint16_t d_reclen;		/* length of this record */
+	uint8_t  d_type; 		/* file type, see below */
+	uint8_t  d_namlen;		/* length of string in d_name */
 	char	d_name[NAME_MAX];	/* name must be no longer than this */
 };
 

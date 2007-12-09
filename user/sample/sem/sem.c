@@ -48,6 +48,7 @@ void thread_run(void *start, void *stack)
 
 	if (thread_resume(th) != 0)
 		panic("thread_resume failed");
+
 	return;
 }
 
@@ -61,6 +62,8 @@ static void new_thread()
 
 	th = thread_self();
 	printf("Start thread=%x\n", th);
+	thread_yield();
+
 	/*
 	 * Acquire semaphore
 	 */
@@ -75,12 +78,13 @@ static void new_thread()
 	/*
 	 * Release semaphore
 	 */
-	printf("End thread=%x\n", th);
 	sem_post(&sem);	
+
+	printf("End thread=%x\n", th);
 	thread_terminate(th);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	static char stack[10][1024];
 	int i;

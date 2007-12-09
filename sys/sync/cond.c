@@ -32,7 +32,6 @@
  */
 
 #include <kernel.h>
-#include <queue.h>
 #include <sched.h>
 #include <kmem.h>
 #include <thread.h>
@@ -54,11 +53,30 @@ __syscall int cond_init(cond_t *cond)
 	event_init(&c->event, "condition");
 	c->task = cur_task();
 	c->magic = COND_MAGIC;
-
-	if (umem_copyout(&c, cond, sizeof(cond_t)) != 0) {
+	if (umem_copyout(&c, cond, sizeof(cond_t))) {
 		kmem_free(c);
 		return EFAULT;
 	}
+	return 0;
+}
+
+/*
+ * Copy a condition variable from user space.
+ * It also checks if the passed cv is valid.
+ *
+ * @us: Pointer to cv in user space.
+ * @ks: Pointer to cv in kernel space.
+ */
+static int cond_copyin(cond_t *uc, cond_t *kc)
+{
+	cond_t c;
+
+	if (umem_copyin(uc, &c, sizeof(cond_t)))
+		return EFAULT;
+
+	if (!cond_valid(c))
+		return EINVAL;
+	*kc = c;
 	return 0;
 }
 
@@ -70,15 +88,12 @@ __syscall int cond_init(cond_t *cond)
 __syscall int cond_destroy(cond_t *cond)
 {
 	cond_t c;
+	int err;
 
 	sched_lock();
-	if (umem_copyin(cond, &c, sizeof(cond_t)) != 0) {
+	if ((err = cond_copyin(cond, &c))) {
 		sched_unlock();
-		return EFAULT;
-	}
-	if (!cond_valid(c)) {
-		sched_unlock();
-		return EINVAL;
+		return err;
 	}
 	if (event_waiting(&c->event)) {
 		sched_unlock();
@@ -86,7 +101,6 @@ __syscall int cond_destroy(cond_t *cond)
 	}
 	c->magic = 0;
 	kmem_free(c);
-
 	sched_unlock();
 	return 0;
 }
@@ -99,18 +113,18 @@ __syscall int cond_destroy(cond_t *cond)
  * assumes this call does NOT return with error. So, the stub routine
  * in system call library must call cond_wait() again if it gets EINTR.
  */
-__syscall int cond_wait(cond_t *cond, mutex_t *mu)
+__syscall int cond_wait(cond_t *cond, mutex_t *mtx)
 {
 	cond_t c;
-	int err;
+	int err, result;
 
 	sched_lock();
-	if (umem_copyin(cond, &c, sizeof(cond_t)) != 0) {
+	if (umem_copyin(cond, &c, sizeof(cond_t))) {
 		sched_unlock();
 		return EFAULT;
 	}
 	if (c == COND_INITIALIZER) {
-		if ((err = cond_init(cond)) != 0) {
+		if ((err = cond_init(cond))) {
 			sched_unlock();
 			return err;
 		}
@@ -121,19 +135,16 @@ __syscall int cond_wait(cond_t *cond, mutex_t *mu)
 			return EINVAL;
 		}
 	}
-	if ((err = mutex_unlock(mu)) != 0) {
+	if ((err = mutex_unlock(mtx))) {
 		sched_unlock();
 		return err;
 	}
-	err = sched_sleep(&c->event);
-	if (err == SLP_INTR) {
-		sched_unlock();
-		mutex_lock(mu);
-		return EINTR;
-	}
+	result = sched_sleep(&c->event);
+	if (result == SLP_INTR)
+		err = EINTR;
 	sched_unlock();
-	mutex_lock(mu);
-	return 0;
+	mutex_lock(mtx);
+	return err;
 }
 
 /*
@@ -143,19 +154,14 @@ __syscall int cond_wait(cond_t *cond, mutex_t *mu)
 __syscall int cond_signal(cond_t *cond)
 {
 	cond_t c;
+	int err;
 
 	sched_lock();
-	if (umem_copyin(cond, &c, sizeof(cond_t)) != 0) {
-		sched_unlock();
-		return EFAULT;
-	}
-	if (!cond_valid(c)) {
-		sched_unlock();
-		return EINVAL;
-	}
-	sched_wakeone(&c->event);
+	err = cond_copyin(cond, &c);
+	if (err == 0)
+		sched_wakeone(&c->event);
 	sched_unlock();
-	return 0;
+	return err;
 }
 
 /*
@@ -164,17 +170,12 @@ __syscall int cond_signal(cond_t *cond)
 __syscall int cond_broadcast(cond_t *cond)
 {
 	cond_t c;
+	int err;
 
 	sched_lock();
-	if (umem_copyin(cond, &c, sizeof(cond_t)) != 0) {
-		sched_unlock();
-		return EFAULT;
-	}
-	if (!cond_valid(c)) {
-		sched_unlock();
-		return EINVAL;
-	}
-	sched_wakeup(&c->event);
+	err = cond_copyin(cond, &c);
+	if (err == 0)
+		sched_wakeup(&c->event);
 	sched_unlock();
-	return 0;
+	return err;
 }

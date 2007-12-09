@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,23 @@
  * main.c - driver main routine
  */
 #include <driver.h>
+#include <platform.h>
 
-#if DEBUG
-void driver_dump(void)
-{
-	driver_t drv;
-
-	printk("driver_dump:\n");
-	printk(" order init     name\n");
-	printk(" ----- -------- -------------------------\n");
-	for (drv = &__driver_table; drv <= &__driver_table_end; drv++)
-		printk(" %d     %08x %s\n", drv->order, drv->init, drv->name);
-}
-#endif
-
+/*
+ * Entry point of driver module
+ */
 void driver_main(void)
 {
 	struct driver *drv;
 	int order, err;
 
 	printk("Prex driver module build:" __DATE__ "\n");
+
+	/*
+	 * Initialize platform hardware.
+	 */
+	if (platform_init())
+		panic("Platform initialization failed\n");
 
 	/*
 	 * Call init routine for all device drivers with init order.

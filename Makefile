@@ -1,2 +1,2 @@
-SUBDIRS	= boot dev sys user make
-include $(PREX_SRC)/make/Makefile.inc
+SUBDIRS	= boot dev sys user mk
+include $(PREX_SRC)/mk/Makefile.inc

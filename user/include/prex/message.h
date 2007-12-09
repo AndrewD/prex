@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,7 @@ struct msg {
 #define STD_VERSION	0x00000001
 #define STD_DEBUG	0x00000002
 #define STD_STATUS	0x00000003
-#define STD_POWER	0x00000004
+#define STD_SHUTDOWN	0x00000004
+#define STD_POWER	0x00000005
 
 #endif /* !_MESSAGE_H */

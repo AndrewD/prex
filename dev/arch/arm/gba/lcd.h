@@ -70,25 +70,25 @@
 #define SCR_HIGHT	20
 
 /* Registers for keypad control */
-#define REG_DISPCNT	(*(volatile u_int16_t *)0x4000000)
-#define REG_BG0CNT	(*(volatile u_int16_t *)0x4000008)
-#define REG_BG1CNT	(*(volatile u_int16_t *)0x400000A)
-#define REG_BG2CNT	(*(volatile u_int16_t *)0x400000C)
-#define REG_BG3CNT	(*(volatile u_int16_t *)0x400000E)
+#define REG_DISPCNT	(*(volatile uint16_t *)0x4000000)
+#define REG_BG0CNT	(*(volatile uint16_t *)0x4000008)
+#define REG_BG1CNT	(*(volatile uint16_t *)0x400000A)
+#define REG_BG2CNT	(*(volatile uint16_t *)0x400000C)
+#define REG_BG3CNT	(*(volatile uint16_t *)0x400000E)
 
-#define BG_PALETTE	(u_int16_t *)0x5000000
+#define BG_PALETTE	(uint16_t *)0x5000000
 
-#define CONSOLE_TILE	(u_int16_t *)0x6000000
-#define CONSOLE_MAP	(u_int16_t *)0x6008000
+#define CONSOLE_TILE	(uint16_t *)0x6000000
+#define CONSOLE_MAP	(uint16_t *)0x6008000
 
-#define KBD1_TILE	(u_int16_t *)0x6004000
-#define KBD2_TILE	(u_int16_t *)0x6006000
-#define KBD1_MAP	(u_int16_t *)0x6009000
-#define KBD2_MAP	(u_int16_t *)0x600A000
+#define KBD1_TILE	(uint16_t *)0x6004000
+#define KBD2_TILE	(uint16_t *)0x6006000
+#define KBD1_MAP	(uint16_t *)0x6009000
+#define KBD2_MAP	(uint16_t *)0x600A000
 
-#define OAM		(u_int16_t *)0x7000000
-#define SPL_PALETTE	(u_int16_t *)0x5000200
-#define CURSOR_DATA	(u_int16_t *)0x6010000
+#define OAM		(uint16_t *)0x7000000
+#define SPL_PALETTE	(uint16_t *)0x5000200
+#define CURSOR_DATA	(uint16_t *)0x6010000
 
 
 #define	RGB(r, g, b)	(((b) << 10) + ((g) << 5) + (r))

@@ -202,7 +202,7 @@ physical device. And, it can also be used to handle logical or virtual devices.
 <pre>
 device_t device_create(devio_t io, char *name);
 int device_delete(device_t dev);
-int device_broadcast(int event);
+int device_broadcast(int event, int force);
 </pre>
 
 <dl>
@@ -253,9 +253,11 @@ This function returns ENODEV if the specified device object does not exist.
 <dt>device_broadcast()</dt>
 <dd>
 Broadcasts the message specified by <i>event</i> to all device objects.
-If any driver returns an error for the event notification, the kernel stops
-sending the event. In this case, this function returns an
- error which is returned by that driver.
+If <i>force</i> is true, a kernel will ignore the value returned by
+each driver, and continue event notification.
+If <i>force</i> is false and any driver returns any error for the event,
+a kernel stops the event notification. In this case, this function
+returns an error code which is returned by that driver.
 </dd>
 </dl>
 
@@ -492,9 +494,9 @@ Wakes up all threads that are waiting for the specified event.
 </dl>
 
 <dl>
-<dt>sched_stat()</dt>
+<dt>sched_info()</dt>
 <dd>
-Returns the scheduling statistics. This is used by a power management driver
+Returns the scheduling information. This is used by a power management driver
 to get the current processor load.
 <pre>
 /*
@@ -528,10 +530,10 @@ allocate the memory for the timer structure for <i>tmr</i>.
  */
 struct timer {
     struct list link;               /* Link to timer chain */
-    int         type;               /* Type */
-    u_long      expire;             /* Expire time */
     void        (*func)(void *);    /* Call out function */
     void        *arg;               /* Argument */
+    u_long      expire;             /* Expire time */
+    int         active;             /* True if active */
 };
 typedef struct timer *timer_t;
 </pre>

@@ -60,11 +60,10 @@ static void test_thread(void)
 		putchar('@');
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	int err;
 	thread_t self, th;
-	int quantum;
 
 	printf("Thread test program\n");
 
@@ -107,20 +106,6 @@ int main()
 	 * Suspend test thread
 	 */
 	thread_suspend(th);
-
-	/*
-	 * Set this thread's quantum to very short.
-	 */
-	err = thread_getinterval(self, &quantum);
-	if (err)
-		panic("Failed to get interval");
-	printf("\nCurrent quantum=%d\n", quantum);
-
-	printf("\nNew quantum=%d\n", quantum * 10);
-	quantum *= 10;
-	err = thread_setinterval(self, quantum);
-	if (err)
-		panic("Failed to set interval");
 
 	/*
 	 * Wait 2 sec

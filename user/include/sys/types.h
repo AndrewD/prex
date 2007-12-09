@@ -50,25 +50,25 @@ typedef	unsigned short	ushort;		/* Sys V compatibility */
 typedef	unsigned int	uint;		/* Sys V compatibility */
 #endif
 
-typedef	u_int64_t	u_quad_t;	/* quads */
+typedef	uint64_t	u_quad_t;	/* quads */
 typedef	int64_t		quad_t;
 typedef	quad_t *	qaddr_t;
 
 typedef	char *		caddr_t;	/* core address */
 typedef	int32_t		daddr_t;	/* disk address */
-typedef	u_int32_t	dev_t;		/* device number */
-typedef u_int32_t	fixpt_t;	/* fixed point number */
-typedef	u_int32_t	gid_t;		/* group id */
-typedef	u_int32_t	ino_t;		/* inode number */
+typedef	uint32_t	dev_t;		/* device number */
+typedef uint32_t	fixpt_t;	/* fixed point number */
+typedef	uint32_t	gid_t;		/* group id */
+typedef	uint32_t	ino_t;		/* inode number */
 typedef	long		key_t;		/* IPC key (for Sys V IPC) */
-typedef	u_int16_t	mode_t;		/* permissions */
-typedef	u_int16_t	nlink_t;	/* link count */
+typedef	uint16_t	mode_t;		/* permissions */
+typedef	uint16_t	nlink_t;	/* link count */
 /* typedef	quad_t		off_t; */		/* file offset */
 typedef	unsigned long	off_t;		/* file offset */
 typedef	int32_t		pid_t;		/* process id */
 typedef	int32_t		segsz_t;	/* segment size */
 typedef	int32_t		swblk_t;	/* swap offset */
-typedef	u_int32_t	uid_t;		/* user id */
+typedef	uint32_t	uid_t;		/* user id */
 
 /*
  * This belongs in unistd.h, but is placed here to ensure that programs
@@ -84,7 +84,7 @@ __END_DECLS
 
 #ifndef _POSIX_SOURCE
 							/* major number */
-#define	major(x)	((int32_t)(((u_int32_t)(x) >> 8) & 0xff))
+#define	major(x)	((int32_t)(((uint32_t)(x) >> 8) & 0xff))
 #define	minor(x)	((int32_t)((x) & 0xff))		/* minor number */
 #define	makedev(x,y)	((dev_t)(((x) << 8) | (y)))	/* create dev_t */
 #endif

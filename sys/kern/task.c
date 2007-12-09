@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,13 +75,13 @@ struct task kern_task = KERN_TASK(kern_task);
  * If vm_inherit is VM_COPY, the child task will have the same memory
  * image with the parent task. Especially, text region and read-only
  * region are physically shared among them. VM_COPY is supported only
- * with MMU system. The created
- *
+ * with MMU system.
  * The child task initially contains no threads.
  */
 __syscall int task_create(task_t parent, int vm_inherit, task_t *child)
 {
-	task_t task = 0;
+	task_t task;
+	int err;
 
 	if (vm_inherit > VM_COPY)
 		return EINVAL;
@@ -90,32 +90,44 @@ __syscall int task_create(task_t parent, int vm_inherit, task_t *child)
 		return EINVAL;
 #endif
 	sched_lock();
-
 	if (!task_valid(parent)) {
 		sched_unlock();
 		return ESRCH;
 	}
-	if (parent != cur_task() && !capable(CAP_TASK)) {
+	if (parent != cur_task() && !task_capable(CAP_TASK)) {
 		sched_unlock();
 		return EPERM;
 	}
 	/*
-	 * The child task ID must be set to 0 before copying parent's 
-	 * memory image. So that the child task can know whether
-	 * it is child.
+	 * The child task ID must be set to 0 before copying
+	 * parent's memory image. So that the child task can
+	 * know whether it is child.
 	 */
-	if (cur_task() == &kern_task) {
-		*child = 0;	
-	} else {
-		if (umem_copyout(&task, child, sizeof(task_t)) != 0) {
-			sched_unlock();
-			return EFAULT;
-		}
-	}
-	if ((task = kmem_alloc(sizeof(struct task))) == NULL) {
+	task = 0;
+	if (umem_copyout(&task, child, sizeof(task_t))) {
 		sched_unlock();
-		return ENOMEM;
+		return EFAULT;
 	}
+	err = __task_create(parent, vm_inherit, &task);
+	sched_unlock();
+	if (!err) {
+		/*
+		 * The following copy operation affects only parent's
+		 * memory space. So, only parent task will get the child
+		 * task's ID.
+		 */
+		if (umem_copyout(&task, child, sizeof(task_t)))
+			return EFAULT;
+	}
+	return err;
+}
+
+int __task_create(task_t parent, int vm_inherit, task_t *child)
+{
+	task_t task;
+
+	if ((task = kmem_alloc(sizeof(struct task))) == NULL)
+		return ENOMEM;
 	memset(task, 0, sizeof(struct task));
 
 	/*
@@ -135,7 +147,6 @@ __syscall int task_create(task_t parent, int vm_inherit, task_t *child)
 	}
 	if (task->map == NULL) {
 		kmem_free(task);
-		sched_unlock();
 		return ENOMEM;
 	}
 	/*
@@ -149,26 +160,10 @@ __syscall int task_create(task_t parent, int vm_inherit, task_t *child)
 	task->magic = TASK_MAGIC;
 	list_insert(&kern_task.link, &task->link);
 
-	sched_unlock();
-	/*
-	 * The following copy operation affects only parent's memory.
-	 * So, only parent task will get the child task's ID.
-	 */
-	if (cur_task() == &kern_task) {
-		*child = task;
-	} else {
-		if (umem_copyout(&task, child, sizeof(task_t)) != 0)
-			return EFAULT;
-   	}
+	*child = task;
 	return 0;
 }
 
-/*
- * Terminate a task.
- *
- * Deallocates all resources for the specified task.
- * If terminated task is current task, this routine never returns.
- */
 __syscall int task_terminate(task_t task)
 {
 	list_t head, n;
@@ -181,7 +176,7 @@ __syscall int task_terminate(task_t task)
 		sched_unlock();
 		return ESRCH;
 	}
-	if (task != cur_task() && !capable(CAP_TASK)) {
+	if (task != cur_task() && !task_capable(CAP_TASK)) {
 		sched_unlock();
 		return EPERM;
 	}
@@ -244,7 +239,7 @@ __syscall int task_suspend(task_t task)
 		sched_unlock();
 		return ESRCH;
 	}
-	if (task != cur_task() && !capable(CAP_TASK)) {
+	if (task != cur_task() && !task_capable(CAP_TASK)) {
 		sched_unlock();
 		return EPERM;
 	}
@@ -288,7 +283,7 @@ __syscall int task_resume(task_t task)
 		sched_unlock();
 		return ESRCH;
 	}
-	if (task != cur_task() && !capable(CAP_TASK)) {
+	if (task != cur_task() && !task_capable(CAP_TASK)) {
 		sched_unlock();
 		return EPERM;
 	}
@@ -312,7 +307,6 @@ __syscall int task_resume(task_t task)
  * 
  * A task name is used only for debug purpose. So, the parent task
  * does not have to set a name for all created (child) tasks.
- *
  * The naming service is separated from task_create() because
  * the task name can be changed at anytime.
  */
@@ -327,7 +321,7 @@ __syscall int task_name(task_t task, char *name)
 		sched_unlock();
 		return ESRCH;
 	}
-	if (task != cur_task() && !capable(CAP_TASK)) {
+	if (task != cur_task() && !task_capable(CAP_TASK)) {
 		sched_unlock();
 		return EPERM;
 	}
@@ -347,12 +341,11 @@ __syscall int task_name(task_t task, char *name)
 
 /*
  * Check the task capability.
- * This is used by device driver to check the task
- * permission.
+ * This is used by device driver to check the task's permission.
  */
-int task_capable(int cap)
+int __task_capable(cap_t cap)
 {
-	return (int)capable(cap);
+	return (int)(cur_task()->capability & (1U << cap));
 }
 
 /*
@@ -369,7 +362,6 @@ __syscall int task_getcap(task_t task, cap_t *cap)
 	}
 	cur_cap = task->capability;
 	sched_unlock();
-
 	return umem_copyout(&cur_cap, cap, sizeof(cap_t));
 }
 
@@ -380,7 +372,7 @@ __syscall int task_setcap(task_t task, cap_t *cap)
 {
 	cap_t new_cap;
 
-	if (!capable(CAP_SETPCAP))
+	if (!task_capable(CAP_SETPCAP))
 		return EPERM;
 
 	sched_lock();
@@ -388,7 +380,7 @@ __syscall int task_setcap(task_t task, cap_t *cap)
 		sched_unlock();
 		return ESRCH;
 	}
-	if (umem_copyin(cap, &new_cap, sizeof(cap_t)) != 0) {
+	if (umem_copyin(cap, &new_cap, sizeof(cap_t))) {
 		sched_unlock();
 		return EFAULT;
 	}
@@ -408,17 +400,20 @@ static int task_load(task_t task, struct img_info *img, void **stack)
 
 	printk("Loading task:\'%s\'\n", img->name);
 
-	/* Create text segment */
+	/*
+	 * Create text segment
+	 */
 	text = (void *)img->text;
 	if (__vm_allocate(task, &text, img->text_size, 0, 1))
 		return -1;
 	memcpy((void *)img->text, (void *)phys_to_virt(img->phys),
 	       img->text_size);
-
 	if (vm_attribute(task, text, ATTR_READ))
 		return -1;
-	
-	/* Copy data & BSS segment */
+
+	/*
+	 * Copy data & BSS segment
+	 */
 	if (img->data_size + img->bss_size != 0) {
 		data = (void *)img->data;
 		if (__vm_allocate(task, &data,
@@ -430,7 +425,9 @@ static int task_load(task_t task, struct img_info *img, void **stack)
 		       (img->data - img->text)),
 		       img->data_size);
 	}
-	/* Create stack */
+	/*
+	 * Create stack
+	 */
 	*stack = (void *)(USER_MAX - USTACK_SIZE);
 	if (__vm_allocate(task, stack, USTACK_SIZE, 0, 1))
 		return -1;
@@ -467,7 +464,6 @@ static int task_load(task_t task, struct img_info *img, void **stack)
 	/* Create stack */
 	if (__vm_allocate(task, stack, USTACK_SIZE, 1, 1))
 		return -1;
-
 	return 0;
 }
 #endif /* !CONFIG_MMU */
@@ -486,25 +482,29 @@ void task_boot(void)
 
 	img = &boot_info->tasks[0];
 	for (i = 0; i < boot_info->nr_tasks; i++, img++) {
-
-		if (task_create(&kern_task, VM_NONE, &task))
+		/*
+		 * Create new task.
+		 */
+		if (__task_create(&kern_task, VM_NONE, &task))
 			break;
-
 		task_name(task, img->name);
 
-		/* Switch mapping to touch this virtual memory space */
+		/*
+		 * Switch mapping to touch the virtual memory
+		 * space of a created task.
+		 */
 		mmu_switch(task->map->pgd);
 
+		/*
+		 * Setup and start task.
+		 */
 		if (task_load(task, img, &stack))
 			break;
-
-		if (thread_create(task, &th))
+		if (__thread_create(task, &th))
 			break;
 		if (thread_load(th, (void *)img->entry,
 				(void *)(stack + USTACK_SIZE - sizeof(int))))
 			break;
-
-		/* Start thread */
 		thread_resume(th);
 	}
 	if (i != boot_info->nr_tasks)
@@ -512,10 +512,6 @@ void task_boot(void)
 
 	/* Restore page mapping */
 	mmu_switch(kern_task.map->pgd);
-
-#if defined(DEBUG) && defined(CONFIG_KDUMP)
-	/* boot_dump(); */
-#endif
 }
 
 #if defined(DEBUG) && defined(CONFIG_KDUMP)

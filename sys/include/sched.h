@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,6 @@
 #ifndef _SCHED_H
 #define _SCHED_H
 
-#include <queue.h>
 #include <event.h>
 #include <thread.h>
 #include <system.h>
@@ -45,7 +44,7 @@
 /*
  * Scheduling quantum (Ticks for context switch)
  */
-#define DEFAULT_QUANTUM	(TIME_SLICE * HZ / 1000)
+#define QUANTUM		(TIME_SLICE * HZ / 1000)
 
 /*
  * Scheduling priority (Smaller value means higher priority.)
@@ -54,6 +53,22 @@
 #define MIN_PRIO	(NR_PRIO - 1)
 #define PRIO_IDLE	MIN_PRIO /* Priority for idle thread */
 
+/*
+ * DPC (Deferred Procedure Call) object
+ */
+struct dpc {
+	struct queue	link;		/* Linkage on DPC queue */
+	int		state;
+	void		(*func)(void *); /* Call back routine */
+	void		*arg;		/* Argument to pass */
+};
+typedef struct dpc *dpc_t;
+
+/*
+ * State for DPC
+ */
+#define DPC_FREE	0x4470463f	/* 'DpF?' */
+#define DPC_PENDING	0x4470503f	/* 'DpP?' */
 
 #define sched_sleep(evt) sched_tsleep((evt), 0)
 
@@ -69,11 +84,12 @@ extern void sched_suspend(thread_t th);
 extern void sched_resume(thread_t th);
 extern void sched_start(thread_t th);
 extern void sched_stop(thread_t th);
-extern void sched_clock(void);
+extern void sched_tick(void);
 extern int sched_getprio(thread_t th);
 extern void sched_setprio(thread_t th, int base, int prio);
 extern int sched_getpolicy(thread_t th);
 extern int sched_setpolicy(thread_t th, int policy);
-extern void sched_stat(struct stat_sched *ss);
+extern void sched_info(struct info_sched *info);
+extern void sched_dpc(dpc_t dpc, void (*func)(void *), void *arg);
 
 #endif /* !_SCHED_H */

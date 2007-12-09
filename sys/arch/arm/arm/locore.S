@@ -214,7 +214,7 @@ ENTRY(syscall_entry)
 	mrs	r5, spsr		/* Push cpsr */
 	str	r5, [sp, #(4*18)]
 #ifndef __gba__
-	ldr	r4, [lr, #4]		/* Get SWI number */
+	ldr	r4, [lr, #-4]		/* Get SWI number */
 	bic	r4, r4, #0xff000000
 #endif
 	ldr	r5, =nr_syscalls	/* Check SWI number */

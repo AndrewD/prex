@@ -1,4 +1,4 @@
 TARGET	= libdev.a
 TYPE	= LIBRARY
-OBJS	= stdlib.o string.o queue.o
-include $(PREX_SRC)/make/dev.mk
+OBJS	= stdlib.o string.o queue.o assert.o
+include $(PREX_SRC)/mk/dev.mk

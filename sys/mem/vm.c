@@ -54,7 +54,7 @@
 
 #ifdef CONFIG_MMU
 
-#if defined(DEBUG) && defined(CONFIG_DEBUG_VM)
+#ifdef CONFIG_DEBUG_VM
 static void vm_error(const char *func, int err);
 
 #define MEMLOG(x,y...) printk(x, ##y)
@@ -67,7 +67,7 @@ static void vm_error(const char *func, int err);
 /* vm mapping for kernel task */
 static struct vm_map kern_map;
 
-/* Forward function */
+/* Forward declarations */
 static int __vm_free(task_t task, void *addr);
 static int __vm_attribute(task_t task, void *addr, int attr);
 static int __vm_map(task_t target, void *addr, size_t size,
@@ -100,26 +100,23 @@ __syscall int vm_allocate(task_t task, void **addr, size_t size,
 	       task, *addr, size, task->name ? task->name : "no name");
 
 	sched_lock();
-
 	if (!task_valid(task)) {
 		err = ESRCH;
 		goto out;
 	}
-	if (task != cur_task() && !capable(CAP_MEMORY)) {
+	if (task != cur_task() && !task_capable(CAP_MEMORY)) {
 		err = EPERM;
 		goto out;
 	}
-	if (umem_copyin(addr, &uaddr, sizeof(void *)) != 0) {
+	if (umem_copyin(addr, &uaddr, sizeof(void *))) {
 		err = EFAULT;
 		goto out;
 	}
-	err = __vm_allocate(task, &uaddr, size, anywhere, 1);
-	if (err)
+	if ((err = __vm_allocate(task, &uaddr, size, anywhere, 1)))
 		goto out;
-	if (umem_copyout(&uaddr, addr, sizeof(void *)) != 0) {
+
+	if (umem_copyout(&uaddr, addr, sizeof(void *)))
 		err = EFAULT;
-		goto out;
-	}
  out:
 	sched_unlock();
 	MEMCHK();
@@ -199,8 +196,7 @@ int __vm_allocate(task_t task, void **addr, size_t size,
 	/*
 	 * Allocate physical pages, and map them into virtual address
 	 */
-	phys = (u_long)page_alloc(size);
-	if (phys == 0)
+	if ((phys = (u_long)page_alloc(size)) == 0)
 		return ENOMEM;
 
 	/* Default attribute is read/write. */
@@ -249,7 +245,7 @@ static int __vm_free(task_t task, void *addr)
 	if (!task_valid(task))
 		return ESRCH;
 
-	if (task != cur_task() && !capable(CAP_MEMORY))
+	if (task != cur_task() && !task_capable(CAP_MEMORY))
 		return EPERM;
 
 	if (!user_area(addr))
@@ -329,7 +325,7 @@ static int __vm_attribute(task_t task, void *addr, int attr)
 	if (!task_valid(task))
 		return ESRCH;
 
-	if (task != cur_task() && !capable(CAP_MEMORY))
+	if (task != cur_task() && !task_capable(CAP_MEMORY))
 		return EPERM;
 
 	if (!user_area(addr))
@@ -374,8 +370,7 @@ static int __vm_attribute(task_t task, void *addr, int attr)
 		old_addr = reg->phys;
 
 		/* Allocate new physical page. */
-		new_addr = (u_long)page_alloc(reg->size);
-		if (new_addr == 0)
+		if ((new_addr = (u_long)page_alloc(reg->size)) == 0)
 			return ENOMEM;
 
 		/* Copy source page */
@@ -447,14 +442,15 @@ static int __vm_map(task_t target, void *addr, size_t size,
 	if (target == cur_task())
 		return EINVAL;
 
-	if (!capable(CAP_MEMORY))
+	if (!task_capable(CAP_MEMORY))
 		return EPERM;
 
 	if (!user_area(addr))
 		return EFAULT;
 
 	/* check fault */
-	if (umem_copyin(alloc, &tmp, sizeof(void *)) != 0)
+	tmp = NULL;
+	if (umem_copyout(&tmp, alloc, sizeof(void *)))
 		return EFAULT;
 
 	start = PAGE_TRUNC(addr);
@@ -518,8 +514,7 @@ static int __vm_map(task_t target, void *addr, size_t size,
 	cur->phys = phys;
 
 	tmp = (void *)((u_long)cur->addr + offset);
-	if (umem_copyout(&tmp, alloc, sizeof(void *)) != 0)
-		panic("Unexpected error");
+	umem_copyout(&tmp, alloc, sizeof(void *));
 	return 0;
 }
 
@@ -534,7 +529,7 @@ vm_map_t vm_create(void)
 	vm_map_t map;
 
 	/* Allocate new map structure */
-	if ((map = kmem_alloc(sizeof(struct vm_map))) == NULL)
+	if ((map = kmem_alloc(sizeof(*map))) == NULL)
 		return NULL;
 
 	map->ref_count = 1;
@@ -626,8 +621,7 @@ static vm_map_t __vm_fork(vm_map_t org_map)
 			dest = tmp;
 		} else {
 			/* Create new region struct */
-			dest = kmem_alloc(sizeof(struct region));
-			if (dest == NULL)
+			if ((dest = kmem_alloc(sizeof(*dest))) == NULL)
 				return NULL;
 
 			*dest = *src;	/* memcpy */
@@ -650,8 +644,7 @@ static vm_map_t __vm_fork(vm_map_t org_map)
 
 		if (!(dest->flags & REG_SHARED)) {
 			/* Allocate new physical page. */
-			dest->phys = (u_long)page_alloc(src->size);
-			if (dest->phys == 0)
+			if ((dest->phys = (u_long)page_alloc(src->size)) == 0)
 				return NULL;
 
 			/* Copy source page */
@@ -722,10 +715,10 @@ int vm_access(void *addr, size_t size, int type)
 	pg = PAGE_TRUNC(addr);
 	end = PAGE_TRUNC(addr + size - 1);
 	do {
-		if ((err = umem_copyin((void *)pg, &tmp, 1)) != 0)
+		if ((err = umem_copyin((void *)pg, &tmp, 1)))
 			return EFAULT;
 		if (type == ATTR_WRITE) {
-			if ((err = umem_copyout(&tmp, (void *)pg, 1)) != 0)
+			if ((err = umem_copyout(&tmp, (void *)pg, 1)))
 				return EFAULT;
 		}
 		pg += PAGE_SIZE;
@@ -741,7 +734,7 @@ static int region_create(struct region *prev, u_long addr, size_t size)
 {
 	struct region *reg;
 
-	reg = kmem_alloc(sizeof(struct region));
+	reg = kmem_alloc(sizeof(*reg));
 	if (reg == NULL)
 		return -1;
 
@@ -851,7 +844,7 @@ void vm_dump(void)
 }
 #endif
 
-#if defined(DEBUG) && defined(CONFIG_DEBUG_VM)
+#ifdef CONFIG_DEBUG_VM
 static void vm_error(const char *func, int err)
 {
 	printk("Error!!: %s returns err=%x\n", func, err);

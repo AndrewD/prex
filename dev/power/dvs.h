@@ -33,23 +33,19 @@
 #include <config.h>
 
 /*
- * Default Power Management Policy
+ * Frequency control policy
  */
-#ifdef CONFIG_PM_POWERSAVE
-#define DEFAULT_POWER_POLICY	PM_POWERSAVE
-#else
-#define DEFAULT_POWER_POLICY	PM_PERFORMANCE
-#endif
-
-/*
- * Parameter for Dynamic Voltage Scaling
- */
-#define DVS_SAMPLING_RATE	50
-#define DVS_CONSTANT		3
-
+#define CPUFREQ_ONDEMAND	0
+#define CPUFREQ_MAXSPEED	1
+#define CPUFREQ_MINSPEED	2
 
 extern int cpu_initperf(void);
 extern int cpu_setperf(int level);
 extern int cpu_getperf(void);
 
+extern void dvs_enable(void);
+extern void dvs_disable(void);
+extern void dvs_init(void);
+
+extern int pm_getpolicy(void);
 #endif /* !_DVS_H */

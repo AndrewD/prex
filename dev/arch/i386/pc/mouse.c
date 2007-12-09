@@ -84,16 +84,15 @@ static struct devio mouse_io = {
 
 static device_t mouse_dev;	/* Mouse object */
 static int mouse_irq;		/* Handle for mouse irq */
-static int nr_open;
 static u_char packet[3];	/* Mouse packet */
 static int index = 0;
 
 /*
  * Write aux device command
  */
-static void mouse_cmd(int val)
+static void aux_command(int val)
 {
-	mou_dbg("mouse_cmd: %x\n", val);
+	mou_dbg("aux_command: %x\n", val);
 	wait_ibe();
 	outb(0x60, KMC_CMD);
 	wait_ibe();
@@ -103,11 +102,11 @@ static void mouse_cmd(int val)
 /*
  * Returns 0 on success, -1 on failure.
  */
-static int mouse_write(int val)
+static int aux_write(int val)
 {
 	int rc = -1;
 
-	mou_dbg("mouse_write: val=%x\n", val);
+	mou_dbg("aux_write: val=%x\n", val);
 	irq_lock();
 
 	/* Write the value to the device */
@@ -123,8 +122,10 @@ static int mouse_write(int val)
 			rc = 0;
 	}
 	irq_unlock();
+#ifdef DEBUG_MOUSE
 	if (rc)
-		printk("mouse_write: error val=%x\n", val);
+		mou_dbg("aux_write: error val=%x\n", val);
+#endif
 	return rc;
 }
 
@@ -147,7 +148,7 @@ static int mouse_isr(int irq)
 			id = inb(KMC_DATA);
 			printk("Mouse ID=%x\n", id);
 		}
-		mouse_write(0xf4);	/* Enable aux device */
+		aux_write(0xf4);	/* Enable aux device */
 		return 0;
 	}
 
@@ -164,10 +165,7 @@ static int mouse_isr(int irq)
  */
 static int mouse_open(device_t dev, int mode)
 {
-	printk("mouse_open\n");
-	if (nr_open > 0)
-		return EBUSY;
-	nr_open++;
+	mou_dbg("mouse_open\n");
 	return 0;
 }
 
@@ -176,10 +174,7 @@ static int mouse_open(device_t dev, int mode)
  */
 static int mouse_close(device_t dev)
 {
-	printk("mouse_close\n");
-	if (nr_open != 1)
-		return EINVAL;
-	nr_open--;
+	mou_dbg("mouse_close\n");
 	return 0;
 }
 
@@ -194,7 +189,7 @@ static int mouse_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 /*
  * Initialize
  */
-int mouse_init(void)
+static int mouse_init(void)
 {
 	printk("Mouse sampling rate=100 samples/sec\n");
 
@@ -209,17 +204,14 @@ int mouse_init(void)
 	wait_ibe();
 	outb(0xa8, KMC_CMD);	/* Enable aux */
 
-	mouse_write(0xf3);	/* Set sample rate */
-	mouse_write(100);	/* 100 samples/sec */
+	aux_write(0xf3);	/* Set sample rate */
+	aux_write(100);		/* 100 samples/sec */
 
-	mouse_write(0xe8);	/* Set resolution */
-	mouse_write(3);		/* 8 counts per mm */
-	mouse_write(0xe7);	/* 2:1 scaling */
+	aux_write(0xe8);	/* Set resolution */
+	aux_write(3);		/* 8 counts per mm */
+	aux_write(0xe7);	/* 2:1 scaling */
 
-	mouse_write(0xf4);	/* Enable aux device */
-	mouse_cmd(0x47);	/* Enable controller ints */
-
-/* 	mouse_write(0xf4);      /\* Enable aux device *\/ */
-/* 	mouse_cmd(0x47);        /\* Enable controller ints *\/ */
+	aux_write(0xf4);	/* Enable aux device */
+	aux_command(0x47);	/* Enable controller ints */
 	return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,6 @@
 #define	PS_KILL		0x00000108
 #define	PS_BOOT		0x00000109
 #define	PS_EXEC		0x0000010A
-#define	PS_EXECFAIL	0x0000010B
+#define	PS_PSTAT	0x0000010B
 
 #endif /* !_SRV_PROC_H */

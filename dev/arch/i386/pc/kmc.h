@@ -51,8 +51,8 @@
 /* Command */
 #define CMD_READ_CMD	0x20
 #define CMD_WRITE_CMD	0x60
-#define CMD_AUX_EN	0xa7
-#define CMD_AUX_DIS	0xa8
+#define CMD_AUX_DIS	0xa7
+#define CMD_AUX_EN	0xa8
 #define CMD_KBD_DIS	0xad
 #define CMD_KBD_EN	0xae
 #define CMD_READ_OPORT	0xd0

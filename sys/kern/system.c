@@ -42,7 +42,7 @@
 #include <device.h>
 #include <system.h>
 
-static const struct stat_kernel kstat = KERNEL_STAT(kstat);
+static const struct info_kernel kern_info = KERNEL_INFO(kern_info);
 
 /*
  * Logging system call.
@@ -53,15 +53,14 @@ static const struct stat_kernel kstat = KERNEL_STAT(kstat);
 __syscall int sys_log(char *str)
 {
 #ifdef DEBUG
-	char buf[LOGBUF_SIZE];
+	char buf[LOGMSG_SIZE];
 	size_t len;
 
-	if (umem_strnlen(str, LOGBUF_SIZE, &len))
+	if (umem_strnlen(str, LOGMSG_SIZE, &len))
 		return EFAULT;
-	if (len >= LOGBUF_SIZE)
+	if (len >= LOGMSG_SIZE)
 		return EINVAL;
-
-	if (umem_copyin(str, buf, len + 1) != 0)
+	if (umem_copyin(str, buf, len + 1))
 		return EFAULT;
 	printk(buf);
 	return 0;
@@ -82,15 +81,11 @@ __syscall int sys_log(char *str)
 __syscall int sys_panic(char *str)
 {
 #ifdef DEBUG
-	static const char line[] =
-	    "\n=====================================================\n";
-
 	irq_lock();
-	printk(line);
-	printk("User mode panic! task=%x thread=%x\n",
+	printk("\nUser mode panic! task=%x thread=%x\n",
 	       cur_task(), cur_thread);
 	sys_log(str);
-	printk(line);
+	printk("\n");
 	sched_lock();
 	irq_unlock();
 	BREAKPOINT();
@@ -103,32 +98,51 @@ __syscall int sys_panic(char *str)
 }
 
 /*
- * Get kernel statistics.
+ * Get system information
  */
-__syscall int sys_stat(int type, void *buf)
+__syscall int sys_info(int type, void *buf)
 {
-	struct stat_memory sm;
-	struct stat_sched ss;
+	int err;
+	struct info_memory im;
+	struct info_sched is;
+	struct info_thread it;
+	struct info_device id;
 		
 	if (buf == NULL || !user_area(buf))
 		return EFAULT;
 
 	switch (type) {
-	case STAT_KERNEL:
-		if (umem_copyout((void *)&kstat, buf, sizeof(struct stat_kernel)) != 0)
+	case INFO_KERNEL:
+		if (umem_copyout((void *)&kern_info, buf, sizeof(kern_info)))
 			return EFAULT;
 		break;
-
-	case STAT_MEMORY:
-		page_stat(&sm.total, &sm.free);
-		kmem_stat(&sm.kernel);
-		if (umem_copyout(&sm, buf, sizeof(struct stat_memory)) != 0)
+	case INFO_MEMORY:
+		page_info(&im.total, &im.free);
+		kmem_info(&im.kernel);
+		if (umem_copyout(&im, buf, sizeof(im)))
 			return EFAULT;
 		break;
-
-	case STAT_SCHED:
-		sched_stat(&ss);
-		if (umem_copyout(&ss, buf, sizeof(struct stat_sched)) != 0)
+	case INFO_SCHED:
+		sched_info(&is);
+		if (umem_copyout(&is, buf, sizeof(is)))
+			return EFAULT;
+		break;
+	case INFO_THREAD:
+		if (umem_copyin(buf, &it, sizeof(it)))
+			return EFAULT;
+		if ((err = thread_info(&it)))
+			return err;
+		it.cookie++;
+		if (umem_copyout(&it, buf, sizeof(it)))
+			return EFAULT;
+		break;
+	case INFO_DEVICE:
+		if (umem_copyin(buf, &id, sizeof(id)))
+			return EFAULT;
+		if ((err = device_info(&id)))
+			return err;
+		id.cookie++;
+		if (umem_copyout(&id, buf, sizeof(id)))
 			return EFAULT;
 		break;
 	default:
@@ -146,8 +160,7 @@ __syscall int sys_time(u_long *ticks)
 {
 	u_long t;
 
-	t = timer_ticks();
-
+	t = timer_count();
 	return umem_copyout(&t, ticks, sizeof(u_long));
 }
 
@@ -158,6 +171,9 @@ __syscall int sys_debug(int cmd, int param)
 {
 #ifdef DEBUG
 	int err = EINVAL;;
+
+	if (!task_capable(CAP_DEBUG))
+		return EPERM;
 
 	switch (cmd) {
 	case DBGCMD_DUMP:

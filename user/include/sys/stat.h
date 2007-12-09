@@ -52,7 +52,7 @@ struct stat {
 	time_t	  st_mtime;		/* time of last data modification */
 	time_t	  st_ctime;		/* time of last file status change */
 	int64_t	  st_blocks;		/* blocks allocated for file */
-	u_int32_t st_blksize;		/* optimal blocksize for I/O */
+	uint32_t  st_blksize;		/* optimal blocksize for I/O */
 };
 
 #define	S_ISUID	0004000			/* set user id on execution */

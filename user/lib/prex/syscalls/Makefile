@@ -9,7 +9,6 @@ OBJS	= object_create.o object_delete.o object_lookup.o \
 	thread_yield.o thread_suspend.o thread_resume.o thread_schedparam.o \
 	thread_getprio.o thread_setprio.o \
 	thread_getpolicy.o thread_setpolicy.o \
-	thread_getinterval.o thread_setinterval.o \
 	timer_sleep.o timer_alarm.o timer_periodic.o \
 	_timer_waitperiod.o timer_waitperiod.o \
 	exception_setup.o exception_return.o \
@@ -22,6 +21,6 @@ OBJS	= object_create.o object_delete.o object_lookup.o \
 	_cond_wait.o cond_wait.o \
 	sem_init.o sem_destroy.o sem_trywait.o sem_post.o sem_getvalue.o \
 	_sem_wait.o sem_wait.o \
-	sys_log.o sys_stat.o sys_panic.o sys_time.o sys_debug.o
+	sys_log.o sys_info.o sys_panic.o sys_time.o sys_debug.o
 
-include $(PREX_SRC)/make/lib.mk
+include $(PREX_SRC)/mk/lib.mk

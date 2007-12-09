@@ -56,7 +56,7 @@ u_long get_time(void)
 	return sec;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	u_long sys_time;
 	unsigned int sec, min, hour;

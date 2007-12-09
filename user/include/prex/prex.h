@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ typedef int device_t;
 typedef int mutex_t;
 typedef int cond_t;
 typedef int sem_t;
-typedef unsigned int cap_t;
+typedef uint32_t cap_t;
 
 extern int object_create(char *name, object_t *obj);
 extern int object_delete(object_t obj);
@@ -80,8 +80,6 @@ extern int thread_getprio(thread_t th, int *prio);
 extern int thread_setprio(thread_t th, int prio);
 extern int thread_getpolicy(thread_t th, int *policy);
 extern int thread_setpolicy(thread_t th, int policy);
-extern int thread_getinterval(thread_t th, int *ticks);
-extern int thread_setinterval(thread_t th, int ticks);
 
 extern int timer_sleep(u_long delay, u_long *remain);
 extern int timer_alarm(u_long delay, u_long *remain);
@@ -118,7 +116,7 @@ extern int sem_trywait(sem_t *sem);
 extern int sem_post(sem_t *sem);
 extern int sem_getvalue(sem_t *sem, u_int *value);
 
-extern int sys_stat(int type, void *buf);
+extern int sys_info(int type, void *buf);
 extern int sys_log(const char *);
 extern void sys_panic(const char *);
 extern int sys_time(u_long *ticks);
@@ -152,8 +150,13 @@ extern void panic(const char *, ...);
 #define CAP_POWER	8	/* Allow power control including shutdown */
 #define CAP_TIME	9	/* Allow setting system time */
 #define CAP_RAWIO	10	/* Allow direct I/O access */
-#define CAP_MOUNT	15	/* Allow mounting file system */
-#define CAP_CHROOT	16	/* Allow changing root directory */
+#define CAP_DEBUG	11	/* Allow debugging requests */
+
+#define CAP_FS_EXEC	16	/* Allow executing any file */
+#define CAP_FS_READ	17	/* Allow reading any file */
+#define CAP_FS_WRITE	18	/* Allow writing any file */
+#define CAP_FS_MOUNT	19	/* Allow mounting file system */
+#define CAP_FS_CHROOT	20	/* Allow changing root directory */
 
 /*
  * attr flags for vm_attribute()
@@ -178,11 +181,13 @@ extern void panic(const char *, ...);
 #define SCHED_OTHER	2
 
 /*
- * Stastics type for sys_stat()
+ * Data type for sys_info()
  */
-#define STAT_KERNEL	1
-#define STAT_MEMORY	2
-#define STAT_SCHED	3
+#define INFO_KERNEL	1
+#define INFO_MEMORY	2
+#define INFO_SCHED	3
+#define INFO_THREAD	4
+#define INFO_DEVICE	5
 
 /*
  * Exception code
@@ -200,44 +205,76 @@ extern void panic(const char *, ...);
 #define COND_INITIALIZER	(cond_t)0x43496e69
 
 /*
- * Kernel stastics
+ * Kernel information
  */
-struct stat_kernel {
-	char	name[16];	/* Kernel name string */
-	u_int	version;	/* Kernel version */
-	char	arch[16];	/* Architecture name string */
-	char	platform[16];	/* Platform name string */
-	char	release[16];	/* Release name */
+#define _SYS_NMLN	32
+
+struct info_kernel {
+	char	sysname[_SYS_NMLN];	/* Kernel name */
+	char	nodename[_SYS_NMLN];	/* Obsolete data */
+	char	release[_SYS_NMLN];	/* Release level */
+	char	version[_SYS_NMLN];	/* Version level */
+	char	machine[_SYS_NMLN];	/* Architecture/platform */
+};
+
+/*
+ * Memory information
+ */
+struct info_memory {
+	size_t	total;		/* Total memory size in bytes */
+	size_t	free;		/* Current free memory size in bytes */
+	size_t	kernel;		/* Memory size used by kernel in bytes */
+};
+
+/*
+ * Scheduler informations
+ */
+struct info_sched {
+	u_long	system_ticks;	/* Ticks since boot time */
+	u_long	idle_ticks;	/* Total tick count for idle */
 	u_long	timer_hz;	/* Timer tick rate - HZ */
 };
 
-#define MAKE_KVER(ver, patch, sub) (((ver) << 16) | ((patch) << 8) | (sub))
-#define KVER_VER(ver)	((ver) >> 16)
-#define KVER_PATCH(ver)	(((ver) >> 8) & 0xff)
-#define KVER_SUB(ver)	((ver) & 0xff)
-
 /*
- * Memory stastics
+ * Thread information
  */
-struct stat_memory {
-	size_t total;		/* Total memory size in bytes */
-	size_t free;		/* Current free memory size in bytes */
-	size_t kernel;		/* Memory size used by kernel in bytes */
+struct info_thread {
+	u_long	cookie;		/* Index cookie - 0 for first thread */
+	int	state;		/* Thread state */
+	int	policy;		/* Scheduling policy */
+	int	prio;		/* Current priority */
+	int	base_prio;	/* Base priority */
+	int	sus_count;	/* Suspend counter */
+	u_int	total_ticks;	/* Total running ticks */
+	task_t	task;		/* Task ID */
+	char	task_name[12];	/* Task name */
 };
 
+/* Thread state */
+#define TH_RUN		0x00	/* Running or ready to run */
+#define TH_SLEEP	0x01	/* Sleep for events */
+#define TH_SUSPEND	0x02	/* Suspend count is not 0 */
+#define TH_EXIT		0x04	/* Terminated */
+
+/* Scheduling policy */
+#define SCHED_FIFO	0	/* First In First Out */
+#define SCHED_RR	1	/* Round Robin */
+#define SCHED_OTHER	2	/* Other */
+
+
 /*
- * Scheduler statstics
+ * Device information
  */
-struct stat_sched {
-	u_long system_ticks;	/* Ticks since boot time */
-	u_long idle_ticks;	/* Total tick count for idle */
+struct info_device {
+	u_long	cookie;		/* Index cookie - 0 for first thread */
+	char	name[12];
 };
+
 
 /*
  * System debug service
  */
 #define DBGCMD_DUMP	0	/* Kernel dump */
-
 
 /*
  * Parameter for DBGCMD_DUMP
@@ -249,6 +286,7 @@ struct stat_sched {
 #define DUMP_IRQ	5
 #define DUMP_DEVICE	6
 #define DUMP_VM		7
-#define DUMP_TRACE	8
+#define DUMP_MSGLOG	8
+#define DUMP_TRACE	9
 
 #endif /* !_PREX_H */

@@ -33,7 +33,7 @@
 #include <prex/prex.h>
 #include <stdio.h>
 
-int main()
+int main(int argc, char *argv[])
 {
 	printf("Timer Test program\n");
 

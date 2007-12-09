@@ -1,2 +1,2 @@
 SUBDIRS	= $(PREX_PLATFORM)
-include $(PREX_SRC)/make/boot.mk
+include $(PREX_SRC)/mk/boot.mk

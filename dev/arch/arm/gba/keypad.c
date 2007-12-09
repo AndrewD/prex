@@ -39,8 +39,8 @@
 #define KEYPAD_IRQ	12
 
 /* Registers for keypad control */
-#define REG_KEYSTS	(*(volatile u_int16_t *)0x4000130)
-#define REG_KEYCNT	(*(volatile u_int16_t *)0x4000132)
+#define REG_KEYSTS	(*(volatile uint16_t *)0x4000130)
+#define REG_KEYCNT	(*(volatile uint16_t *)0x4000132)
 
 /* KEY_STS/KEY_CNT */
 #define KEY_A		0x0001
@@ -156,7 +156,7 @@ static u_char keyq_dequeue(void)
  */
 static int keypad_isr(int irq)
 {
-	u_int16_t sts;
+	uint16_t sts;
 
 	sts = ~REG_KEYSTS & KEY_ALL;
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
  */
 
 #include <kernel.h>
-#include <queue.h>
 #include <event.h>
 #include <sched.h>
 #include <kmem.h>
@@ -47,7 +46,7 @@
 #include <sync.h>
 
 /*
- * Initialize semaphore.
+ * Initialize a semaphore.
  *
  * sem_init() creates a new semaphore if the specified semaphore does
  * not exist yet. If the semaphore already exists, it is re-initialized
@@ -60,17 +59,16 @@
 __syscall int sem_init(sem_t *sem, u_int value)
 {
 	struct semaphore *s, *sem_org;
-	int err;
+	int err = 0;
 
-	err = 0;
 	if (value > SEM_MAX)
 		return EINVAL;
 
 	sched_lock();
 
-	if (umem_copyin(sem, &sem_org, sizeof(sem_t)) != 0) {
-		err = EFAULT;
-		goto out;
+	if (umem_copyin(sem, &sem_org, sizeof(sem_t))) {
+		sched_unlock();
+		return EFAULT;
 	}
 	/*
 	 * An application can call sem_init() to reset the
@@ -82,59 +80,72 @@ __syscall int sem_init(sem_t *sem, u_int value)
 		 * Semaphore already exists.
 		 */
 		if (sem_org->task != cur_task() &&
-		    !capable(CAP_SEMAPHORE)) {
+		    !task_capable(CAP_SEMAPHORE))
 			err = EPERM;
-			goto out;
-		}
-		if (event_waiting(&sem_org->event)) {
+		else if (event_waiting(&sem_org->event))
 			err = EBUSY;
-			goto out;
-		}
-		s->value = value;
+		else
+			s->value = value;
 	} else {
 		/*
 		 * Create new semaphore.
 		 */
-		if ((s = kmem_alloc(sizeof(struct semaphore))) == NULL) {
+		if ((s = kmem_alloc(sizeof(struct semaphore))) == NULL)
 			err = ENOSPC;
-			goto out;
-		}
-		event_init(&s->event, "semaphore");
-		s->task = cur_task();
-		s->value = value;
-		s->magic = SEM_MAGIC;
-		if (umem_copyout(&s, sem, sizeof(sem_t)) != 0) {
-			kmem_free(s);
-			err = EFAULT;
-			goto out;
+		else {
+			event_init(&s->event, "semaphore");
+			s->task = cur_task();
+			s->value = value;
+			s->magic = SEM_MAGIC;
+			if (umem_copyout(&s, sem, sizeof(sem_t))) {
+				kmem_free(s);
+				err = EFAULT;
+			}
 		}
 	}
- out:
 	sched_unlock();
 	return err;
 }
 
 /*
- * Destroy semaphore.
- * If some thread is waiting for the specified semaphore, this routine
- * fails with EBUSY.
+ * Copy a semaphore from user space.
+ * It also checks if the passed semaphore is valid.
+ *
+ * @us: Pointer to semaphore in user space.
+ * @ks: Pointer to semaphore in kernel space.
+ */
+static int sem_copyin(sem_t *us, sem_t *ks)
+{
+	sem_t s;
+
+	if (umem_copyin(us, &s, sizeof(sem_t)))
+		return EFAULT;
+	if (!sem_valid(s))
+		return EINVAL;
+	/*
+	 * Need a capability to access semaphores created
+	 * by another task.
+	 */
+	if (s->task != cur_task() && !task_capable(CAP_SEMAPHORE))
+		return EPERM;
+	*ks = s;
+	return 0;
+}
+
+/*
+ * Destroy a semaphore.
+ * If some thread is waiting for the specified semaphore,
+ * this routine fails with EBUSY.
  */
 __syscall int sem_destroy(sem_t *sem)
 {
 	sem_t s;
+	int err;
 
 	sched_lock();
-	if (umem_copyin(sem, &s, sizeof(sem_t)) != 0) {
+	if ((err = sem_copyin(sem, &s))) {
 		sched_unlock();
-		return EFAULT;
-	}
-	if (!sem_valid(s)) {
-		sched_unlock();
-		return EINVAL;
-	}
-	if (s->task != cur_task() && !capable(CAP_SEMAPHORE)) {
-		sched_unlock();
-		return EPERM;
+		return err;
 	}
 	if (event_waiting(&s->event)) {
 		sched_unlock();
@@ -142,9 +153,8 @@ __syscall int sem_destroy(sem_t *sem)
 	}
 	s->magic = 0;
 	kmem_free(s);
-
 	sched_unlock();
-	return 0;
+	return err;
 }
 
 /*
@@ -168,25 +178,16 @@ __syscall int sem_wait(sem_t *sem, u_long timeout)
 	int err;
 
 	sched_lock();
-	if (umem_copyin(sem, &s, sizeof(sem_t)) != 0) {
+	if ((err = sem_copyin(sem, &s))) {
 		sched_unlock();
-		return EFAULT;
-	}
-	if (!sem_valid(s)) {
-		sched_unlock();
-		return EINVAL;
-	}
-	if (s->task != cur_task() && !capable(CAP_SEMAPHORE)) {
-		sched_unlock();
-		return EPERM;
+		return err;
 	}
 	while (s->value <= 0) {
 		err = sched_tsleep(&s->event, timeout);
 		if (err == SLP_TIMEOUT) {
 			sched_unlock();
 			return ETIMEDOUT;
-		}
-		if (err == SLP_INTR) {
+		} else if (err == SLP_INTR) {
 			sched_unlock();
 			return EINTR;
 		}
@@ -205,27 +206,19 @@ __syscall int sem_wait(sem_t *sem, u_long timeout)
 __syscall int sem_trywait(sem_t *sem)
 {
 	sem_t s;
+	int err;
 
 	sched_lock();
-	if (umem_copyin(sem, &s, sizeof(sem_t)) != 0) {
+	if ((err = sem_copyin(sem, &s))) {
 		sched_unlock();
-		return EFAULT;
+		return err;
 	}
-	if (!sem_valid(s)) {
-		sched_unlock();
-		return EINVAL;
-	}
-	if (s->task != cur_task() && !capable(CAP_SEMAPHORE)) {
-		sched_unlock();
-		return EPERM;
-	}
-	if (s->value <= 0) {
-		sched_unlock();
-		return EAGAIN;
-	}
-	s->value--;
+	if (s->value > 0)
+		s->value--;
+	else
+		err = EAGAIN;
 	sched_unlock();
-	return 0;
+	return err;
 }
 
 /*
@@ -238,54 +231,38 @@ __syscall int sem_trywait(sem_t *sem)
 __syscall int sem_post(sem_t *sem)
 {
 	sem_t s;
+	int err;
 
 	sched_lock();
-	if (umem_copyin(sem, &s, sizeof(sem_t)) != 0) {
+	if ((err = sem_copyin(sem, &s))) {
 		sched_unlock();
-		return EFAULT;
-	}
-	if (!sem_valid(s)) {
-		sched_unlock();
-		return EINVAL;
-	}
-	if (s->task != cur_task() && !capable(CAP_SEMAPHORE)) {
-		sched_unlock();
-		return EPERM;
+		return err;
 	}
 	if (s->value >= SEM_MAX) {
 		sched_unlock();
 		return ERANGE;
 	}
 	s->value++;
-	if (s->value == 1)
+	if (s->value > 0)
 		sched_wakeone(&s->event);
 	sched_unlock();
 	return 0;
 }
 
 /*
- * Get semaphore value.
+ * Get the semaphore value.
  */
 __syscall int sem_getvalue(sem_t *sem, u_int *value)
 {
 	sem_t s;
 	int err;
 
-	err = 0;
 	sched_lock();
-	if (umem_copyin(sem, &s, sizeof(sem_t)) != 0) {
+	if ((err = sem_copyin(sem, &s))) {
 		sched_unlock();
-		return EFAULT;
+		return err;
 	}
-	if (!sem_valid(s)) {
-		sched_unlock();
-		return EINVAL;
-	}
-	if (s->task != cur_task() && !capable(CAP_SEMAPHORE)) {
-		sched_unlock();
-		return EPERM;
-	}
-	if (umem_copyout(&s->value, value, sizeof(int)) != 0)
+	if (umem_copyout(&s->value, value, sizeof(int)))
 		err = EFAULT;
 	sched_unlock();
 	return err;

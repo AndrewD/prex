@@ -14,4 +14,4 @@ LDFLAGS = -static
 EXTRA_CFLAGS += -D_PREX_SOURCE
 EXTRA_CPPFLAGS += -D_PREX_SOURCE
 
-include $(PREX_SRC)/make/Makefile.inc
+include $(PREX_SRC)/mk/Makefile.inc

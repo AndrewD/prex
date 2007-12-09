@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,41 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+/*
+ * platform.c - Platform dependent functions
+ */
 
-extern int thread_schedparam(thread_t th, int op, int *param);
+#include <driver.h>
 
-int thread_setinterval(thread_t th, int ticks)
+
+#define	bios_call(N) __asm__ __volatile__ \
+	("swi	"#N" << 16\n" :::"r0", "r1", "r2", "r3")
+
+/*
+ * Set system to suspend power state.
+ */
+void platform_suspend(void)
 {
-	return thread_schedparam(th, 5, &ticks);
+
+}
+
+/*
+ * Power off system
+ */
+void platform_poweroff(void)
+{
+	irq_lock();
+	printk("The system is halted. You can turn off power.");
+	for (;;) {
+		bios_call(2);
+	}
+}
+
+
+/*
+ * Initialize
+ */
+int platform_init(void)
+{
+	return 0;
 }

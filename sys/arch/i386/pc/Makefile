@@ -8,4 +8,4 @@ OBJS	= \
 	../i386/context.o \
 	../i386/gdb_stub.o \
 	intr.o clock.o diag.o serial.o
-include $(PREX_SRC)/make/sys.mk
+include $(PREX_SRC)/mk/sys.mk

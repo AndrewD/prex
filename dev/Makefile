@@ -10,4 +10,4 @@ LIBS	= ./lib/libdev.a
 #DISASM	= dev.lst
 #MAP	= dev.map
 LD_SCRIPT = ./arch/$(PREX_ARCH)/$(PREX_PLATFORM)/dev.ld
-include $(PREX_SRC)/make/dev.mk
+include $(PREX_SRC)/mk/dev.mk

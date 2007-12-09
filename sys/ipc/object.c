@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,8 @@
 #include <task.h>
 #include <ipc.h>
 
+#define OBJ_MAXBUCKETS	64	/* Size of object hash buckets */
+
 /*
  * Object hash table
  *
@@ -64,7 +66,7 @@
  * name, it is linked to index zero.
  * The scheduler must be locked when this table is modified.
  */
-static struct list obj_table[NR_OBJHASH];
+static struct list obj_table[OBJ_MAXBUCKETS];
 
 /*
  * Calculate the hash index for specified name string.
@@ -78,7 +80,7 @@ static u_int object_hash(const char *name)
 		return 0;
 	while (*name)
 		h = ((h << 5) + h) + *name++;
-	return h & (NR_OBJHASH - 1);
+	return h & (OBJ_MAXBUCKETS - 1);
 }
 
 /*
@@ -106,9 +108,9 @@ static object_t object_find(char *name)
  * be null-terminated string. The object ID is returned in obj on
  * success.
  */
-__syscall int object_lookup(char *name, object_t *obj)
+__syscall int object_lookup(char *name, object_t *pobj)
 {
-	object_t o;
+	object_t obj;
 	size_t len;
 	char str[MAX_OBJNAME];
 
@@ -120,11 +122,11 @@ __syscall int object_lookup(char *name, object_t *obj)
 		return EFAULT;
 
 	sched_lock();
-	o = object_find(str);
+	obj = object_find(str);
 	sched_unlock();
-	if (o == NULL)
+	if (obj == NULL)
 		return ENOENT;
-	if (umem_copyout(&o, obj, sizeof(object_t)) != 0)
+	if (umem_copyout(&obj, pobj, sizeof(object_t)))
 		return EFAULT;
 	return 0;
 }
@@ -138,12 +140,11 @@ __syscall int object_lookup(char *name, object_t *obj)
  * argument. This object can be used as a private object which
  * can be accessed only by threads in same task.
  */
-__syscall int object_create(char *name, object_t *obj)
+__syscall int object_create(char *name, object_t *pobj)
 {
-	int err = 0;
-	object_t o = 0;
+	object_t obj = 0;
 	char str[MAX_OBJNAME];
-	size_t len = 0;
+	size_t len;
 
 	if (name != NULL) {
 		if (umem_strnlen(name, MAX_OBJNAME, &len))
@@ -160,42 +161,37 @@ __syscall int object_create(char *name, object_t *obj)
 	 * Check user buffer first. This can reduce the error
 	 * recovery for the following resource allocations.
 	 */
-	if (umem_copyout(&o, obj, sizeof(object_t)) != 0) {
-		err = EFAULT;
-		goto out;
+	if (umem_copyout(&obj, pobj, sizeof(object_t))) {
+		sched_unlock();
+		return EFAULT;
 	}
-	o = object_find(str);
-	if (o != NULL) {
-		err = EEXIST;
-		goto out;
+	if ((obj = object_find(str)) != NULL) {
+		sched_unlock();
+		return EEXIST;
 	}
-	o = kmem_alloc(sizeof(struct object));
-	if (o == NULL) {
-		err = ENOMEM;
-		goto out;
+	if ((obj = kmem_alloc(sizeof(struct object))) == NULL) {
+		sched_unlock();
+		return ENOMEM;
 	}
 	if (name != NULL) {
-		o->name = kmem_alloc(len + 1);
-		if (o->name == NULL) {
-			kmem_free(o);
-			err = ENOMEM;
-			goto out;
+		obj->name = kmem_alloc(len + 1);
+		if (obj->name == NULL) {
+			kmem_free(obj);
+			sched_unlock();
+			return ENOMEM;
 		}
-		strlcpy(o->name, str, len + 1);
+		strlcpy(obj->name, str, len + 1);
 	}
-	queue_init(&o->sendq);
-	queue_init(&o->recvq);
-	o->owner = cur_task();
-	o->magic = OBJECT_MAGIC;
-	list_insert(&obj_table[object_hash(name)], &o->name_link);
-	list_insert(&(cur_task()->objects), &o->task_link);
+	queue_init(&obj->sendq);
+	queue_init(&obj->recvq);
+	obj->owner = cur_task();
+	obj->magic = OBJECT_MAGIC;
+	list_insert(&obj_table[object_hash(name)], &obj->name_link);
+	list_insert(&(cur_task()->objects), &obj->task_link);
 
-	if (umem_copyout(&o, obj, sizeof(object_t)) != 0)
-		panic("Unexpected error");
-	err = 0;
- out:
+	umem_copyout(&obj, pobj, sizeof(object_t));
 	sched_unlock();
-	return err;
+	return 0;
 }
 
 /*
@@ -239,7 +235,7 @@ void object_dump(void)
 	printk(" object   owner task name\n");
 	printk(" -------- ---------- ----------------\n");
 
-	for (i = 0; i < NR_OBJHASH; i++) {
+	for (i = 0; i < OBJ_MAXBUCKETS; i++) {
 		head = &obj_table[i];
 		for (n = list_first(head); n != head; n = list_next(n)) {
 			obj = list_entry(n, struct object, name_link);
@@ -255,6 +251,6 @@ void object_init(void)
 	int i;
 
 	/* Initialize object lookup table */
-	for (i = 0; i < NR_OBJHASH; i++)
+	for (i = 0; i < OBJ_MAXBUCKETS; i++)
 		list_init(&obj_table[i]);
 }

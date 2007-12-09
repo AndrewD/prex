@@ -6,4 +6,4 @@ OBJS	= \
 	putc.o \
 	../i386/elf_reloc.o
 
-include $(PREX_SRC)/make/boot.mk
+include $(PREX_SRC)/mk/boot.mk

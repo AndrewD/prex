@@ -36,31 +36,31 @@
 #include <machine/types.h>
 #include <machine/exec.h>
 
-typedef u_int8_t	Elf_Byte;
+typedef uint8_t	Elf_Byte;
 
-typedef u_int32_t	Elf32_Addr;	/* Unsigned program address */
-typedef u_int32_t	Elf32_Off;	/* Unsigned file offset */
+typedef uint32_t	Elf32_Addr;	/* Unsigned program address */
+typedef uint32_t	Elf32_Off;	/* Unsigned file offset */
 typedef int32_t		Elf32_Sword;	/* Signed large integer */
-typedef u_int32_t	Elf32_Word;	/* Unsigned large integer */
-typedef u_int16_t	Elf32_Half;	/* Unsigned medium integer */
+typedef uint32_t	Elf32_Word;	/* Unsigned large integer */
+typedef uint16_t	Elf32_Half;	/* Unsigned medium integer */
 
-typedef u_int64_t	Elf64_Addr;
-typedef u_int64_t	Elf64_Off;
+typedef uint64_t	Elf64_Addr;
+typedef uint64_t	Elf64_Off;
 typedef int32_t		Elf64_Shalf;
 
 #ifdef __alpha__
 typedef int64_t		Elf64_Sword;
-typedef u_int64_t	Elf64_Word;
+typedef uint64_t	Elf64_Word;
 #else
 typedef int32_t		Elf64_Sword;
-typedef u_int32_t	Elf64_Word;
+typedef uint32_t	Elf64_Word;
 #endif
 
 typedef int64_t		Elf64_Sxword;
-typedef u_int64_t	Elf64_Xword;
+typedef uint64_t	Elf64_Xword;
 
-typedef u_int32_t	Elf64_Half;
-typedef u_int16_t	Elf64_Quarter;
+typedef uint32_t	Elf64_Half;
+typedef uint16_t	Elf64_Quarter;
 
 /* e_ident[] identification indexes */
 #define EI_MAG0		0		/* file ID */
@@ -346,7 +346,7 @@ typedef struct {
 
 #define	ELF64_R_SYM(info)	((info) >> 32)
 #define	ELF64_R_TYPE(info)	((info) & 0xFFFFFFFF)
-#define ELF64_R_INFO(s,t) 	(((s) << 32) + (u_int32_t)(t))
+#define ELF64_R_INFO(s,t) 	(((s) << 32) + (uint32_t)(t))
 
 /* Program Header */
 typedef struct {
@@ -469,7 +469,7 @@ typedef struct {
 	Elf32_Word	au_v;				/* 32-bit value */
 } Aux32Info;
 
-#define ELF64_NO_ADDR	((u_int64_t) ~0)/* Indicates addr. not yet filled in */
+#define ELF64_NO_ADDR	((uint64_t) ~0)/* Indicates addr. not yet filled in */
 #define ELF64_AUX_ENTRIES	8	/* Size of aux array passed to loader */
 
 typedef struct {

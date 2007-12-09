@@ -42,6 +42,16 @@
 #include <bootinfo.h>
 
 /*
+ * Clock Rate
+ */
+#define HZ		CONFIG_HZ	/* Ticks per second */
+
+/*
+ * Page
+ */
+#define PAGE_SIZE	CONFIG_PAGE_SIZE	/* Bytes per page */
+
+/*
  * Driver structure
  *
  * "order" is initialize order which must be between 0 and 15.
@@ -50,9 +60,9 @@
  * The maximum length of device name is 12.
  */
 struct driver {
-	const char *name;
-	const int order;
-	int (*init)();
+	const char	*name;		/* Name of device driver */
+	const int	order;		/* Initialize order */
+	int		(*init)();	/* Initialize routine */
 };
 typedef struct driver *driver_t;
 
@@ -78,9 +88,9 @@ typedef int *device_t;
 /*
  * Device Object
  */
-device_t device_create(devio_t io, char *name);
-int device_delete(device_t dev);
-int device_broadcast(int event);
+extern device_t device_create(devio_t io, char *name);
+extern int device_delete(device_t dev);
+extern int device_broadcast(int event, int force);
 
 #define MAX_DEVNAME	12
 
@@ -116,7 +126,7 @@ extern int umem_copyout(void *kaddr, void *uaddr, size_t len);
 extern int umem_strnlen(void *uaddr, size_t maxlen, size_t *len);
 
 /*
- * Physical Page
+ * Physical page services
  */
 #define PAGE_SIZE	CONFIG_PAGE_SIZE
 #define PAGE_MASK	(PAGE_SIZE-1)
@@ -131,16 +141,15 @@ extern void *phys_to_virt(void *p_addr);
 extern void *virt_to_phys(void *v_addr);
 
 /*
- * Interrupt service
- */
-
-/*
  * Return value of ISR
  */
 #define INT_DONE	0
 #define INT_ERROR	1
 #define INT_CONTINUE	2
 
+/*
+ * Interrupt services
+ */
 extern int irq_attach(int irqno, int level, int shared, int (*isr)(int), void (*ist)(int));
 extern void irq_detach(int handle);
 extern void irq_lock(void);
@@ -160,10 +169,6 @@ extern void irq_unlock(void);
 #define IPL_COMM	7	/* Serial, Parallel */
 
 /*
- * Scheduler service
- */
-
-/*
  * Event for sleep/wakeup
  */
 struct event {
@@ -179,6 +184,15 @@ typedef struct event *event_t;
     do { list_init(&(event)->sleepq); (event)->name = evt_name; } while (0)
 
 /*
+ * System hook descriptor
+ */
+struct hook {
+	struct list	link;		/* Linkage on hook chain */
+	void		(*func)(void *); /* Hook function */
+};
+typedef struct hook *hook_t;
+
+/*
  * Sleep result
  */
 #define SLP_SUCCESS	0
@@ -188,52 +202,66 @@ typedef struct event *event_t;
 #define SLP_INTR	4
 
 /*
- * Scheduling stat
+ * DPC (Deferred Procedure Call) object
  */
-struct stat_sched {
-	u_long system_ticks;
-	u_long idle_ticks;
+struct dpc {
+	struct queue	link;		/* Linkage on DPC queue */
+	int		state;
+	void		(*func)(void *); /* Call back routine */
+	void		*arg;		/* Argument to pass */
 };
+typedef struct dpc *dpc_t;
 
+/*
+ * Scheduler services
+ */
 extern void sched_lock(void);
 extern void sched_unlock(void);
 extern int sched_tsleep(event_t event, u_long timeout);
 extern void sched_wakeup(event_t event);
-extern void sched_stat(struct stat_sched *ss);
+extern void sched_dpc(dpc_t dpc, void (*func)(void *), void *arg);
 
 #define sched_sleep(event)  sched_tsleep((event), 0)
 
-
 /*
- * Timer service
+ * Macro to convert milliseconds and tick.
  */
+#define msec_to_tick(ms) (((ms) >= 0x20000) ? \
+	    ((ms) / 1000UL) * HZ : \
+	    ((ms) * HZ) / 1000UL)
+
+#define tick_to_msec(tick) (((tick) * 1000) / HZ)
 
 /*
  * Timer structure
  */
 struct timer {
-	struct list link;		/* Link to timer chain */
-	int	    type;		/* Type */
-	u_long	    expire;		/* Expire time */
-	void	    (*func)(void *);	/* Call out function */
-	void	    *arg;		/* Argument */
+	struct list	link;		/* Linkage on timer chain */
+	int		active;		/* True if active */
+	u_long		expire;		/* Expire time (ticks) */
+	u_long		interval;	/* Time interval */
+	void		(*func)(void *); /* Function to call */
+	void		*arg;		/* Function argument */
+	struct event	event;		/* Event for this timer */
 };
 typedef struct timer *timer_t;
 
 #define timer_init(tmr)     (tmr)->expire = 0;
 
+/*
+ * Timer services
+ */
 extern void timer_timeout(timer_t tmr, void (*func)(u_long), u_long arg, u_long msec);
 extern void timer_stop(timer_t tmr);
 extern void timer_delay(u_long msec);
+extern u_long timer_count(void);
+extern void timer_hook(hook_t hook, void (*func)(void *));
+extern void timer_unhook(hook_t hook);
 
 /*
- * Security service
+ * Security services
  */
 extern int task_capable(int cap);
-
-/*
- * Debug service
- */
 
 /*
  * printk()
@@ -267,16 +295,29 @@ extern void panic(const char *fmt, ...);
  *  This is enabled only when DEBUG build.
  */
 #ifdef DEBUG
-extern void assert(const char *file, int line, const char *func, const char *exp);
+extern void assert(const char *file, int line, const char *exp);
 #define ASSERT(exp) do { if (!(exp)) \
-    assert(__FILE__, __LINE__, __FUNCTION__, #exp); } while (0)
+    assert(__FILE__, __LINE__, #exp); } while (0)
 #else
 #define ASSERT(exp)
 #endif
 
-extern void system_reset(void);
+/*
+ * Kenrel dump
+ */
+#define DUMP_THREAD	1
+#define DUMP_TASK	2
+#define DUMP_OBJECT	3
+#define DUMP_TIMER	4
+#define DUMP_IRQ	5
+#define DUMP_DEVICE	6
+#define DUMP_VM		7
+#define DUMP_MSGLOG	8
+#define DUMP_TRACE	9
+
 extern int kernel_dump(int index);
 
+extern void system_reset(void);
 extern void debug_attach(void (*func)(char *));
 extern void system_bootinfo(struct boot_info **);
 

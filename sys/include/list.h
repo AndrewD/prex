@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,10 +42,12 @@ typedef struct list *list_t;
 #define list_prev(node)		((node)->prev)
 #define list_empty(head)	((head)->next == (head))
 #define list_first(head)	((head)->next)
+#define list_last(head)		((head)->prev)
+#define list_end(head, node)	((node) == (head))
 
 /* Get the struct for this entry */
-#define list_entry(ptr, type, member) \
-    ((type *)((char *)(ptr) - (unsigned long)(&((type *)0)->member)))
+#define list_entry(p, type, member) \
+    ((type *)((char *)(p) - (unsigned long)(&((type *)0)->member)))
 
 #define LIST_INIT(head) { &(head), &(head) }
 

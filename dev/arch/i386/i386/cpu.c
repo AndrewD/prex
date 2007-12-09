@@ -90,7 +90,7 @@
 
 /* #define DEBUG_CPU */
 
-#ifdef CONFIG_DVS
+#ifdef CONFIG_CPUFREQ
 
 #ifdef DEBUG_CPU
 #define cpu_dbg(x,y...) printk("%s: "x, __FUNCTION__, ##y)
@@ -120,8 +120,8 @@
 #define MSR_MISC_ENABLE		0x1a0
 #define MSR_SS_ENABLE		(1<<16)
 
-int cpu_ioctl(device_t dev, int cmd, u_long arg);
-int cpu_init(void);
+static int cpu_ioctl(device_t dev, int cmd, u_long arg);
+static int cpu_init(void);
 
 /*
  * Driver structure
@@ -586,7 +586,7 @@ int cpu_initperf(void)
 	return 0;
 }
 
-int cpu_ioctl(device_t dev, int cmd, u_long arg)
+static int cpu_ioctl(device_t dev, int cmd, u_long arg)
 {
 	switch (cmd) {
 	case CPUIOC_GET_INFO:
@@ -608,7 +608,7 @@ int cpu_ioctl(device_t dev, int cmd, u_long arg)
  *
  * FIXME: i486 does not support cpuid instruction
  */
-int cpu_init(void)
+static int cpu_init(void)
 {
 	u_int regs[4];
 	char brand_str[49];
@@ -669,4 +669,4 @@ int cpu_init(void)
 	return 0;
 }
 
-#endif /* CONFIG_DVS */
+#endif /* CONFIG_CPUFREQ */

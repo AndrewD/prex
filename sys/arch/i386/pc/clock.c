@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@
 static int clock_isr(int irq)
 {
 	irq_lock();
-	timer_clock();
+	timer_tick();
 	irq_unlock();
 	return INT_DONE;
 }

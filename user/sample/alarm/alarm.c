@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,16 +78,16 @@ static void alarm_handler(int code, void *regs)
 	exception_return(regs);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-	struct stat_kernel st;
+	struct info_sched info;
 
 	printf("Alarm sample program\n");
 
-	sys_stat(STAT_KERNEL, &st);
-	if (st.timer_hz == 0)
+	sys_info(INFO_SCHED, &info);
+	if (info.timer_hz == 0)
 		panic("can not get timer tick rate");
-	hz = st.timer_hz;
+	hz = info.timer_hz;
 
 	/*
 	 * Install alarm handler

@@ -52,7 +52,7 @@ inline unsigned char inb(int port)
 }
 
 
-int main()
+int main(int argc, char *argv[])
 {
 	int port;
 	u_char val;

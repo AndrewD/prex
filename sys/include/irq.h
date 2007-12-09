@@ -30,6 +30,21 @@
 #ifndef _IRQ_H
 #define _IRQ_H
 
+#include <thread.h>
+
+/*
+ * IRQ descriptor
+ */
+struct irq {
+	int		vector;		/* Vector number */
+	int		(*isr)(int);	/* Pointer to ISR */
+	void		(*ist)(int);	/* Pointer to IST */
+	u_int		count;		/* Interrupt count */
+	int		ist_request;	/* Number of IST request */
+	thread_t	thread;		/* Thread ID of IST */
+	struct event	ist_event;	/* Event for IST */
+};
+
 /*
  * Return values from ISR
  */

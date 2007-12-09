@@ -1,2 +1,2 @@
 SUBDIRS	= prex libsa libc
-include $(PREX_SRC)/make/lib.mk
+include $(PREX_SRC)/mk/lib.mk

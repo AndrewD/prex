@@ -14,4 +14,4 @@ ifeq ($(KTRACE),1)
 CFLAGS += -finstrument-functions
 endif
 
-include $(PREX_SRC)/make/Makefile.inc
+include $(PREX_SRC)/mk/Makefile.inc

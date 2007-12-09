@@ -35,7 +35,7 @@
 
 #define TASK_MAGIC	0x54736b3f	/* 'Tsk?' */
 
-typedef unsigned int cap_t;
+typedef uint32_t cap_t;
 
 /*
  * Task struct
@@ -56,10 +56,8 @@ struct task {
 typedef struct task *task_t;
 
 #define cur_task()	(cur_thread->task)
-
-#define task_valid(tsk) (kern_area(tsk) && (tsk)->magic == TASK_MAGIC)
-
-#define capable(cap) ((cur_thread->task)->capability & (1 << cap))
+#define task_valid(tsk) (kern_area(tsk) && ((tsk)->magic == TASK_MAGIC))
+#define task_capable(cap) ((int)(cur_task()->capability & (1U << (cap))))
 
 /*
  * Task capability
@@ -75,6 +73,7 @@ typedef struct task *task_t;
 #define CAP_POWER	8	/* Allow power control including shutdown */
 #define CAP_TIME	9	/* Allow setting system time */
 #define CAP_RAWIO	10	/* Allow direct I/O access */
+#define CAP_DEBUG	11	/* Allow debugging reqeusts */
 
 /*
  * vm_inherit options for task_create()
@@ -97,6 +96,7 @@ typedef struct task *task_t;
 
 extern void task_init(void);
 extern void task_boot(void);
+extern int __task_create(task_t parent, int vm_inherit, task_t *child);
 extern int task_create(task_t parent, int vm_inherit, task_t *child);
 extern int task_terminate(task_t task);
 extern task_t task_self(void);
@@ -105,6 +105,6 @@ extern int task_resume(task_t task);
 extern int task_name(task_t task, char *name);
 extern int task_getcap(task_t task, cap_t *cap);
 extern int task_setcap(task_t task, cap_t *cap);
-extern int task_capable(int cap);
+extern int __task_capable(cap_t cap);
 
 #endif /* !_TASK_H */

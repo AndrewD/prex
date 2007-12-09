@@ -97,7 +97,7 @@ struct context {
 	struct kern_regs kregs;		/* Kernel mode registers */
 	struct cpu_regs	*uregs;		/* User mode registers */
 #ifdef CONFIG_FPU
-	struct fpu_regs	*fregs; */	/* Co-processor registers */
+	struct fpu_regs	*fregs;		/* Co-processor registers */
 #endif
 	char   *esp0;			/* Top of kernel stack */
 };

@@ -20,4 +20,4 @@ CPPFLAGS += -D_PREX_SOURCE -D_PREX_NATIVE_TASK
 TYPE = EXEC
 
 -include $(PREX_SRC)/user/arch/$(PREX_ARCH)/Makefile.$(PREX_PLATFORM)
-include $(PREX_SRC)/make/Makefile.inc
+include $(PREX_SRC)/mk/Makefile.inc

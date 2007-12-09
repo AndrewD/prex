@@ -187,7 +187,7 @@
   <ul>
   <li><a href="#sys0">sys_log</a></li>
   <li><a href="#sys1">sys_panic</a></li>
-  <li><a href="#sys2">sys_stat</a></li>
+  <li><a href="#sys2">sys_info</a></li>
   <li><a href="#sys3">sys_time</a></li>
   <li><a href="#sys4">sys_debug</a></li>
   </ul>
@@ -916,6 +916,8 @@ count and a task suspend count are set to 0.
 <dl>
 <dt>[ESRCH]</dt>
 <dd>The specified <i>th</i> is not a valid thread ID.</dd>
+<dt>[EINVAL]</dt>
+<dd>The specified <i>th</i> is not suspended now.</dd>
 <dt>[EPERM]</dt>
 <dd>The caller task is not an owner of the specified <i>th</i>, but the caller
 task does not have CAP_TASK capability.</dd>
@@ -940,8 +942,6 @@ The thread_schedparam() function gets/sets the various scheduling parameter.
 <li>OP_SETPRIO - set the scheduling priority</li>
 <li>OP_GETPOLICY - get the scheduling policy</li>
 <li>OP_SETPOLICY - set the scheduling policy</li>
-<li>OP_GETINTERVAL - get the scheduling quantum</li>
-<li>OP_SETINTERVAL - set the scheduling quantum</li>
 </ul>
 The kernel supports the following scheduling policy.
 <ul>
@@ -1912,21 +1912,21 @@ No errors are defined.
 
 
 <h3 id="sys2">NAME</h3>
-sys_stat() - return system statistics
+sys_info() - return system information
 
 <h3>SYNOPSIS</h3>
 <pre>
-int sys_stat(int type, void *buf);
+int sys_info(int type, void *buf);
 </pre>
 
 <h3>DESCRIPTION</h3>
-The sys_stat() function returns the specified system statistics.
+The sys_info() function returns the specified system information.
 </ul>
-The kernel supports the following system statistics.
+The kernel supports the following system infomation.
 <ul>
-<li>STAT_KERNEL - Get kernel statistics</li>
-<li>STAT_MEMORY - Get memory statistics</li>
-<li>STAT_SCHED - Get scheduling statistics</li>
+<li>INFO_KERNEL - Get kernel information</li>
+<li>INFO_MEMORY - Get memory information</li>
+<li>INFO_SCHED - Get scheduling information</li>
 </ul>
 
 <h3>ERRORS</h3>

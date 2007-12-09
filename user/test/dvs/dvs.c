@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,19 +42,15 @@
 #include <prex/prex.h>
 #include <stdio.h>
 
-int main()
+static void set_0_or_100(void)
 {
 	u_long t1, t2;
 	char index[] = "-\\|/";
 	char bar[] = "*\033[1D";
-	int i;
-
-	thread_yield();
-
-	printf("DVS test program\n");
+	int i, cnt;
 
 	i = 0;
-	for (;;) {
+	for (cnt = 0; cnt < 2; cnt++) {
 		/*
 		 * Display indicator for 5 sec.
 		 */
@@ -77,6 +73,48 @@ int main()
 		 */
 		printf("\rCPU Idle  ");
 		timer_sleep(5000, 0);
+	}
+}
+
+static void set_50(void)
+{
+	u_long t1, t2;
+	char index[] = "-\\|/";
+	char bar[] = "*\033[1D";
+	int i, cnt;
+
+	printf("\rCPU half speed:");
+	i = 0;
+	for (cnt = 0; cnt < 5000; cnt++) {
+		/*
+		 * Update indicator per 100 msec.
+		 */
+		if ((t2 % 100) == 0) {
+			bar[0] = index[i++ % 4];
+			printf(bar);
+		}
+		sys_time(&t1);
+		for (;;) {
+			sys_time(&t2);
+			if (t2 > t1 + 1)
+				break;
+		}
+		/*
+		 * Sleep 1msec.
+		 */
+		timer_sleep(1, 0);
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	thread_yield();
+
+	printf("DVS test program\n");
+
+	for (;;) {
+		set_0_or_100();
+		set_50();
 	}
 	return 0;
 }

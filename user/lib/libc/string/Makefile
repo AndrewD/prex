@@ -8,4 +8,4 @@ OBJS	= \
 	strpbrk.o strrchr.o strsep.o strspn.o strstr.o strtok.o strxfrm.o \
 	swab.o strlcpy.o strlcat.o
 
-include $(PREX_SRC)/make/lib.mk
+include $(PREX_SRC)/mk/lib.mk

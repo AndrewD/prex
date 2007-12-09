@@ -54,7 +54,7 @@ name##: \
 
 #define SYSCALL0(name) \
 	.global name; .align; \
-name##: swi #SYS_##name << 16; \
+name##: swi #SYS_##name; \
 	mov pc, lr
 
 #endif

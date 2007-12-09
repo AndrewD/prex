@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@
 #define _DEVICE_H
 
 #include <list.h>
+#include <system.h>
 
 #define DEVICE_MAGIC	0x4465763f	/* 'Dev?' */
 
@@ -41,9 +42,9 @@
  * The driver with order 0 is called first.
  */
 struct driver {
-	char 	*name;		/* Name of device driver */
-	int 	order;		/* Initialize order */
-	int 	(*init)();	/* Initialize routine */
+	const char	*name;		/* Name of device driver */
+	const int	order;		/* Initialize order */
+	int		(*init)();	/* Initialize routine */
 };
 typedef struct driver *driver_t;
 
@@ -65,19 +66,22 @@ typedef struct devio *devio_t;
  */
 struct device {
 	int	    magic;		/* Magic number */
+	int	    ref_count;		/* Reference count */
 	struct list link;		/* Link for device list */
 	devio_t	    devio;		/* Device I/O table */
 	char	    name[MAX_DEVNAME];	/* Name of device */
 };
 typedef struct device *device_t;
 
-#define device_valid(dev)  (kern_area(dev) && (dev)->magic == DEVICE_MAGIC)
+#define device_valid(dev) (kern_area(dev) && ((dev)->magic == DEVICE_MAGIC))
 
 extern void device_init(void);
-extern int device_open(char *name, int mode, device_t *dev);
+extern int device_open(char *name, int mode, device_t *pdev);
 extern int device_close(device_t dev);
 extern int device_read(device_t dev, void *buf, size_t *nbyte, int blkno);
 extern int device_write(device_t dev, void *buf, size_t *nbyte, int blkno);
 extern int device_ioctl(device_t dev, int cmd, u_long arg);
+extern int device_info(struct info_device *info);
+
 
 #endif /* !_DEVICE_H */

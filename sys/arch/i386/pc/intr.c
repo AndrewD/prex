@@ -67,7 +67,7 @@ volatile int irq_nesting = 0;
  * priority. While some ISR is running, all lower priority interrupts
  * are masked off.
  */
-static int cur_ipl;
+static volatile int cur_ipl;
 
 /*
  * Interrupt mapping table
@@ -149,25 +149,23 @@ void interrupt_setup(int vector, int mode)
 void interrupt_handler(struct cpu_regs *regs)
 {
 	int vector = (int)regs->trap_no;
-	int old_ipl;
+	int old_ipl, new_ipl;
 
-	/* Save & update interrupt level */
+	/* Adjust interrupt level */
 	old_ipl = cur_ipl;
-	cur_ipl = irq_level[vector];
+	new_ipl = irq_level[vector];
+	if (new_ipl < old_ipl)		/* Ignore spurious interrupt */
+		cur_ipl = new_ipl;
 	update_mask();
 
 	/* Send acknowledge to PIC for specified irq */
-	if (vector & 8) {	/* Slave ? */
-		outb(0x62, PIC_M);	/* Specific EOI for IRQ2 */
-		outb(0x20, PIC_S);	/* Non specific EOI */
-	} else
-		outb(0x20, PIC_M);	/* Non specific EOI */
-
-	sti();
+	if (vector & 8)			/* Slave ? */
+		outb(0x20, PIC_S);	/* Non specific EOI to slave */
+	outb(0x20, PIC_M);		/* Non specific EOI to master */
 
 	/* Dispatch interrupt */
+	sti();
 	irq_handler(vector);
-
 	cli();
 
 	/* Restore interrupt level */

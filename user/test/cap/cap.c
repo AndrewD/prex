@@ -60,7 +60,7 @@ static void cap_remove(int c)
 	}
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	task_t child;
 	thread_t th;

@@ -34,7 +34,7 @@
 #include <prex/prex.h>
 #include <string.h>
 
-int main()
+int main(int argc, char *argv[])
 {
 	device_t console_dev;
 	char buf[] = "ABCDEFGHIJKLMN";

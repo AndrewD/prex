@@ -69,7 +69,7 @@ struct mount {
 	int		m_flags;	/* Mount flag */
 	int		m_count;	/* Reference count */
 	char		m_path[PATH_MAX]; /* Mounted path */
-	device_t	m_dev;		/* Mounted device */
+	dev_t		m_dev;		/* Mounted device */
 	struct vnode	*m_root;	/* root vnode */
 	struct vnode	*m_covered;	/* vnode covered on parent fs */
 	void		*m_data;	/* Private data for fs */
@@ -162,10 +162,6 @@ struct vfssw {
 	int		(*vs_init)(void); /* Initialize routine */
 	struct vfsops	*vs_op;		/* Pointer to VFS operation */
 };
-typedef struct vfssw *vfssw_t;
-
-extern struct vfssw vfssw_table[];
-
 
 /*
  * VFS operations
@@ -175,7 +171,7 @@ struct vfsops {
 	int (*unmount)	(mount_t mp);
 	int (*sync)	(mount_t mp);
 	int (*vget)	(mount_t mp, vnode_t vp);
-	int (*statfs)	(mount_t mp, struct statfs *SFP);
+	int (*statfs)	(mount_t mp, struct statfs *sfp);
 	struct vnops	*vnops;
 };
 
@@ -188,10 +184,12 @@ struct vfsops {
 #define VFS_VGET(MP, VP)            ((MP)->m_op->vget)(MP, VP)
 #define VFS_STATFS(MP, SFP)         ((MP)->m_op->statfs)(MP, SFP)
 
+#define VFS_NULL		    ((void *)vfs_null)
 
 __BEGIN_DECLS
 int	mount __P((const char *, const char *, const char *, int, void *));
 int	umount __P((const char *));
+int	vfs_null __P((void));
 __END_DECLS
 
 #endif	/* !_SYS_MOUNT_H */

@@ -31,9 +31,9 @@
  * elf.c - ELF file format support
  */
 
+#include <bootinfo.h>
 #include <boot.h>
 #include <elf.h>
-#include <bootinfo.h>
 
 extern int nr_img;		/* Number of images */
 
@@ -70,6 +70,10 @@ static int load_executable(char *img, struct img_info *info)
 		elf_dbg("p_align=%x\n", (int)phdr->p_align);
 		elf_dbg("p_paddr=%x\n", (int)phdr->p_paddr);
 
+		if (i >= 2) {
+			elf_dbg("skipping extra phdr\n");
+			continue;
+		}
 		if (phdr->p_flags & PF_X) {
 			/* Text */
 			info->text = phdr->p_vaddr;
@@ -103,14 +107,59 @@ static int load_executable(char *img, struct img_info *info)
 	return 0;
 }
 
+static int relocate_section_rela(Elf32_Sym *sym_table, Elf32_Rela *rela,
+			char *target_sect, int nr_reloc)
+{
+	Elf32_Sym *sym;
+	Elf32_Addr sym_val;
+	int i;
+
+	for (i = 0; i < nr_reloc; i++) {
+		sym = &sym_table[ELF32_R_SYM(rela->r_info)];
+		if (sym->st_shndx != STN_UNDEF) {
+			sym_val = (Elf32_Addr)sect_addr[sym->st_shndx]
+				+ sym->st_value;
+			if (relocate_rela(rela, sym_val, target_sect) != 0)
+				return -1;
+		} else if (ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
+			elf_dbg("Undefined symbol for rela[%x]\n", i);
+			return 0;
+		} else
+			elf_dbg("Undefined weak symbol for rela[%x]\n", i);
+		rela++;
+	}
+	return 0;
+}
+
+static int relocate_section_rel(Elf32_Sym *sym_table, Elf32_Rel *rel,
+			char *target_sect, int nr_reloc)
+{
+	Elf32_Sym *sym;
+	Elf32_Addr sym_val;
+	int i;
+
+	for (i = 0; i < nr_reloc; i++) {
+		sym = &sym_table[ELF32_R_SYM(rel->r_info)];
+		if (sym->st_shndx != STN_UNDEF) {
+			sym_val = (Elf32_Addr)sect_addr[sym->st_shndx]
+				+ sym->st_value;
+			if (relocate_rel(rel, sym_val, target_sect) != 0)
+				return -1;
+		} else if (ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
+			printk("Undefined symbol for rel[%x] sym=%x\n", i, sym);
+			return -1;
+		} else
+			elf_dbg("Undefined weak symbol for rel[%x]\n", i);
+		rel++;
+	}
+	return 0;
+}
+
 static int relocate_section(char *img, Elf32_Shdr *shdr)
 {
-	Elf32_Sym *sym_table, *sym;
-	Elf32_Rel *rel;
-	Elf32_Rela *rela;
-	Elf32_Addr sym_val;
+	Elf32_Sym *sym_table;
 	char *target_sect;
-	int i, nr_reloc;
+	int nr_reloc;
 
 	if (shdr->sh_entsize == 0)
 		return 0;
@@ -122,35 +171,23 @@ static int relocate_section(char *img, Elf32_Shdr *shdr)
 		return -1;
 
 	nr_reloc = shdr->sh_size / shdr->sh_entsize;
-	rel = (Elf32_Rel *)(img + shdr->sh_offset);
-	rela = (Elf32_Rela *)(img + shdr->sh_offset);
-	for (i = 0; i < nr_reloc; i++) {
+	switch (shdr->sh_type) {
+	case SHT_REL:
+		return relocate_section_rel(sym_table,
+				    (Elf32_Rel *)(img + shdr->sh_offset),
+				    target_sect, nr_reloc);
+		break;
 
-		if (shdr->sh_type == SHT_REL) {
-			sym = &sym_table[ELF32_R_SYM(rel->r_info)];
-			if (sym->st_shndx == STN_UNDEF) {
-				elf_dbg("Undefined symbol index=%x\n", i);
-				/* XXX: Need to check error!! */
-			} else {
-				sym_val = (Elf32_Addr)sect_addr[sym->st_shndx] + sym->st_value;
-				if (relocate_rel(rel, sym_val, target_sect) != 0)
-					return -1;
-			}
-		} else {
-			sym = &sym_table[ELF32_R_SYM(rela->r_info)];
-			if (sym->st_shndx == STN_UNDEF) {
-				elf_dbg("Undefined symbol index=%x\n", i);
-				/* XXX: Need to check error!! */
-			} else {
-				sym_val = (Elf32_Addr)sect_addr[sym->st_shndx] + sym->st_value;
-				if (relocate_rela(rela, sym_val, target_sect) != 0)
-					return -1;
-			}
-		}
-		rel++;
-		rela++;
+	case SHT_RELA:
+		return relocate_section_rela(sym_table,
+				     (Elf32_Rela *)(img + shdr->sh_offset),
+				     target_sect, nr_reloc);
+		break;
+
+	default:
+		return -1;
+		break;
 	}
-	return 0;
 }
 
 static int load_relocatable(char *img, struct img_info *info)

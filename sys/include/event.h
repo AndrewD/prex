@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,8 @@ struct thread;
  * Note: The event name is used only for debugging purpose.
  */
 struct event {
-	struct queue sleepq;	/* Queue for waiting thread */
-	char *name;		/* Pointer to event name string */
+	struct queue	sleepq;		/* Queue for waiting thread */
+	char		*name;		/* Pointer to event name string */
 };
 typedef struct event *event_t;
 
@@ -51,7 +51,7 @@ typedef struct event *event_t;
 
 /* Macro to initialize event dynamically */
 #define event_init(event, evt_name) \
-    do { list_init(&(event)->sleepq); (event)->name = evt_name; } while (0)
+    do { queue_init(&(event)->sleepq); (event)->name = evt_name; } while (0)
 
 #define event_waiting(event)   (!queue_empty(&(event)->sleepq))
 

@@ -168,7 +168,7 @@ void dma_setup(int handle, u_long addr, u_long count, int read)
 	u_int chan, bits, mode;
 
 	ASSERT(handle);
-	addr = (u_long)virt_to_phys(addr);
+	addr = (u_long)virt_to_phys((void *)addr);
 
 	/* dma address must be under 16M. */
 	ASSERT(addr < 0xffffff);

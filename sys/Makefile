@@ -12,4 +12,4 @@ LIBS	= ./lib/libkern.a
 #DISASM	= prex.lst
 #SYMBOL	= prex.sym
 LD_SCRIPT = ./arch/$(PREX_ARCH)/$(PREX_PLATFORM)/kernel.ld
-include $(PREX_SRC)/make/sys.mk
+include $(PREX_SRC)/mk/sys.mk

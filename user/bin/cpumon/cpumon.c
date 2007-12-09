@@ -38,10 +38,10 @@
 static struct cpu_info cpu_info;
 static struct cpu_stat cpu_stat;
 
-int main()
+int main(int argc, char *argv[])
 {
 	device_t cpu_dev;
-	u_long last_mhz = 0;
+	int last_mhz = 0;
 	int i, j;
 	static char bar[21];
 
@@ -50,6 +50,9 @@ int main()
 
 	if (device_open("cpu", 0, &cpu_dev))
 		panic("open error: cpu");
+
+	/* Clear screen */
+	printf("\33[2J");
 
 	printf("CPU voltage monitor\n");
 	device_ioctl(cpu_dev, CPUIOC_GET_INFO, (u_long)&cpu_info);

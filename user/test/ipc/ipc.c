@@ -103,7 +103,7 @@ static void send_thread(void)
 	for (;;) ;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	object_t o1, o2, o3;
 	struct msg msg;

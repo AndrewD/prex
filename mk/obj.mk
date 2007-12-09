@@ -14,4 +14,4 @@ CFLAGS += -D_PREX_SOURCE
 CPPFLAGS += -D_PREX_SOURCE
 TYPE    = OBJECT
 
-include $(PREX_SRC)/make/Makefile.inc
+include $(PREX_SRC)/mk/Makefile.inc

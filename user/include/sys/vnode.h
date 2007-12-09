@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,8 @@ enum {
 	VNON,	    /* No type */
 	VREG,	    /* Regular file  */
 	VDIR,	    /* Directory */
-	VDEV,	    /* Device */
+	VBLK,	    /* Block device */
+	VCHR,	    /* Charactor device */
 	VLNK,	    /* Symbolic link */
 	VSOCK,	    /* Socks */
 	VFIFO,	    /* FIFO */
@@ -72,6 +73,7 @@ struct vnode {
 	int		v_flags;	/* vnode flag */
 	mode_t		v_mode;		/* File mode */
 	size_t		v_size;		/* File size */
+	mutex_t		v_lock;		/* Lock for this vnode */
 	int		v_blkno;	/* Block number */
 	char		*v_path;	/* Pointer to path in fs */
 	void		*v_data;	/* Private data for fs */
@@ -144,7 +146,12 @@ struct vnops {
 #define VOP_SETATTR(VP, VAP)	   ((VP)->v_op->setattr)(VP, VAP)
 #define VOP_INACTIVE(VP)	   ((VP)->v_op->inactive)(VP)
 
-int vfs_default();
-int vfs_error();
+#define VOP_NULL		   ((void *)vop_null)
+#define VOP_EINVAL		   ((void *)vop_einval)
+
+__BEGIN_DECLS
+int vop_null __P((void));
+int vop_einval __P((void));
+__END_DECLS
 
 #endif /* !_SYS_VNODE_H */

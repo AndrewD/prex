@@ -33,7 +33,7 @@
 #include <prex/prex.h>
 #include <stdio.h>
 
-int main()
+int main(int argc, char *argv[])
 {
 	u_char c;
 	volatile int data;	/* prevent optimization from gcc */

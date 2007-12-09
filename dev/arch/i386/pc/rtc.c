@@ -52,7 +52,7 @@
 
 #define DAYSPERYEAR	(31+28+31+30+31+30+31+31+30+31+30+31)
 
-int rtc_read();
+static int rtc_read();
 static int rtc_init();
 
 #ifdef CONFIG_RTC
@@ -172,7 +172,7 @@ static u_long cmos_gettime(void)
 	return sec;
 }
 
-int rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
 	if (*nbyte < sizeof(u_long))
 		return 0;

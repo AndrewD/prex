@@ -55,6 +55,7 @@ int cmd_timer(int argc, char **argv);
 int cmd_irq(int argc, char **argv);
 int cmd_device(int argc, char **argv);
 int cmd_vm(int argc, char **argv);
+int cmd_dmesg(int argc, char **argv);
 #endif
 int cmd_reboot(int argc, char **argv);
 int cmd_shutdown(int argc, char **argv);
@@ -85,6 +86,7 @@ static struct cmd_entry cmd_table[] = {
 	{ "irq"		,cmd_irq	,"irq      - Dump irq information" },
 	{ "device"	,cmd_device	,"device   - Dump devices" },
 	{ "vm"		,cmd_vm		,"vm       - Dump virutal memory information" },
+	{ "dmesg"	,cmd_dmesg	,"dmesg    - Dump kernel message log" },
 #endif
 	{ "reboot"	,cmd_reboot	,"reboot   - Reboot system" },
 	{ "shutdown"	,cmd_shutdown	,"shutdown - Shutdown system" },
@@ -104,29 +106,26 @@ int cmd_help(int argc, char **argv)
 
 int cmd_ver(int argc, char **argv)
 {
-	struct stat_kernel st;
+	struct info_kernel info;
 
-	sys_stat(STAT_KERNEL, &st);
+	sys_info(INFO_KERNEL, &info);
 
 	printf("Kernel version:\n");
-	printf(" %s %d.%d.%d for %s-%s\n",
-		  st.name,
-		  KVER_VER(st.version), KVER_PATCH(st.version),
-		  KVER_SUB(st.version), (char *)&st.arch, (char *)&st.platform);
-
+	printf("%s version %s for %s\n",
+	       info.sysname, info.release, info.machine);
 	return 0;
 }
 
 int cmd_mem(int argc, char **argv)
 {
-	struct stat_memory st;
+	struct info_memory info;
 
-	sys_stat(STAT_MEMORY, &st);
+	sys_info(INFO_MEMORY, &info);
 
 	printf("Memory usage:\n");
 	printf("    total     used     free   kernel\n");
-	printf(" %8d %8d %8d %8d\n", (u_int)st.total,
-		(u_int)(st.total - st.free), (u_int)st.free, (u_int)st.kernel);
+	printf(" %8d %8d %8d %8d\n", (u_int)info.total,
+	       (u_int)(info.total - info.free), (u_int)info.free, (u_int)info.kernel);
 	return 0;
 }
 
@@ -143,7 +142,7 @@ int cmd_kill(int argc, char **argv)
 
 	if (argc < 2)
 		return 1;
-	th = strtoul(argv[1], &ep, 16);
+	th = (thread_t)strtoul(argv[1], &ep, 16);
 	printf("Kill thread id:%x\n", th);
 	if (thread_terminate(th)) {
 		printf("Thread %x does not exist\n", th);
@@ -192,6 +191,12 @@ int cmd_device(int argc, char **argv)
 int cmd_vm(int argc, char **argv)
 {
 	sys_debug(DBGCMD_DUMP, DUMP_VM);
+	return 0;
+}
+
+int cmd_dmesg(int argc, char **argv)
+{
+	sys_debug(DBGCMD_DUMP, DUMP_MSGLOG);
 	return 0;
 }
 

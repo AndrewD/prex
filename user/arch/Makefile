@@ -1,2 +1,2 @@
 SUBDIRS	= $(PREX_ARCH)
-include $(PREX_SRC)/make/lib.mk
+include $(PREX_SRC)/mk/lib.mk

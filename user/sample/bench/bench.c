@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,9 +52,9 @@ void null_thread(void)
 	for (;;) ;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-	struct stat_kernel st;
+	struct info_sched info;
 	task_t task;
 	char stack[16];
 	u_long start, end;
@@ -62,8 +62,8 @@ int main()
 
 	printf("Benchmark to create/terminate %d threads\n", NR_THREADS);
 
-	sys_stat(STAT_KERNEL, &st);
-	if (st.timer_hz == 0)
+	sys_info(INFO_SCHED, &info);
+	if (info.timer_hz == 0)
 		panic("can not get timer tick rate");
 
 	thread_getprio(thread_self(), &prio);
@@ -101,7 +101,7 @@ int main()
 	vm_free(task, th);
 
 	printf("Complete. The score is %d msec (%d ticks).\n",
-	       (int)((end - start) * 1000 / st.timer_hz),
+	       (int)((end - start) * 1000 / info.timer_hz),
 	       (int)(end - start));
 
 	return 0;

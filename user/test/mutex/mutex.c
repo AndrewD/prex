@@ -34,10 +34,10 @@
 #include <prex/prex.h>
 #include <stdio.h>
 
-static mutex_t mu_A = MUTEX_INITIALIZER;
-static mutex_t mu_B, mu_C;
+static mutex_t mtx_A = MUTEX_INITIALIZER;
+static mutex_t mtx_B, mtx_C;
 
-int main()
+int main(int argc, char *argv[])
 {
 	int err;
 
@@ -46,58 +46,58 @@ int main()
 	/*
 	 * Initialize only B
 	 */
-	mutex_init(&mu_B);
+	mutex_init(&mtx_B);
 
 	/*
 	 * Lock test
 	 */
-	err = mutex_lock(&mu_A);
+	err = mutex_lock(&mtx_A);
 	printf("1) Lock mutex A: err=%d\n", err);
 
-	err = mutex_lock(&mu_B);
+	err = mutex_lock(&mtx_B);
 	printf("2) Lock mutex B: err=%d\n", err);
 
 	/* Error: Mutex C is not initialized. */
-	err = mutex_lock(&mu_C);
+	err = mutex_lock(&mtx_C);
 	printf("3e) Lock mutex C: err=%d\n", err);
 
 	/*
 	 * Unlock test
 	 */
-	err = mutex_unlock(&mu_A);
+	err = mutex_unlock(&mtx_A);
 	printf("4) Unlock mutex A: err=%d\n", err);
 
-	err = mutex_unlock(&mu_B);
+	err = mutex_unlock(&mtx_B);
 	printf("5) Unlock mutex B: err=%d\n", err);
 
 	/* Error: Mutex C is not initialized. */
-	err = mutex_unlock(&mu_C);
+	err = mutex_unlock(&mtx_C);
 	printf("6e) Unlock mutex B: err=%d\n", err);
 
 	/* Error: B is not locked. */
-	err = mutex_unlock(&mu_B);
+	err = mutex_unlock(&mtx_B);
 	printf("7e) Unlock mutex B: err=%d\n", err);
 
 	/*
 	 * Destoroy mutex.
 	 */
-	mutex_destroy(&mu_B);
+	mutex_destroy(&mtx_B);
 
 	/* Error: Mutex B is destoroyed. */
-	err = mutex_lock(&mu_B);
+	err = mutex_lock(&mtx_B);
 	printf("8e) Lock mutex B: err=%d\n", err);
 
 	/*
 	 * Double lock test
 	 */
-	err = mutex_lock(&mu_A);
+	err = mutex_lock(&mtx_A);
 	printf("9) Lock mutex A: err=%d\n", err);
 
 	/* Erorr: Mutex A is already locked */
-	err = mutex_lock(&mu_A);
+	err = mutex_lock(&mtx_A);
 	printf("10e) Lock mutex A: err=%d\n", err);
 
-	err = mutex_unlock(&mu_A);
+	err = mutex_unlock(&mtx_A);
 	printf("11) Unlock mutex A: err=%d\n", err);
 
 	return 0;

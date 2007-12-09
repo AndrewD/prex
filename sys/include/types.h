@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,11 +37,11 @@ typedef unsigned int	u_int;
 typedef unsigned long	u_long;
 
 typedef char		int8_t;
-typedef unsigned char	u_int8_t;
+typedef unsigned char	uint8_t;
 typedef short		int16_t;
-typedef unsigned short	u_int16_t;
+typedef unsigned short	uint16_t;
 typedef int		int32_t;
-typedef unsigned int	u_int32_t;
+typedef unsigned int	uint32_t;
 
 #ifndef NULL
 #define NULL ((void *)0)

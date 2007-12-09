@@ -139,7 +139,7 @@ static int ramdisk_init(void)
 
 	system_bootinfo(&boot_info);
 	rd = (struct mem_info *)&boot_info->ram_disk;
-	img_start = (char *)phys_to_virt(rd->start);
+	img_start = (char *)phys_to_virt((void *)rd->start);
 	img_size = rd->size;
 	if (img_size == 0)
 		return -1;

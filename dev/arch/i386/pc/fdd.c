@@ -480,26 +480,26 @@ static void fdc_ist(int irq)
 /*
  * Open
  */
-int fdd_open(device_t dev, int mode)
+static int fdd_open(device_t dev, int mode)
 {
-	fdd_dbg("nr_open=%d\n", nr_open);
-	if (nr_open > 0)
-		return EBUSY;
 	nr_open++;
+	fdd_dbg("nr_open=%d\n", nr_open);
 	return 0;
 }
 
 /*
  * Close
  */
-int fdd_close(device_t dev)
+static int fdd_close(device_t dev)
 {
 	fdd_dbg("dev=%x\n", dev);
-	if (nr_open != 1)
+	if (nr_open < 1)
 		return EINVAL;
 	nr_open--;
-	ioreq.cmd = IO_NONE;
-	fdc_off();
+	if (nr_open == 0) {
+		ioreq.cmd = IO_NONE;
+		fdc_off();
+	}
 	return 0;
 }
 
@@ -542,7 +542,7 @@ static int fdd_rw(int cmd, char *buf, u_long blksz, int blkno)
  *  ENXIO   ... Write protected
  *  EFAULT  ... No physical memory is mapped to buffer
  */
-int fdd_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int fdd_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
 	void *kbuf;
 	int i, track, sect, nr_sect, err;
@@ -594,7 +594,7 @@ int fdd_read(device_t dev, char *buf, size_t *nbyte, int blkno)
  *  ENXIO   ... Write protected
  *  EFAULT  ... No physical memory is mapped to buffer
  */
-int fdd_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int fdd_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
 	void *kbuf, *wbuf;
 	int i, track, sect, nr_sect, err;
@@ -640,7 +640,7 @@ int fdd_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 	return err;
 }
 
-int fdd_ioctl(device_t dev, int cmd, u_long arg)
+static int fdd_ioctl(device_t dev, int cmd, u_long arg)
 {
 	fdd_dbg("not support!\n");
 	return 0;
@@ -649,7 +649,7 @@ int fdd_ioctl(device_t dev, int cmd, u_long arg)
 /*
  * Initialize
  */
-int fdd_init(void)
+static int fdd_init(void)
 {
 	void *buf;
 	int i;

@@ -121,7 +121,7 @@ static void client_task(void)
 #endif
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	object_t obj;
 	struct chat_msg msg;

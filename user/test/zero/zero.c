@@ -46,7 +46,7 @@ void dump_buf(void)
 	putchar('\n');
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	device_t zero_dev;
 	int i, err;

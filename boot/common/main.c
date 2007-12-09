@@ -31,9 +31,9 @@
  * main.c - Prex boot loader main module
  */
 
+#include <bootinfo.h>
 #include <boot.h>
 #include <ar.h>
-#include <bootinfo.h>
 
 u_long load_base;	/* Current load address */
 u_long load_start;	/* Start address for loading */
@@ -167,6 +167,10 @@ static void setup_image(void)
 		/* Pad to even boundary */
 		hdr += ((u_long)hdr % 2);
 
+		/* Check archive header */
+		if (strncmp((char *)&((struct ar_hdr *)hdr)->eol, EOLSIG, 2))
+			break;
+
 #ifdef CONFIG_RAMDISK
 		/* Load RAM disk image */
 		if (!strncmp((char *)&((struct ar_hdr *)hdr)->name,
@@ -256,7 +260,6 @@ void loader_main(void)
 #endif
 	kernel_entry = (unsigned int)phys_to_virt(boot_info->kernel.entry);
 	printk("kernel_entry=%x\n", kernel_entry);
-
 
 	start_kernel(kernel_entry, (unsigned int)boot_info);
 }

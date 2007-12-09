@@ -90,7 +90,7 @@
 #define SYS_sem_getvalue	54
 #define SYS_sys_log		55
 #define SYS_sys_panic		56
-#define SYS_sys_stat		57
+#define SYS_sys_info		57
 #define SYS_sys_time		58
 #define SYS_sys_debug		59
 

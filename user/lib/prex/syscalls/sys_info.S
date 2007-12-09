@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+/*
+ * Copyright (c) 2005, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,30 +27,7 @@
  * SUCH DAMAGE.
  */
 
-/*
- * power.c - System board power control
- */
-#include <driver.h>
-#include <io.h>
-#include "kmc.h"
+#include <systrap.h>
+#include "syscall.h"
 
-/* TODO: I don't want to use APM... */
-
-/*
- * Set system to suspend power state.
- */
-void system_suspend(void)
-{
-
-}
-
-/*
- * Power off system
- */
-void system_poweroff(void)
-{
-	irq_lock();
-	printk("The system is halted. You can turn off power.");
-	for (;;)
-		__asm__ __volatile__ ("hlt");
-}
+SYSCALL2(sys_info)

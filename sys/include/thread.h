@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,13 +30,14 @@
 #ifndef _THREAD_H
 #define _THREAD_H
 
-#include <queue.h>
 #include <list.h>
+#include <queue.h>
 #include <event.h>
 #include <task.h>
 #include <timer.h>
 #include <ipc.h>
 #include <arch.h>
+#include <system.h>
 
 #define THREAD_MAGIC	0x5468723f	/* 'Thr?' */
 
@@ -55,13 +56,12 @@ struct thread {
 	int		prio;		/* Current priority */
 	int		base_prio;	/* Base priority */
 	int		ticks_left;	/* Remaining ticks to run */
-	int		quantum;	/* Execution time limit */
+	u_int		total_ticks;	/* Total running ticks */
 	int		need_resched;	/* True if rescheduling is needed */
 	int		lock_count;	/* Schedule lock counter */
 	int		sus_count;	/* Suspend counter */
 	event_t		sleep_event;	/* Sleep event */
 	int		sleep_result;	/* Sleep result */
-	u_int		total_ticks;	/* Total running ticks */
 	struct timer 	timeout;	/* Thread timer */
 	struct timer	*periodic;	/* Pointer to periodic timer */
 	struct queue 	ipc_link;	/* Link for IPC queue */
@@ -69,19 +69,19 @@ struct thread {
 	size_t		msg_size;	/* Size of IPC message */
 	struct thread 	*sender;	/* Thread that sends IPC message */
 	struct thread 	*receiver;	/* Thread that receives IPC message */
-	object_t 	send_obj;	/* Current send target object */
-	object_t 	recv_obj;	/* Current receive target object */
-	u_int32_t 	exc_bitmap;	/* Bitmap of pending exceptions */
+	object_t 	send_obj;	/* IPC object sending to */
+	object_t 	recv_obj;	/* IPC object receiving from */
+	uint32_t 	exc_bitmap;	/* Bitmap of pending exceptions */
 	int 		wait_exc;	/* True if waiting exception */
 	struct list 	mutexes;	/* Mutexes locked by this thread */
 	struct mutex 	*wait_mutex;	/* Mutex pointer currently waiting */
 	void		*kstack;	/* Base address of kernel stack */
-	struct context 	context;	/* Machine specific registers */
+	struct context 	ctx;		/* Machine specific context */
 };
 
 typedef struct thread *thread_t;
 
-#define thread_valid(th) (kern_area(th) && (th)->magic == THREAD_MAGIC)
+#define thread_valid(th) (kern_area(th) && ((th)->magic == THREAD_MAGIC))
 
 /*
  * Thread state
@@ -122,14 +122,14 @@ extern struct thread idle_thread;
 #define OP_SETPRIO	1	/* Set scheduling priority */
 #define OP_GETPOLICY	2	/* Get scheduling policy */
 #define OP_SETPOLICY	3	/* Set scheduling policy */
-#define OP_GETINTERVAL	4	/* Get scheduling interval (quantum) */
-#define OP_SETINTERVAL	5	/* Set scheduling interval (quantum) */
 
 
 extern struct thread *cur_thread;
 
 extern void thread_init(void);
+extern int __thread_create(task_t task, thread_t * th);
 extern int thread_create(task_t task, thread_t * th);
+extern int __thread_terminate(thread_t th);
 extern int thread_terminate(thread_t th);
 extern int thread_load(thread_t th, void *entry, void *stack);
 extern thread_t thread_self(void);
@@ -138,7 +138,7 @@ extern int thread_suspend(thread_t th);
 extern int thread_resume(thread_t th);
 extern int thread_schedparam(thread_t th, int op, int *param);
 extern void thread_idle(void);
-extern int __thread_terminate(thread_t th);
 extern thread_t kernel_thread(void (*entry)(u_long), u_long arg);
+extern int thread_info(struct info_thread *info);
 
 #endif /* !_THREAD_H */

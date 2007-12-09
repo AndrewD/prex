@@ -1,2 +1,2 @@
 SUBDIRS	= syscalls crt malloc
-include $(PREX_SRC)/make/lib.mk
+include $(PREX_SRC)/mk/lib.mk

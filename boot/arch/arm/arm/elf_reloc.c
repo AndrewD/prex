@@ -62,7 +62,7 @@ int relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
 		/* elf_dbg("R_ARM_PC24: %x -> %x\n", where, *where); */
 		break;
 	default:
-		elf_dbg("relocation fail\n");
+		//		panic("relocation fail\n");
 		return -1;
 	}
 	return 0;
@@ -70,6 +70,6 @@ int relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
 
 int relocate_rela(Elf32_Rela *rela, Elf32_Addr sym_val, char *target_sec)
 {
-	elf_dbg("Invalid relocation type\n");
+	panic("Invalid relocation type\n");
 	return -1;
 }

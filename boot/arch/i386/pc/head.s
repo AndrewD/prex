@@ -188,15 +188,22 @@ setup_screen:
 	movw	$0x07, %bx
 	int	$0x10
 
-	movw	$0x1202, %ax			# Set screen line = 50
+	movw	$0x3, %ax			# Use mode-3
+	int	$0x10
+	movw	$0x1202, %ax			# 400 scan lines
 	movb	$0x30, %bl
 	int	$0x10
-	movw	$0x3, %ax
-	movw	$0x0, %bx
-	int	$0x10
-	movw	$0x1112, %ax
-	movb	$0x0, %bl
-	int	$0x10
+
+# 80x50 screen
+#	movw	$0x1112, %ax			# Load 8x8 character set
+#	movb	$0x0, %bl
+#	int	$0x10
+#	movw	$0x1201, %ax			# Turn off cursor emulation
+#	movb	$0x34, %bl
+#	int	$0x10
+#	movb	$0x01, %ah			# Set cursor type
+#	movw	$0x0607, %cx
+#	int	$0x10
 	
 	popw	%ds
 	popw	%es

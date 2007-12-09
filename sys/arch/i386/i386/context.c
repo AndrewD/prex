@@ -100,8 +100,6 @@ void context_set(context_t ctx, int type, u_long val)
 	struct kern_regs *k;
 	struct cpu_regs *u;
 
-	ASSERT(ctx);
-
 	switch (type) {
 	case USER_ENTRY:	/* User mode program counter */
 		u = ctx->uregs;
@@ -142,7 +140,7 @@ void context_set(context_t ctx, int type, u_long val)
  *
  * It is assumed all interrupts are disabled by caller.
  *
- * XXX: FPU context is not switched as of now.
+ * TODO: FPU context is not switched as of now.
  */
 void context_switch(context_t prev, context_t next)
 {

@@ -32,7 +32,7 @@
  */
 #include <prex/prex.h>
 
-int main()
+int main(int argc, char *argv[])
 {
 	device_t kbd_dev;
 	int i, err;

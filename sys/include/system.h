@@ -30,63 +30,84 @@
 #ifndef _SYSTEM_H
 #define _SYSTEM_H
 
-#define STAT_KERNEL	1
-#define STAT_MEMORY	2
-#define STAT_SCHED	3
+/*
+ * Infomation type for sys_info()
+ */
+#define INFO_KERNEL	1
+#define INFO_MEMORY	2
+#define INFO_SCHED	3
+#define INFO_THREAD	4
+#define INFO_DEVICE	5
 
 /*
- * Kernel stastics
+ * Kernel infomation
  */
-struct stat_kernel {
-	char	name[16];	/* Kernel name string */
-	u_int	version;	/* Kernel version */
-	char	arch[16];	/* Architecture name string */
-	char	platform[16];	/* Platform name string */
-	char	release[16];	/* Release name */
-	u_long	timer_hz;	/* Timer tick rate - HZ */
+#define _SYS_NMLN	32
+
+struct info_kernel {
+	char	sysname[_SYS_NMLN];	/* Kernel name */
+	char	nodename[_SYS_NMLN];	/* Obsolete data */
+	char	release[_SYS_NMLN];	/* Release level */
+	char	version[_SYS_NMLN];	/* Version level */
+	char	machine[_SYS_NMLN];	/* Architecture/platform */
 };
-
-/*
- * Macro for kernel version
- */
-#define MAKE_KVER(ver, patch, sub) (((ver) << 16) | ((patch) << 8) | (sub))
-#define KVER_VER(ver)	((ver) >> 16)
-#define KVER_PATCH(ver)	(((ver) >> 8) & 0xff)
-#define KVER_SUB(ver)	((ver) & 0xff)
 
 #define str2(x) #x
 #define str(x) str2(x)
 
-#define KERNEL_STAT(ks) \
+#define KERNEL_INFO(ki) \
 { \
 	SYSNAME, \
-	MAKE_KVER(VERSION, PATCHLEVEL, SUBLEVEL), \
-	str(__ARCH__), \
-	str(__PLATFORM__), \
-	__DATE__, \
-	HZ, \
+	"Unkown", \
+	str(VERSION) "." str(PATCHLEVEL) "." str(SUBLEVEL), \
+	__DATE__ " " __TIME__, \
+	str(__ARCH__) "-" str(__PLATFORM__) \
 }
 
 /*
- * Memory stastics
+ * Memory information
  */
-struct stat_memory {
-	size_t total;		/* Total memory size in bytes */
-	size_t free;		/* Current free memory size in bytes */
-	size_t kernel;		/* Memory size used by kernel in bytes */
+struct info_memory {
+	size_t	total;		/* Total memory size in bytes */
+	size_t	free;		/* Current free memory size in bytes */
+	size_t	kernel;		/* Memory size used by kernel in bytes */
 };
 
 /*
- * Scheduler statstics
+ * Scheduler infomation
  */
-struct stat_sched {
-	u_long system_ticks;	/* Ticks since boot time */
-	u_long idle_ticks;	/* Total tick count for idle */
+struct info_sched {
+	u_long	system_ticks;	/* Ticks since boot time */
+	u_long	idle_ticks;	/* Total tick count for idle */
+	u_long	timer_hz;	/* Timer tick rate - HZ */
+};
+
+/*
+ * Thread information
+ */
+struct info_thread {
+	u_long	cookie;		/* Index cookie - 0 for first thread */
+	int	state;		/* Thread state */
+	int	policy;		/* Scheduling policy */
+	int	prio;		/* Current priority */
+	int	base_prio;	/* Base priority */
+	int	sus_count;	/* Suspend counter */
+	u_int	total_ticks;	/* Total running ticks */
+	task_t	task;		/* Task ID */
+	char	task_name[MAX_TASKNAME];	/* Task name */
+};
+
+/*
+ * Device information
+ */
+struct info_device {
+	u_long	cookie;		/* Index cookie - 0 for first thread */
+	char	name[MAX_DEVNAME];
 };
 
 extern int sys_log(char *str);
 extern int sys_panic(char *str);
-extern int sys_stat(int type, void *buf);
+extern int sys_info(int type, void *buf);
 extern int sys_time(u_long *ticks);
 extern int sys_debug(int cmd, int param);
 

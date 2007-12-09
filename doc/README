@@ -85,7 +85,7 @@ Prex source code is divided into the following directories:
 
  conf			System configuration files
 
- make			Common Makefiles
+ mk			Common Makefiles
 
  sys			Prex microkernel
 	arch		Architecture/platform dependent code

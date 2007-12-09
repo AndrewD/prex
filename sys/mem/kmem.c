@@ -104,7 +104,7 @@ struct page_hdr {
 				    ((u_long)(n) & ~(PAGE_SIZE - 1))
 
 /* Index of free block list */
-#define BINDEX(b)	((int)((b)->size) >> 4)
+#define BLKIDX(b)	((int)((b)->size) >> 4)
 
 /* Number of free block list */
 #define NR_BLOCK_LIST	(PAGE_SIZE / ALIGN_SIZE)
@@ -228,7 +228,7 @@ void *kmem_alloc(size_t size)
 		new_blk = (struct block_hdr *)((u_long)blk + size);
 		new_blk->magic = BLOCK_MAGIC;
 		new_blk->size = (u_short)(blk->size - size);
-		list_insert(&free_blocks[BINDEX(new_blk)], &new_blk->link);
+		list_insert(&free_blocks[BLKIDX(new_blk)], &new_blk->link);
 
 		/* Update page list */
 		new_blk->pg_next = blk->pg_next;
@@ -240,7 +240,7 @@ void *kmem_alloc(size_t size)
 	pg->nr_alloc++;
 	nr_allocs += blk->size;
 #ifdef DEBUG
-	nr_blocks[BINDEX(blk)]++;
+	nr_blocks[BLKIDX(blk)]++;
 #endif
 	p = (void *)((u_long)blk + BLOCK_HEADER_SIZE);
 	sched_unlock();
@@ -275,19 +275,19 @@ void kmem_free(void *ptr)
 	/* Get the block header */
 	blk = (struct block_hdr *)((u_long)ptr - BLOCK_HEADER_SIZE);
 	if (blk->magic != BLOCK_MAGIC)
-		panic("Invalid pointer");
+		panic("Invalid pointer to free");
 
 	nr_allocs -= blk->size;
 
 #ifdef DEBUG
-	nr_blocks[BINDEX(blk)]--;
+	nr_blocks[BLKIDX(blk)]--;
 #endif
 	/*
 	 * Return the block to free list.
 	 * Since kernel code will request fixed size of memory block,
 	 * we don't merge the blocks to use it as cache.
 	 */
-	list_insert(&free_blocks[BINDEX(blk)], &blk->link);
+	list_insert(&free_blocks[BLKIDX(blk)], &blk->link);
 
 	/* Decrement allocation count of this page */
 	pg = PAGE_TOP(blk);
@@ -299,7 +299,7 @@ void kmem_free(void *ptr)
 		for (blk = &(pg->first_blk); blk != NULL; blk = blk->pg_next) {
 			list_remove(&blk->link); /* Remove from free list */
 #ifdef DEBUG
-			nr_blocks[BINDEX(blk)]--;
+			nr_blocks[BLKIDX(blk)]--;
 #endif
 		}
 		pg->magic = 0;
@@ -325,7 +325,7 @@ void *kmem_map(void *addr, size_t size)
 	return phys_to_virt(phys);
 }
 
-void kmem_stat(size_t *size)
+void kmem_info(size_t *size)
 {
 	*size = (size_t)nr_allocs;
 }

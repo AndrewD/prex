@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,37 @@
 
 #include <prex/prex.h>
 #include <sys/cdefs.h>
+#include <sys/list.h>
+
+/*
+ * Buffer header
+ */
+struct buf {
+	struct list	b_link;		/* Link to block list */
+	int		b_flags;	/* Buffer flag */
+	dev_t		b_dev;		/* Device number */
+	int		b_blkno;	/* Block number */
+	mutex_t		b_lock;		/* Lock */
+	char		*b_data;	/* Pointer to data buffer */
+};
+
+/* Buffer flag */
+#define	B_BUSY		0x00000001	/* I/O in progress. */
+#define	B_DELWRI	0x00000002	/* Delay I/O until buffer reused. */
+#define	B_INVAL		0x00000004	/* Does not contain valid info. */
+#define	B_READ		0x00000008	/* Read buffer. */
+#define	B_DONE		0x00000010	/* I/O completed. */
 
 __BEGIN_DECLS
-int bread(device_t dev, int blkno, void *buf);
-int bwrite(device_t dev, int blkno, void *buf);
+struct buf *getblk(dev_t dev, int blkno);
+int	bread(dev_t dev, int blkno, struct buf **bpp);
+int	bwrite(struct buf *bp);
+void	bdwrite(struct buf *bp);
+void	binval(dev_t dev);
+void	bdirty(struct buf *);
+void	brelse(struct buf *);
+void	clrbuf(struct buf *);
+void	bio_init(void);
 __END_DECLS
 
 #endif /* !_SYS_BUF_H */

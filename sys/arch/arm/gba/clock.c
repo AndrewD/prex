@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,8 @@
 #define TIMER_COUNT	(0xffff - (CLOCK_RATE / 64 / HZ))
 
 /* GBA timer registers */
-#define TMR0_COUNT	(*(volatile u_int16_t *)0x4000100)
-#define TMR0_CTRL	(*(volatile u_int16_t *)0x4000102)
+#define TMR0_COUNT	(*(volatile uint16_t *)0x4000100)
+#define TMR0_CTRL	(*(volatile uint16_t *)0x4000102)
 
 /* Timer frequency */
 #define TMR_1_CLOCK	0x0000
@@ -73,7 +73,7 @@
 static int clock_isr(int irq)
 {
 	irq_lock();
-	timer_clock();
+	timer_tick();
 	irq_unlock();
 	return INT_DONE;
 }
@@ -87,7 +87,7 @@ void clock_init(void)
 	int clock_irq;
 
 	TMR0_COUNT = TIMER_COUNT;
-	TMR0_CTRL = TMR_IRQEN | TMR_64_CLOCK;
+	TMR0_CTRL = (uint16_t)(TMR_IRQEN | TMR_64_CLOCK);
 	clock_irq = irq_attach(CLOCK_IRQ, IPL_CLOCK, 0, clock_isr, NULL);
 	TMR0_CTRL |= TMR_EN;
 	

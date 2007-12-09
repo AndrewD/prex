@@ -34,40 +34,108 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-void alloc(int buflen)
+//#define NR_ALLOCS	100
+#define NR_ALLOCS	30
+
+static void *ptr[NR_ALLOCS];
+
+static char *alloc(int buflen)
 {
 	char *p, *q;
 	int i;
 
-	printf("Allocate %d bytes\n", buflen);
+	printf("Allocate %d bytes - ", buflen);
 
 	p = malloc(buflen);
 	if (p == NULL) {
 		printf("Error: malloc() returns NULL!\n");
-		return;
+		return NULL;
 	}
-	printf("Allocated ptr=%x\n", (int)p);
-
 	for (q = p, i = 0; i < buflen; i++)
 		*(q++) = '@';
-
+#if 0
 	for (q = p, i = 0; i < buflen; i++)
 		putchar(*(q++));
-
-	free(p);
-	printf("\nOK!\n");
+#endif
+	printf("OK!\n");
+	return p;
 }
 
-int main()
+static void test_1(void)
+{
+	char *p;
+
+	printf("test_1 - start\n");
+
+	p = alloc(1);
+	free(p);
+	p = alloc(2);
+	free(p);
+	p = alloc(256);
+	free(p);
+	p = alloc(1024);
+	free(p);
+	p = alloc(8096);
+	free(p);
+	p = alloc(-1);
+	free(p);
+
+	printf("test_1 - done\n");
+}
+
+static void test_2(void)
+{
+	int i, j;
+
+	printf("test_2 - start\n");
+
+	for (i = 0; i < NR_ALLOCS; i++)
+		ptr[i] = alloc(random() & 0xf);
+	for (i = 0; i < NR_ALLOCS; i++)
+		free(ptr[i]);
+
+	for (i = 0; i < NR_ALLOCS; i++)
+		ptr[i] = alloc(random() & 0xff);
+	for (i = 0; i < NR_ALLOCS; i++)
+		free(ptr[i]);
+
+	for (i = 0; i < NR_ALLOCS; i++)
+		ptr[i] = alloc(random() & 0xfff);
+	for (i = 0; i < NR_ALLOCS; i++)
+		free(ptr[i]);
+
+	for (i = 0; i < NR_ALLOCS; i++)
+		ptr[i] = alloc(random() & 0xfff);
+	for (i = 0; i < 10000; i++) {
+		j = random() % NR_ALLOCS;
+		if (ptr[j] != NULL) {
+			free(ptr[j]);
+			ptr[j] = NULL;
+		}
+	}
+	printf("test_2 - done\n");
+}
+
+static void test_3(void)
+{
+	char *p;
+
+	printf("test_3 - start\n");
+
+	p = alloc(256);
+	free(p);
+	free(p); /* invalid */
+
+	printf("test_3 - done\n");
+}
+
+int main(int argc, char *argv[])
 {
 	printf("Malloc test program.\n");
 
-	alloc(1);
-       	alloc(2);
-	alloc(256);
-	alloc(1024);
-	alloc(8096);
-	alloc(-1);
+	test_1();
+	test_2();
+	test_3();
 
 	return 0;
 }

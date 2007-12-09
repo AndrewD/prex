@@ -64,9 +64,7 @@ void kernel_main(void)
 	 * Initialize debug core
 	 */
 	debug_init();
-
-	printk(SYSNAME " version %d.%d.%d build:" __DATE__ "\n",
-	       VERSION, PATCHLEVEL, SUBLEVEL);
+	printk(BANNAR);
 
 	/*
 	 * Initialize memory managers
@@ -85,7 +83,7 @@ void kernel_main(void)
 	task_init();
 
 	/*
-	 * Initialize devices
+	 * Initialize device drivers
 	 */
 	irq_init();
 	clock_init();

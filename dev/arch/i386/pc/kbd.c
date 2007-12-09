@@ -176,7 +176,7 @@ static void kbd_setleds(void)
 static void kbd_dump_help(void)
 {
 	printk("\nKernel dump usage:\n");
-	printk("F1=help F2=thread F3=task F4=object F5=timer F6=irq F7=dev F8=mem\n");
+	printk("F1=help F2=thread F3=task F4=object F5=timer F6=irq F7=dev F8=mem F9=dmesg\n");
 }
 #endif
 

@@ -1,2 +1,2 @@
 SUBDIRS	= $(PREX_ARCH)
-include $(PREX_SRC)/make/dev.mk
+include $(PREX_SRC)/mk/dev.mk

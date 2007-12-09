@@ -11,4 +11,4 @@ OBJS	= \
 	../pc/clock.o \
 	../pc/diag.o \
 	../pc/serial.o
-include $(PREX_SRC)/make/sys.mk
+include $(PREX_SRC)/mk/sys.mk

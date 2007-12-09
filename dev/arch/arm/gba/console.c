@@ -59,7 +59,7 @@ static struct devio console_io = {
 #endif
 
 static device_t console_dev;
-static u_int16_t *vram = CONSOLE_MAP;
+static uint16_t *vram = CONSOLE_MAP;
 static int pos_x;
 static int pos_y;
 static u_short attrib;
@@ -279,7 +279,7 @@ static int check_escape(char ch)
 	return 1;
 }
 
-void put_char(char ch)
+static void put_char(char ch)
 {
 	if (check_escape(ch))
 		return;
@@ -313,7 +313,7 @@ void put_char(char ch)
 /*
  * Debug print handler
  */
-void console_print(char *str)
+static void console_print(char *str)
 {
 	size_t size = 128;
 
@@ -323,7 +323,7 @@ void console_print(char *str)
 /*
  * Write
  */
-int console_write(device_t dev, char *buf, u_long *nbyte, int blkno)
+static int console_write(device_t dev, char *buf, u_long *nbyte, int blkno)
 {
 	u_long count;
 	char ch;
@@ -344,10 +344,10 @@ int console_write(device_t dev, char *buf, u_long *nbyte, int blkno)
 /*
  * Init font
  */
-void init_font(void)
+static void init_font(void)
 {
 	int i, row, col, bit, val = 0;
-	u_int16_t *tile = CONSOLE_TILE;
+	uint16_t *tile = CONSOLE_TILE;
 
 	for (i = 0; i < 128; i++) {
 		for (row = 0; row < 8; row++) {
@@ -367,9 +367,9 @@ void init_font(void)
 /*
  * Init screen
  */
-void init_screen(void)
+static void init_screen(void)
 {
-	u_int16_t *pal = BG_PALETTE;
+	uint16_t *pal = BG_PALETTE;
 
 	/* Initialize palette */
 	pal[1] = RGB(0,0,0);	/* Black */
@@ -383,7 +383,7 @@ void init_screen(void)
 /*
  * Init
  */
-int console_init(void)
+static int console_init(void)
 {
 	esc_index = 0;
 	pos_x = 0;
@@ -391,6 +391,8 @@ int console_init(void)
 	console_dev = device_create(&console_io, "console");
 	init_font();
 	init_screen();
-	/* debug_attach(console_print); */
+#ifndef CONFIG_DIAG_VBA
+	debug_attach(console_print);
+#endif
 	return 0;
 }

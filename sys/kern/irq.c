@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,30 +68,12 @@
 #include <thread.h>
 #include <irq.h>
 
-/*
- * IRQ descriptor
- */
-struct irq {
-	int	vector;		/* Vector number */
-	int	(*isr)(int);	/* Pointer to ISR */
-	void	(*ist)(int);	/* Pointer to IST */
-	u_int	count;		/* Interrupt count */
-	int	ist_request;	/* Number of IST request */
-	thread_t thread;	/* Thread ID of IST */
-	struct event ist_event;	/* Event for IST */
-};
-
-/* Forward functions */
+/* Forward declarations */
 static void irq_thread(u_long);
 
-/* IRQ descriptor table */
-static struct irq *irq_table[NR_IRQS];
-
-/* Lock count for interrupt */
-static volatile int nr_irq_lock = 0;
-
-/* Interrupt state saved by irq_lock() */
-static volatile int saved_irq_state;
+static struct irq *irq_table[NR_IRQS];	/* IRQ descriptor table */
+static volatile int nr_irq_lock = 0;	/* Lock count for interrupt */
+static volatile int saved_irq_state;	/* IRQ state saved by irq_lock() */
 
 /*
  * Attach ISR and IST to the specified interrupt.
@@ -106,11 +88,10 @@ static volatile int saved_irq_state;
  * The interrupt of attached irq will be unmasked (enabled) in this
  * routine. If the device does not use IST, its pointer must be
  * set as NULL for irq_attach().
- *
  * irq_attach() returns irq handle which is needed for irq_detach().
  * Or, it returns -1 if it failed.
  *
- * TODO: Interrupt sharing is not supported now.
+ * TODO: Interrupt sharing is not supported, for now.
  */
 int irq_attach(int vector, int prio, int shared,
 	       int (*isr)(int), void (*ist)(int))
@@ -228,26 +209,28 @@ static void irq_thread(u_long arg)
 	ist = irq->ist;
 	vector = irq->vector;
 
- next:
-	interrupt_disable();
-	if (irq->ist_request <= 0) {
-		/*
-		 * Since the interrupt is disabled above, an interrupt
-		 * for this vector keeps pending until completion
-		 * of the thread switch in sched_sleep below.
-		 * This is important not to lose any IST request
-		 * from ISR even if the interrupt is fired here.
-		 * Hint: ISR can not wake the current _running_ IST.
-		 */
-		sched_sleep(&irq->ist_event);
+	for (;;) {
+		interrupt_disable();
+		if (irq->ist_request <= 0) {
+			/*
+			 * Since the interrupt is disabled above, an
+			 * interrupt for this vector keeps pending until
+			 * completion of the thread switch in the following
+			 * sched_sleep(). This is important not to lose any
+			 * IST request from ISR even if the interrupt is
+			 * fired here. Note that ISR can not wake the
+			 * current _running_ IST.
+			 */
+			sched_sleep(&irq->ist_event);
+		}
+		irq->ist_request--;
+		ASSERT(irq->ist_request >= 0);
+		interrupt_enable();
+		
+		/* Call IST */
+		(ist)(vector);
 	}
-	irq->ist_request--;
-	ASSERT(irq->ist_request >= 0);
-	interrupt_enable();
-	
-	/* Call IST */
-	(ist)(vector);
-	goto next;
+	/* NOTREACHED */
 }
 
 /*
@@ -264,19 +247,17 @@ void irq_handler(int vector)
 	int result;
 
 	irq = irq_table[vector];
-	if (irq == NULL) {
-		printk("Stray interrupt! irq%d\n", vector);
-		return;
-	}
+	if (irq == NULL)
+		return;		/* Ignore stray interrupt */
 	ASSERT(irq->isr);
 
-	/* Call ISR */
+	/* Call interrupt service routine */
 	result = (irq->isr)(vector);
 	if (result == INT_CONTINUE) {
 		ASSERT(irq->ist);
 		irq->ist_request++;
 
-		/* Run IST */
+		/* Run interrupt service thread */
 		sched_wakeup(&irq->ist_event);
 	}
 	irq->count++;
@@ -285,20 +266,21 @@ void irq_handler(int vector)
 #if defined(DEBUG) && defined(CONFIG_KDUMP)
 void irq_dump(void)
 {
-	int vec;
+	int vector;
 	struct irq *irq;
 
 	printk("IRQ dump:\n");
 	printk(" vector isr      ist      ist-thr  ist-prio count\n");
 	printk(" ------ -------- -------- -------- -------- --------\n");
 
-	for (vec = 0; vec < NR_IRQS; vec++) {
-		irq = irq_table[vec];
-		if (irq == NULL)
-			continue;
-		printk("   %4d %08x %08x %08x      %3d %8d\n",
-		       vec, irq->isr, irq->ist, irq->thread,
-		       (irq->thread ? irq->thread->prio : 0), irq->count);
+	for (vector = 0; vector < NR_IRQS; vector++) {
+		irq = irq_table[vector];
+		if (irq) {
+			printk("   %4d %08x %08x %08x      %3d %8d\n",
+			       vector, irq->isr, irq->ist, irq->thread,
+			       (irq->thread ? irq->thread->prio : 0),
+			       irq->count);
+		}
 	}
 }
 #endif

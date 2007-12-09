@@ -114,7 +114,7 @@ void *page_alloc(size_t size)
 		blk->prev->next = blk->next;
 		blk->next->prev = blk->prev;
 	} else {
-		tmp = (struct page_block *)((u_int)blk + size);
+		tmp = (struct page_block *)((u_long)blk + size);
 		tmp->size = blk->size - size;
 		tmp->prev = blk->prev;
 		tmp->next = blk->next;
@@ -235,7 +235,7 @@ int page_reserve(void *addr, size_t size)
 	return 0;
 }
 
-void page_stat(size_t *total, size_t *free)
+void page_info(size_t *total, size_t *free)
 {
 	*total = total_bytes;
 	*free = total_bytes - used_bytes;
@@ -248,6 +248,7 @@ void page_dump(void)
 	void *addr;
 	struct mem_info *mem;
 	struct img_info *img;
+	int i;
 
 	printk("Page dump:\n");
 	printk(" free pages:\n");
@@ -273,6 +274,12 @@ void page_dump(void)
 	printk(" driver:   %08x - %08x (%dK)\n",
 	       img->phys, img->phys + img->size, img->size / 1024);
 
+	for (i = 0; i < 8; i++) {
+		mem = (struct mem_info *)&boot_info->reserved[i];
+		if (mem->size != 0)
+			printk(" reserved: %08x - %08x (%dK)\n",
+			       mem->start, mem->start + mem->size, mem->size / 1024);
+	}
 #ifdef CONFIG_RAMDISK
 	mem = (struct mem_info *)&boot_info->ram_disk;
 	printk(" RAM disk: %08x - %08x (%dK)\n",
@@ -299,8 +306,6 @@ void page_init(void)
 	blk->prev = blk->next = &page_head;
 	page_head.next = page_head.prev = blk;
 
-	used_bytes = 0;
-
 	/* Then, the system reserved pages are marked as a used block. */
 	for (i = 0; i < 8; i++) {
 		mem = (struct mem_info *)&boot_info->reserved[i];
@@ -321,6 +326,7 @@ void page_init(void)
 	/* Reserve pages for boot modules */
 	mem = (struct mem_info *)&boot_info->boot_modules;
 	page_reserve((void *)mem->start, mem->size);
+
 #ifdef DEBUG
 	printk("Kernel size: text=%d data=%d bss=%d\n",
 	       (&__etext - &__text),

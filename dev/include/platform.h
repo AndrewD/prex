@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,12 @@
  * SUCH DAMAGE.
  */
 
-#include <systrap.h>
-#include "syscall.h"
+#ifndef _PLATFORM_H
+#define _PLATFORM_H
 
-SYSCALL2(sys_stat)
+extern int platform_init(void);
+
+extern void platform_suspend(void);
+extern void platform_poweroff(void);
+
+#endif /* !_PLATFORM_H */

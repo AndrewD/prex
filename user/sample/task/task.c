@@ -84,7 +84,7 @@ static void hey_yo()
 	task_terminate(task_self());
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	static char stack[1024];
 	int i;

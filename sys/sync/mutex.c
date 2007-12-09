@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,6 @@
  */
 
 #include <kernel.h>
-#include <queue.h>
 #include <list.h>
 #include <event.h>
 #include <sched.h>
@@ -82,7 +81,9 @@
 #include <task.h>
 #include <sync.h>
 
-/* Forward functions */
+#define MAX_INHERIT	10	/* Max mutex count to inherit priority */
+
+/* Forward declarations */
 static int prio_inherit(thread_t th);
 static void prio_uninherit(thread_t th);
 
@@ -92,20 +93,18 @@ static void prio_uninherit(thread_t th);
  * If an initialized mutex is reinitialized, undefined 
  * behavior results.
  */
-__syscall int mutex_init(mutex_t *mu)
+__syscall int mutex_init(mutex_t *mtx)
 {
 	mutex_t m;
 
 	if ((m = kmem_alloc(sizeof(struct mutex))) == NULL)
 		return ENOMEM;
-
 	event_init(&m->event, "mutex");
 	m->task = cur_task();
 	m->owner = NULL;
 	m->prio = MIN_PRIO;
 	m->magic = MUTEX_MAGIC;
-
-	if (umem_copyout(&m, mu, sizeof(mutex_t)) != 0) {
+	if (umem_copyout(&m, mtx, sizeof(mutex_t))) {
 		kmem_free(m);
 		return EFAULT;
 	}
@@ -116,12 +115,12 @@ __syscall int mutex_init(mutex_t *mu)
  * Destroy the specified mutex.
  * The mutex must be unlock state, otherwise it fails with EBUSY.
  */
-__syscall int mutex_destroy(mutex_t *mu)
+__syscall int mutex_destroy(mutex_t *mtx)
 {
 	mutex_t m;
 
 	sched_lock();
-	if (umem_copyin(mu, &m, sizeof(mutex_t)) != 0) {
+	if (umem_copyin(mtx, &m, sizeof(mutex_t))) {
 		sched_unlock();
 		return EFAULT;
 	}
@@ -135,28 +134,28 @@ __syscall int mutex_destroy(mutex_t *mu)
 	}
 	m->magic = 0;
 	kmem_free(m);
-
 	sched_unlock();
 	return 0;
 }
 
 /*
- * Get mutex from user space.
+ * Copy mutex from user space.
  * If it is not initialized, create new mutex.
  *
  * @um: Pointer to mutex in user space.
  * @km: Pointer to mutex in kernel space.
  */
-static int mutex_get(mutex_t *um, mutex_t *km)
+static int mutex_copyin(mutex_t *um, mutex_t *km)
 {
 	mutex_t m;
 	int err;
 
-	if (umem_copyin(um, &m, sizeof(mutex_t)) != 0)
+	if (umem_copyin(um, &m, sizeof(mutex_t)))
 		return EFAULT;
 
 	if (m == MUTEX_INITIALIZER) {
-		if ((err = mutex_init(um)) != 0)
+		/* Allocate mutex */
+		if ((err = mutex_init(um)))
 			return err;
 		umem_copyin(um, &m, sizeof(mutex_t));
 	} else {
@@ -177,47 +176,46 @@ static int mutex_get(mutex_t *um, mutex_t *km)
  * So, system call stub routine in library must call this again
  * if it gets EINTR.
  */
-__syscall int mutex_lock(mutex_t *mu)
+__syscall int mutex_lock(mutex_t *mtx)
 {
 	mutex_t m;
-	int err;
+	int result, err;
 
 	sched_lock();
-	if ((err = mutex_get(mu, &m)) != 0) {
+	if ((err = mutex_copyin(mtx, &m))) {
 		sched_unlock();
 		return err;
 	}
 	if (m->owner == cur_thread) {
+		/* Recursive lock */
 		m->lock_count++;
-		sched_unlock();
-		return 0;
-	}
-	/*
-	 * Check whether a target mutex is locked. If the mutex
-	 * is not locked, this routine returns immediatedly.
-	 */
-	if (m->owner == NULL)
-		m->prio = cur_thread->prio;
-	else {
+	} else {
 		/*
-		 * Wait for a mutex.
+		 * Check whether a target mutex is locked. If the mutex
+		 * is not locked, this routine returns immediately.
 		 */
-		cur_thread->wait_mutex = m;
-		if (prio_inherit(cur_thread)) {
-			sched_unlock();
-			return EDEADLK;
-		}
-		err = sched_sleep(&m->event);
-		cur_thread->wait_mutex = NULL;
-		if (err == SLP_INTR) {
-			sched_unlock();
-			return EINTR;
+		if (m->owner == NULL)
+			m->prio = cur_thread->prio;
+		else {
+			/*
+			 * Wait for a mutex.
+			 */
+			cur_thread->wait_mutex = m;
+			if ((err = prio_inherit(cur_thread))) {
+				sched_unlock();
+				return err;
+			}
+			result = sched_sleep(&m->event);
+			cur_thread->wait_mutex = NULL;
+			if (result == SLP_INTR) {
+				sched_unlock();
+				return EINTR;
+			}
 		}
 	}
 	m->owner = cur_thread;
 	m->lock_count = 1;
 	list_insert(&cur_thread->mutexes, &m->link);
-
 	sched_unlock();
 	return 0;
 }
@@ -225,13 +223,13 @@ __syscall int mutex_lock(mutex_t *mu)
 /*
  * Try to lock a mutex without blocking.
  */
-__syscall int mutex_trylock(mutex_t *mu)
+__syscall int mutex_trylock(mutex_t *mtx)
 {
 	mutex_t m;
 	int err;
 
 	sched_lock();
-	if ((err = mutex_get(mu, &m)) != 0) {
+	if ((err = mutex_copyin(mtx, &m))) {
 		sched_unlock();
 		return err;
 	}
@@ -256,40 +254,33 @@ __syscall int mutex_trylock(mutex_t *mu)
  * Unlock a mutex.
  * Caller must be a current mutex owner.
  */
-__syscall int mutex_unlock(mutex_t *mu)
+__syscall int mutex_unlock(mutex_t *mtx)
 {
 	mutex_t m;
+	int err;
 
 	sched_lock();
-	if (umem_copyin(mu, &m, sizeof(mutex_t)) != 0) {
+	if ((err = mutex_copyin(mtx, &m))) {
 		sched_unlock();
-		return EFAULT;
+		return err;
 	}
-	if (!mutex_valid(m)) {
-		sched_unlock();
-		return EINVAL;
-	}
-	if (m->owner != cur_thread) {
+	if (m->owner != cur_thread || m->lock_count <= 0) {
 		sched_unlock();
 		return EPERM;
 	}
-	if (--m->lock_count > 0) {
-		sched_unlock();
-		return 0;
+	if (--m->lock_count == 0) {
+		list_remove(&m->link);
+		prio_uninherit(cur_thread);
+		/*
+		 * Change the mutex owner, and make the next
+		 * owner runnable if it exists.
+		 */
+		m->owner = sched_wakeone(&m->event);
+		if (m->owner)
+			m->owner->wait_mutex = NULL;
+		
+		m->prio = m->owner ? m->owner->prio : MIN_PRIO;
 	}
-	list_remove(&m->link);
-	prio_uninherit(cur_thread);
-
-	/*
-	 * Change the mutex owner, and make the thread
-	 * runnable if it exists.
-	 */
-	m->owner = sched_wakeone(&m->event);
-	if (m->owner)
-		m->owner->wait_mutex = NULL;
-
-	m->prio = m->owner ? m->owner->prio : MIN_PRIO;
-
 	sched_unlock();
 	return 0;
 }
@@ -309,7 +300,7 @@ __syscall int mutex_unlock(mutex_t *mu)
 void mutex_cleanup(thread_t th)
 {
 	list_t head, n;
-	mutex_t mu;
+	mutex_t mtx;
 	thread_t owner;
 
 	/* Process all mutexes locked by the thread. */
@@ -318,21 +309,21 @@ void mutex_cleanup(thread_t th)
 		/*
 		 * Release locked mutex.
 		 */
-		mu = list_entry(n, struct mutex, link);
-		mu->lock_count = 0;
-		list_remove(&mu->link);
+		mtx = list_entry(n, struct mutex, link);
+		mtx->lock_count = 0;
+		list_remove(&mtx->link);
 		/* 
 		 * Change the mutex owner if other thread is
 		 * waiting for it.
 		 */
-		owner = sched_wakeone(&mu->event);
+		owner = sched_wakeone(&mtx->event);
 		if (owner) {
 			owner->wait_mutex = NULL;
-			mu->lock_count = 1;
-			list_insert(&owner->mutexes, &mu->link);
+			mtx->lock_count = 1;
+			list_insert(&owner->mutexes, &mtx->link);
 
 		}
-		mu->owner = owner;
+		mtx->owner = owner;
 	}
 }
 
@@ -354,14 +345,17 @@ void mutex_setprio(thread_t th, int prio)
  * So, raise the priority of mutex owner which blocks the specified thread.
  * If mutex owner is also waiting for other mutex, that mutex is also
  * processed.
+ *
+ * Returns EDEALK if it finds deadlock condition.
  */
 static int prio_inherit(thread_t waiter)
 {
-	mutex_t mu = waiter->wait_mutex;
+	mutex_t mtx = waiter->wait_mutex;
 	thread_t owner;
+	int count = 0;
 
 	do {
-		owner = mu->owner;
+		owner = mtx->owner;
 
 		/*
 		 * If the owner of relative mutex has already been waiting
@@ -369,7 +363,7 @@ static int prio_inherit(thread_t waiter)
 		 */
 		if (owner == waiter) {
 			printk("Detect deadlock! mutex=%x owner=%x waiter=%x\n",
-			       mu, owner, waiter);
+			       mtx, owner, waiter);
 			return EDEADLK;
 		}
 		/*
@@ -378,15 +372,18 @@ static int prio_inherit(thread_t waiter)
 		 */
 		if (owner->prio > waiter->prio) {
 			sched_setprio(owner, owner->base_prio, waiter->prio);
-			mu->prio = waiter->prio;
+			mtx->prio = waiter->prio;
 		}
 		/*
 		 * If the mutex owner is waiting for another mutex, that
 		 * mutex is also processed.
 		 */
-		mu = (mutex_t)owner->wait_mutex;
+		mtx = (mutex_t)owner->wait_mutex;
 
-	} while (mu != NULL);
+		if (count >= MAX_INHERIT)
+			break;
+
+	} while (mtx != NULL);
 	return 0;
 }
 
@@ -401,7 +398,7 @@ static void prio_uninherit(thread_t th)
 {
 	int top_prio;
 	list_t head, n;
-	mutex_t mu;
+	mutex_t mtx;
 
 	/* Check if the priority is inherited. */
 	if (th->prio == th->base_prio)
@@ -414,9 +411,9 @@ static void prio_uninherit(thread_t th)
 	 */
 	head = &th->mutexes;
 	for (n = list_first(head); n != head; n = list_next(n)) {
-		mu = list_entry(n, struct mutex, link);
-		if (mu->prio < top_prio)
-			top_prio = mu->prio;
+		mtx = list_entry(n, struct mutex, link);
+		if (mtx->prio < top_prio)
+			top_prio = mtx->prio;
 	}
 	sched_setprio(th, th->base_prio, top_prio);
 }

@@ -35,6 +35,7 @@
 
 #define	bios_call(N) __asm__ __volatile__ \
 	("swi	"#N" << 16\n" :::"r0", "r1", "r2", "r3")
+
 /*
  * CPU idle
  */

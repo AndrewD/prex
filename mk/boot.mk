@@ -10,4 +10,4 @@ CFLAGS = $(INC_FLAGS) -nostdinc -fno-builtin
 CPPFLAGS = $(INC_FLAGS)
 LDFLAGS = -static -nostdlib
 
-include $(PREX_SRC)/make/Makefile.inc
+include $(PREX_SRC)/mk/Makefile.inc

@@ -34,6 +34,6 @@ extern void kmem_init(void);
 extern void *kmem_alloc(size_t size);
 extern void kmem_free(void *ptr);
 extern void *kmem_map(void *addr, size_t size);
-extern void kmem_stat(size_t *size);
+extern void kmem_info(size_t *size);
 
 #endif /* !_KMEM_H */

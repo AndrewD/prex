@@ -117,7 +117,7 @@ static void thread_C(void)
 	thread_terminate(thread_self());
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	int err;
 

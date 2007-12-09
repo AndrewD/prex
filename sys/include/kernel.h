@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,15 @@
 #include <arch.h>
 #include <errno.h>
 #include <debug.h>
+
+#define s2(x) #x
+#define s(x) s2(x)
+
+#define BANNAR \
+	SYSNAME " version " s(VERSION) "." s(PATCHLEVEL) "." s(SUBLEVEL) \
+	" for " s(__ARCH__) "-" s(__PLATFORM__) \
+	" ("__DATE__ " " __TIME__ ")\n"
+
 
 #define min(a,b)	(((a) < (b)) ? (a) : (b))
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,14 +48,15 @@
  * to redirect the sender's request to another thread.
  *
  * The message is copied from thread to thread directly without any
- * kernel buffering. If the message has a buffer, the memory region is
- * automatically mapped to the receiver's memory in kernel.
- * Since there is no page out of memory in this system, we can
- * copy the message via physical memory at anytime.
+ * kernel buffering. If the message has a buffer, the memory region
+ * is automatically mapped to the receiver's memory in kernel. Since
+ * there is no page out of memory in this system, we can copy the
+ * message via physical memory at anytime.
  */
 
 #include <kernel.h>
 #include <queue.h>
+#include <list.h>
 #include <event.h>
 #include <kmem.h>
 #include <sched.h>
@@ -64,8 +65,9 @@
 #include <vm.h>
 #include <ipc.h>
 
-/* Forward functions */
-static thread_t dequeue_topprio(queue_t head);
+/* Forward declarations */
+static thread_t msg_dequeue(queue_t head);
+static void msg_enqueue(queue_t head, thread_t th);
 
 /* Event for IPC operation */
 static struct event ipc_event = EVENT_INIT(ipc_event, "ipc");
@@ -101,7 +103,7 @@ __syscall int msg_send(object_t obj, void *msg, size_t size)
 		sched_unlock();
 		return EINVAL;
 	}
-	if (obj->owner != cur_task() && !capable(CAP_IPC)) {
+	if (obj->owner != cur_task() && !task_capable(CAP_IPC)) {
 		sched_unlock();
 		return EPERM;
 	}
@@ -139,14 +141,14 @@ __syscall int msg_send(object_t obj, void *msg, size_t size)
 	 * priority thread will get this message.
 	 */
 	if (!queue_empty(&obj->recvq)) {
-		th = dequeue_topprio(&obj->recvq);
+		th = msg_dequeue(&obj->recvq);
 		sched_unsleep(th, 0);
 	}
 	/* 
 	 * Sleep until we get a reply message.
 	 */
 	cur_thread->send_obj = obj;
-	enqueue(&obj->sendq, &cur_thread->ipc_link);
+	msg_enqueue(&obj->sendq, cur_thread);
 	result = sched_sleep(&ipc_event);
 	if (result == SLP_INTR)
 		queue_remove(&cur_thread->ipc_link);
@@ -174,6 +176,7 @@ __syscall int msg_send(object_t obj, void *msg, size_t size)
  * A thread can receive a message from the object which was created
  * by any thread belongs to same task. If the message has not arrived
  * yet, it blocks until any message comes in.
+ *
  * The size argument specifies the "maximum" size of the message
  * buffer to receive. If the sent message is larger than this size,
  * the kernel will automatically clip the message to the receive buffer
@@ -222,7 +225,7 @@ __syscall int msg_receive(object_t obj, void *msg, size_t size)
 		/*
 		 * Sleep until message comes in.
 		 */
-		enqueue(&obj->recvq, &cur_thread->ipc_link);
+		msg_enqueue(&obj->recvq, cur_thread);
 		result = sched_sleep(&ipc_event);
 		if (result == 0) {
 			/*
@@ -249,14 +252,14 @@ __syscall int msg_receive(object_t obj, void *msg, size_t size)
 			err = EINTR;	/* Exception */
 			break;
 		default:
-			panic("Unexpected error for msg receive");
+			panic("msg_receive: bad sleep result");
 		}
 		
 		cur_thread->recv_obj = NULL;
 		goto out;
 	}
 
-	th = dequeue_topprio(&obj->sendq);
+	th = msg_dequeue(&obj->sendq);
 	/*
 	 * Copy message to user space.
 	 * The smaller buffer size is used as copy length
@@ -265,7 +268,7 @@ __syscall int msg_receive(object_t obj, void *msg, size_t size)
 	len = min(size, th->msg_size);
 	if (len > 0) {
 		if (umem_copyout(th->msg_addr, msg, len)) {
-			enqueue(&obj->sendq, &th->ipc_link);
+			msg_enqueue(&obj->sendq, th);
 			cur_thread->recv_obj = NULL;
 			err = EFAULT;
 			goto out;
@@ -277,7 +280,6 @@ __syscall int msg_receive(object_t obj, void *msg, size_t size)
 	cur_thread->sender = th;
 	th->receiver = cur_thread;
  out:
-
 	sched_unlock();
 	return err;
 }
@@ -364,19 +366,17 @@ void msg_cleanup(thread_t th)
 	sched_lock();
 
 	if (th->send_obj) {
-		if (th->receiver) {
+		if (th->receiver)
 			th->receiver->sender = NULL;
-		} else {
+		else
 			queue_remove(&th->ipc_link);
-		}
 	}
 	if (th->recv_obj) {
 		if (th->sender) {
 			sched_unsleep(th->sender, SLP_BREAK);
 			th->sender->receiver = NULL;
-		} else {
+		} else
 			queue_remove(&th->ipc_link);
-		}
 	}
 	sched_unlock();
 }
@@ -411,9 +411,10 @@ void msg_cancel(object_t obj)
 }
 
 /*
- * Remove the top priority thread from specified queue.
+ * Dequeue thread from specified queue.
+ * The most highest priority thread will be chosen.
  */
-static thread_t dequeue_topprio(queue_t head)
+static thread_t msg_dequeue(queue_t head)
 {
 	queue_t q;
 	thread_t th, top;
@@ -428,4 +429,12 @@ static thread_t dequeue_topprio(queue_t head)
 	}
 	queue_remove(&top->ipc_link);
 	return top;
+}
+
+/*
+ * Enqueue thread for message processing.
+ */
+static void msg_enqueue(queue_t head, thread_t th)
+{
+	enqueue(head, &th->ipc_link);
 }

@@ -28,7 +28,7 @@
  */
 
 #ifndef _PLATFORM_H
-#define _PLATFROM_H
+#define _PLATFORM_H
 
 #if defined(__pc__)
 #include "../pc/platform.h"

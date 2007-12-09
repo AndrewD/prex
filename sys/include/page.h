@@ -47,6 +47,6 @@ extern void page_init(void);
 extern void *page_alloc(size_t size);
 extern void page_free(void *addr, size_t size);
 extern int page_reserve(void *addr, size_t size);
-extern void page_stat(size_t *total, size_t *free);
+extern void page_info(size_t *total, size_t *free);
 
 #endif /* !_PAGE_H */

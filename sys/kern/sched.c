@@ -95,10 +95,12 @@
 
 thread_t cur_thread = &idle_thread;	/* Current thread */
 
-static struct queue runq[NR_PRIO];	/* Queue for running threads */
+static struct queue runq[NR_PRIO];	/* Queue of runnable threads */
+static struct queue wakeq;		/* Queue for waking threads */
+static struct queue dpcq;		/* Queue for DPC */
 static int top_prio;			/* Highest priority in runq */
 
-static struct queue wakeq;		/* Queue for waking threads */
+static struct event dpc_event = EVENT_INIT(dpc_event, "dpc");
 
 /*
  * Get highest priority in the active run queue.
@@ -165,10 +167,33 @@ static void runq_remove(thread_t th)
 }
 
 /*
+ * Process all pending woken threads.
+ *
+ * If pending thread exists in wakeq, move it to the runq.
+ * Rescheduling flag may be set.
+ * Interrupt must be disabled by caller.
+ */
+static void wakeq_flush(void)
+{
+	queue_t q;
+	thread_t th;
+
+	while (!queue_empty(&wakeq)) {
+		q = dequeue(&wakeq);
+		th = queue_entry(q, struct thread, link);
+		th->sleep_result = 0;
+		th->sleep_event = 0;
+		th->state &= ~TH_SLEEP;
+		if (th != cur_thread && th->state == TH_RUN)
+			runq_enqueue(th);
+	}
+}
+
+/*
  * sched_switch() - Switch running thread.
  *
- * If the scheduling reason is the preemption, the current thread
- * is put on the head of the run queue. So, the thread still has
+ * If the scheduling reason is preemption, the current thread will
+ * remain at the head of the run queue. So, the thread still has
  * right to run first again among the same priority threads.
  * For other scheduling reason, the current thread is inserted into
  * the tail of the run queue.
@@ -178,7 +203,7 @@ static void runq_remove(thread_t th)
  *  2) The next thread is a kernel thread.
  * Since a kernel task does not have user mode memory image, we don't
  * have to set the page directory for it. Thus, an idle thread and
- * interrupt threads can be switched faster.
+ * interrupt threads can be switched quickly.
  */
 static void sched_switch(void)
 {
@@ -193,9 +218,6 @@ static void sched_switch(void)
 		else
 			runq_enqueue(prev);
 	}
-	if (prev->ticks_left <= 0)
-		prev->ticks_left = prev->quantum;
-
 	next = runq_dequeue();
 	if (next == prev)
 		return;
@@ -204,19 +226,22 @@ static void sched_switch(void)
 	if (prev->task != next->task && next->task != &kern_task)
 		mmu_switch(next->task->map->pgd);
 
-	context_switch(&prev->context, &next->context);
+	context_switch(&prev->ctx, &next->ctx);
 }
 
 /*
- * sched_clock() is called from a clock interrupt handler.
+ * sched_tick() is called from a clock interrupt handler.
  */
-void sched_clock(void)
+void sched_tick(void)
 {
 	cur_thread->total_ticks++;
 
 	if (cur_thread->policy == SCHED_RR) {
-		if (--cur_thread->ticks_left <= 0)
+		--cur_thread->ticks_left;
+		if (cur_thread->ticks_left <= 0) {
+			cur_thread->ticks_left = QUANTUM;
 			cur_thread->need_resched = 1;
+		}
 	}
 }
 
@@ -266,9 +291,11 @@ void sched_yield(void)
 	IRQ_ASSERT();
 
 	sched_lock();
+
 	if (!queue_empty(&runq[cur_thread->prio]))
 		cur_thread->need_resched = 1;
-	sched_unlock();
+
+	sched_unlock();	/* Switch current thread here */
 }
 
 /*
@@ -279,29 +306,6 @@ void sched_yield(void)
 static void sleep_timeout(void *arg)
 {
 	sched_unsleep((thread_t)arg, SLP_TIMEOUT);
-}
-
-/*
- * Process all pending woken threads.
- *
- * If pending thread exists in wakeq, move it to the runq.
- * Rescheduling flag may be set.
- * Interrupt must be disabled by caller.
- */
-static void wakeq_flush(void)
-{
-	queue_t q;
-	thread_t th;
-
-	while (!queue_empty(&wakeq)) {
-		q = dequeue(&wakeq);
-		th = queue_entry(q, struct thread, link);
-		th->sleep_result = 0;
-		th->sleep_event = 0;
-		th->state &= ~TH_SLEEP;
-		if (th != cur_thread && th->state == TH_RUN)
-			runq_enqueue(th);
-	}
 }
 
 /*
@@ -318,7 +322,7 @@ static void wakeq_flush(void)
  */
 int sched_tsleep(event_t event, u_long timeout)
 {
-	register thread_t th;
+	thread_t th;
 	int stat;
 
 	IRQ_ASSERT();
@@ -331,19 +335,11 @@ int sched_tsleep(event_t event, u_long timeout)
 	th->sleep_event = event;
 	th->state |= TH_SLEEP;
 	enqueue(&event->sleepq, &th->link);
-
-	/*
-	 * Program the timeout timer to call sleep_timeout() later.
-	 * It will make this thread runnable again if timeout occurs.
-	 */
 	if (timeout)
 		timer_timeout(&th->timeout, sleep_timeout, th, timeout);
 
-	/* Flush all pending wakeup request here. */
 	wakeq_flush();
-
-	/* Sleep here. Zzzz.. */
-	sched_switch();
+	sched_switch();	/* Sleep here. Zzzz.. */
 
 	interrupt_restore(stat);
 	return th->sleep_result;
@@ -392,29 +388,25 @@ void sched_wakeup(event_t event)
 thread_t sched_wakeone(event_t event)
 {
 	queue_t head, q;
-	thread_t th, top;
+	thread_t top, th = NULL;
 
 	IRQ_ASSERT();
 
 	irq_lock();
 	head = &event->sleepq;
-	if (queue_empty(head)) {
-		irq_unlock();
-		return NULL;
+	if (!queue_empty(head)) {
+		q = queue_first(head);
+		top = queue_entry(q, struct thread, link);
+		while (!queue_end(head, q)) {
+			th = queue_entry(q, struct thread, link);
+			if (th->prio < top->prio)
+				top = th;
+			q = queue_next(q);
+		}
+		queue_remove(&top->link);
+		enqueue(&wakeq, &top->link);
+		timer_stop(&top->timeout);
 	}
-	q = queue_first(head);
-	top = queue_entry(q, struct thread, link);
-	while (!queue_end(head, q)) {
-		th = queue_entry(q, struct thread, link);
-		if (th->prio < top->prio)
-			top = th;
-		q = queue_next(q);
-	}
-	queue_remove(&top->link);
-	th = top;
-
-	enqueue(&wakeq, &th->link);
-	timer_stop(&th->timeout);
 	irq_unlock();
 	return th;
 }
@@ -460,8 +452,7 @@ void sched_start(thread_t th)
 	th->policy = SCHED_RR;
 	th->prio = PRIO_DEFAULT;
 	th->base_prio = PRIO_DEFAULT;
-	th->quantum = DEFAULT_QUANTUM;
-	th->ticks_left = DEFAULT_QUANTUM;
+	th->ticks_left = QUANTUM;
 }
 
 /*
@@ -510,16 +501,17 @@ void sched_setprio(thread_t th, int base, int prio)
 	if (th == cur_thread) {
 		th->prio = prio;
 		top_prio = runq_top();
-		if (prio < top_prio)
+
+		/* Check if re-scheduling is needed. */
+		if (prio < top_prio) {
 			cur_thread->need_resched = 1;
+		}
 	} else if (th->state == TH_RUN) {
-		/* Reset runq position */
 		runq_remove(th);
 		th->prio = prio;
 		runq_enqueue(th);
-	} else {
+	} else
 		th->prio = prio;
-	}
 }
 
 /*
@@ -535,14 +527,19 @@ int sched_getpolicy(thread_t th)
  */
 int sched_setpolicy(thread_t th, int policy)
 {
+	int err = 0;
+
 	switch (policy) {
 	case SCHED_RR:
 	case SCHED_FIFO:
-		th->ticks_left = DEFAULT_QUANTUM;
+		th->ticks_left = QUANTUM;
 		th->policy = policy;
-		return 0;
+		break;
+	default:
+		err = -1;
+		break;
 	}
-	return -1;
+	return err;
 }
 
 /*
@@ -567,8 +564,8 @@ void sched_lock(void)
  * If nobody locks the scheduler anymore, it runs pending wake
  * threads and check the reschedule flag. The thread switch is
  * invoked if the rescheduling request exists.
- * Note that this routine is also called from the end of the interrupt
- * handler.
+ * Note that this routine is also called from the end of the
+ * interrupt handler.
  */
 void sched_unlock(void)
 {
@@ -587,27 +584,86 @@ void sched_unlock(void)
 		}
 	}
 	cur_thread->lock_count--;
-
 	interrupt_restore(stat);
 }
 
 /*
- * Fill the scheduling statistics into the specified buffer.
+ * Fill the scheduling information into the specified buffer.
  */
-void sched_stat(struct stat_sched *ss)
+void sched_info(struct info_sched *info)
 {
-	ss->system_ticks = timer_ticks();
-	ss->idle_ticks = idle_thread.total_ticks;
+	info->system_ticks = timer_count();
+	info->idle_ticks = idle_thread.total_ticks;
+	info->timer_hz = HZ;
+}
+
+/*
+ * DPC thread.
+ * This routine is started with interrupt disabled.
+ * DPC routine is called with the following conditions.
+ *  - Interrupt is enabled.
+ *  - Scheduler is unlocked.
+ */
+static void dpc_thread(u_long arg)
+{
+	queue_t q;
+	dpc_t dpc;
+
+	for (;;) {
+		/* Wait until next DPC request */
+		sched_sleep(&dpc_event);
+
+		while (!queue_empty(&dpcq)) {
+			q = dequeue(&dpcq);
+			dpc = queue_entry(q, struct dpc, link);
+			dpc->state = DPC_FREE;
+			interrupt_enable();
+			(*dpc->func)(dpc->arg);
+			interrupt_disable();
+		}
+	}
+	/* NOTREACHED */
+}
+
+/*
+ * Schedule DPC (Deferred Procesdure Call)
+ *
+ * Call function at some later time at DPC priority.
+ * This routine can be called from ISR.
+ */
+void sched_dpc(dpc_t dpc, void (*func)(void *), void *arg)
+{
+	ASSERT(dpc);
+	ASSERT(func);
+
+	irq_lock();
+	dpc->func = func;
+	dpc->arg = arg;
+	if (dpc->state != DPC_PENDING)
+		enqueue(&dpcq, &dpc->link);
+	dpc->state = DPC_PENDING;
+	sched_wakeup(&dpc_event);
+	irq_unlock();
 }
 
 void sched_init(void)
 {
+	thread_t th;
 	int i;
 
 	for (i = 0; i < NR_PRIO; i++)
 		queue_init(&runq[i]);
-
 	queue_init(&wakeq);
+	queue_init(&dpcq);
 	top_prio = PRIO_IDLE;
 	cur_thread->need_resched = 1;
+
+	/*
+	 * Create DPC thread
+	 */
+	if ((th = kernel_thread(dpc_thread, 0)) == NULL) 
+		panic("Failed to create DPC thread");
+	sched_setpolicy(th, SCHED_FIFO);
+	sched_setprio(th, PRIO_DPC, PRIO_DPC);
+	sched_resume(th);
 }

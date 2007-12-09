@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,37 +33,45 @@
 #include <string.h>
 #include <errno.h>
 
-#define ALIGN_SIZE      8
+extern int __isthreaded;
+
+#define MALLOC_MAGIC	0xBAADF00D	/* "bad food" from LocalAlloc :) */
+
+#if DEBUG
+#define LOG(x,y...)	syslog(LOG_DEBUG, x, ##y)
+#else
+#define LOG(x,y...)
+#endif
+
+#define MALLOC_LOCK()	if (__isthreaded) mutex_lock(&malloc_lock);
+#define MALLOC_UNLOCK()	if (__isthreaded) mutex_unlock(&malloc_lock);
+
+#define ALIGN_SIZE      16
 #define ALIGN_MASK      (ALIGN_SIZE - 1)
 #define ROUNDUP(size)   (((u_long)(size) + ALIGN_MASK) & ~ALIGN_MASK)
 
 struct header {
 	struct header *next;
 	size_t size;
+	size_t vm_size;
+#ifdef DEBUG
+	int magic;
+#endif
 };
 
-static struct header free_list;
-static struct header *scan_head;
-
-#ifdef _REENTRANT
 static mutex_t malloc_lock = MUTEX_INITIALIZER;
-#define MALLOC_LOCK()	mutex_lock(&malloc_lock)
-#define MALLOC_UNLOCK()	mutex_unlock(&malloc_lock)
-#else
-#define MALLOC_LOCK()
-#define MALLOC_UNLOCK()
-#endif
 
 static struct header *more_core(size_t size);
-static void add_free(struct header *hdr);
 
+static struct header free_list;		/* start of free list */
+static struct header *scan_head;	/* start point to scan */
 
 /*
  * Simple memory allocator from K&R
  */
 void *malloc(size_t size)
 {
-	struct header *hdr, *prev;
+	struct header *p, *prev;
 
 	if (size == 0)		/* sanity check */
 		return NULL;
@@ -75,34 +83,40 @@ void *malloc(size_t size)
 		/* Initialize */
 		free_list.next = &free_list;
 		free_list.size = 0;
+		free_list.vm_size = 0;
 		scan_head = &free_list;
 	}
-
 	prev = scan_head;
-	for (hdr = prev->next;; prev = hdr, hdr = hdr->next) {
-		if (hdr->size >= size) {	/* big enough */
-			if (hdr->size == size)	/* exactly */
-				prev->next = hdr->next;
-			else {		/* allocate tail end */
-				hdr->size -= size;
-				hdr = (struct header *)
-					((u_long)hdr + hdr->size);
-				hdr->size = size;
+	for (p = prev->next;; prev = p, p = p->next) {
+		if (p->size >= size) {	/* big enough */
+			if (p->size == size)	/* exactly */
+				prev->next = p->next;
+			else {			/* allocate tail end */
+				p->size -= size;
+				p = (struct header *)((void *)p + p->size);
+				p->size = size;
+				p->vm_size = 0;
 			}
+#ifdef DEBUG
+			p->magic = MALLOC_MAGIC;
+#endif
 			scan_head = prev;
 			break;
 		}
-		if (hdr == scan_head) {
-			if ((hdr = more_core(size)) == NULL)
+		if (p == scan_head) {
+			if ((p = more_core(size)) == NULL)
 				break;
 		}
 	}
-
 	MALLOC_UNLOCK();
 
-	if (hdr == NULL)
+	if (p == NULL) {
+#ifdef DEBUG
+		sys_panic("malloc: no memory!");
+#endif
 		return NULL;
-	return (void *)((u_long)hdr + sizeof(struct header));
+	}
+	return (void *)(p + 1);
 }
 
 /*
@@ -110,49 +124,63 @@ void *malloc(size_t size)
  */
 static struct header *more_core(size_t size)
 {
-	struct header *hdr;
+	struct header *p, *prev;
 
 	size = round_page(size);
-
-	if (vm_allocate(task_self(), (void *)&hdr, size, 1))
+	if (vm_allocate(task_self(), (void *)&p, size, 1))
 		return NULL;
-	hdr->size = size;
-	add_free(hdr);
-	return scan_head;
-}
+	p->size = size;
+	p->vm_size = size;
 
-static void add_free(struct header *hdr)
-{
-	struct header *prev;
-
-	for (prev = scan_head; !(hdr > prev && hdr < prev->next); prev = prev->next)
-		if (prev >= prev->next && (hdr > prev || hdr < prev->next))
+	/* Insert to free list */
+	for (prev = scan_head; !(p > prev && p < prev->next); prev = prev->next) {
+		if (prev >= prev->next && (p > prev || p < prev->next))
 			break;
-
-	if (hdr + hdr->size == prev->next) {
-		hdr->size += prev->next->size;
-		hdr->next = prev->next->next;
-	} else
-		hdr->next = prev->next;
-
-	if (prev + prev->size == hdr) {
-		prev->size += hdr->size;
-		prev->next = hdr->next;
-	} else
-		prev->next = hdr;
-
+	}
+	p->next = prev->next;
+	prev->next = p;
 	scan_head = prev;
+	return prev;
 }
 
 void free(void *addr)
 {
-	struct header *hdr;
+	struct header *p, *prev;
+
+	if (addr == NULL)
+		return;
 
 	MALLOC_LOCK();
-
-	hdr = (struct header *)((u_long)addr - sizeof(struct header));
-	add_free(hdr);
-
+	p = (struct header *)addr - 1;
+#ifdef DEBUG
+	if (p->magic != MALLOC_MAGIC)
+		sys_panic("free: invalid pointer");
+	p->magic = 0;
+#endif
+	for (prev = scan_head; !(p > prev && p < prev->next); prev = prev->next) {
+		if (prev >= prev->next && (p > prev || p < prev->next))
+			break;
+	}
+	if ((prev->next->vm_size == 0) &&	/* join to upper block */
+	    ((void *)p + p->size == prev->next)) {
+		p->size += prev->next->size;
+		p->next = prev->next->next;
+	} else {
+		p->next = prev->next;
+	}
+	if ((p->vm_size == 0) &&	/* join to lower block */
+	    ((void *)prev + prev->size == p)) {
+		prev->size += p->size;
+		prev->next = p->next;
+	} else {
+		prev->next = p;
+	}
+	/* Deallocate pool */
+	if (p->size == p->vm_size) {
+		prev->next = p->next;
+		vm_free(task_self(), p);
+	}
+	scan_head = prev;
 	MALLOC_UNLOCK();
 }
 
@@ -166,12 +194,12 @@ void *realloc(void *addr, size_t size)
 
 void mstat(void)
 {
-#if 0
-	struct header *hdr;
+#if DEBUG
+	struct header *p;
 
-	syslog(LOG_INFO, "malloc usage task=%x\n", task_self());
-	for (hdr = free_list.next; hdr != &free_list; hdr = hdr->next) {
-		syslog(LOG_INFO, "free: addr=%x size=%d byte\n", hdr, hdr->size);
+	syslog(LOG_INFO, "mstat: task=%x\n", task_self());
+	for (p = free_list.next; p != &free_list; p = p->next) {
+		syslog(LOG_INFO, "mstat: addr=%x size=%d next=%x\n", p, p->size, p->next);
 	}
 #endif
 }

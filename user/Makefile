@@ -1,2 +1,2 @@
 SUBDIRS	= lib bin test sample
-include $(PREX_SRC)/make/Makefile.inc
+include $(PREX_SRC)/mk/Makefile.inc

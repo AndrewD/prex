@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,27 +32,23 @@
 
 #include <list.h>
 #include <event.h>
+#include <hook.h>
 
 struct thread;
 
 /*
- * Timer structure
+ * Callout timer
  */
 struct timer {
-	struct list link;		/* Link to timer chain */
-	int	    type;		/* Type */
-	u_long	    expire;		/* Expire time (ticks) */
-	void	    (*func)(void *);	/* Call out function */
-	void	    *arg;		/* Argument */
+	struct list	link;		/* Linkage on timer chain */
+	int		active;		/* True if active */
+	u_long		expire;		/* Expire time (ticks) */
+	u_long		interval;	/* Time interval */
+	void		(*func)(void *); /* Function to call */
+	void		*arg;		/* Function argument */
+	struct event	event;		/* Event for this timer */
 };
 typedef struct timer *timer_t;
-
-/*
- * Timer type
- */
-#define TMR_STOP	0	/* Stop timer */
-#define TMR_TIMEOUT	1	/* Time out timer */
-#define TMR_PERIODIC	2	/* Periodic timer */
 
 /*
  * Macro to compare two timer counts.
@@ -64,15 +60,25 @@ typedef struct timer *timer_t;
 #define time_after_eq(a,b)	(((long)(a) - (long)(b)) >= 0)
 #define time_before_eq(a,b)	time_after_eq(b,a)
 
+/*
+ * Macro to convert milliseconds and tick.
+ */
+#define msec_to_tick(ms) (((ms) >= 0x20000) ? \
+	    ((ms) / 1000UL) * HZ : \
+	    ((ms) * HZ) / 1000UL)
+
+#define tick_to_msec(tick) (((tick) * 1000) / HZ)
 
 extern void timer_init(void);
-extern void timer_clock(void);
+extern void timer_tick(void);
 extern void timer_stop(timer_t tmr);
 extern void timer_timeout(timer_t tmr, void (*func)(void *),
 			  void *arg, u_long msec);
-extern u_long timer_ticks(void);
-extern int timer_delay(u_long msec);
+extern u_long timer_delay(u_long msec);
 extern void timer_cleanup(struct thread *th);
+extern void timer_hook(hook_t hook, void (*func)(void *));
+extern void timer_unhook(hook_t hook);
+extern u_long timer_count(void);
 
 extern int timer_sleep(u_long delay, u_long *remain);
 extern int timer_alarm(u_long delay, u_long *remain);

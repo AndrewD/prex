@@ -57,7 +57,7 @@ static print_func print_handler;	/* Pointer to print handler */
 #define VID_PORT	0x03d4
 #define VID_RAM		0xB8000
 #define SCR_WIDTH	80
-#define SCR_HIGHT	50
+#define SCR_HIGHT	25
 
 /* Screen info */
 static short *vram;

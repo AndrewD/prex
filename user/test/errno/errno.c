@@ -36,7 +36,7 @@
 
 extern int sys_nerr;
 
-int main()
+int main(int argc, char *argv[])
 {
 	int i;
 

@@ -5,11 +5,12 @@
 /*
  * System paramters
  */
-#define CONFIG_HZ		1000		/* Ticks/second of the clock */
-#define CONFIG_TIME_SLICE	50		/* Context switch ratio (msec) */
-#define CONFIG_OPEN_MAX		16		/* Max open files per process */
-#define CONFIG_BUF_CACHE	32		/* Blocks for buffer cache */
-#define CONFIG_PAGE_SIZE	2048		/* Physical/logical page size */
+#define CONFIG_HZ		1000	/* Ticks/second of the clock */
+#define CONFIG_TIME_SLICE	50	/* Context switch ratio (msec) */
+#define CONFIG_PAGE_SIZE	2048	/* Physical/logical page size */
+#define CONFIG_OPEN_MAX		8	/* Max open files per process */
+#define CONFIG_BUF_CACHE	32	/* Blocks for buffer cache */
+#define CONFIG_FS_THREADS	1	/* Number of file system threads */
 
 /*
  * Platform settings
@@ -38,8 +39,8 @@
 #define CONFIG_PM		/* Power management support */
 #define CONFIG_PM_POWERSAVE	/* Power policy: Battery optimized */
 //#define CONFIG_PM_PERFORMANCE	/* Power policy: Parformance optimized */
-#define CONFIG_DVS		/* Dynamic voltage scalling */
-#define CONFIG_DVS_EMULATION	/* DVS emulation on Bochs */
+#define CONFIG_CPUFREQ		/* CPU frequency control */
+#define CONFIG_DVS_EMULATION	/* Dynamic voltage scaling emulation on Bochs */
 
 /*
  * File system
@@ -64,6 +65,7 @@
  * Kernel hacking
  */
 #define CONFIG_KDUMP		/* Kernel dump */
+#define CONFIG_DMESG		/* Enable ring buffer for diagnostic message */
 //#define CONFIG_KTRACE		/* Kernel function trace */
 //#define CONFIG_GDB		/* GDB stub */
 //#define CONFIG_DEBUG_VM	/* Debug virtual memory allocator */

@@ -43,9 +43,9 @@ extern u_long hi_mem;
  */
 void get_meminfo(struct boot_info *boot_info)
 {
-	/* printk("hi_mem=%x lo_mem=%x\n", hi_mem, lo_mem); */
+	printk("hi_mem=%x lo_mem=%x\n", hi_mem, lo_mem);
 #ifdef CONFIG_MIN_MEMORY
-	lo_mem = 640;	/* 640KB */
+	lo_mem = 512;	/* 512KB */
 	hi_mem = 0;
 #endif
 	boot_info->main_mem.start = 0;

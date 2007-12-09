@@ -44,7 +44,7 @@ static void my_exception(int code, void *regs)
 	panic("Ooops!");
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	task_t task;
 

@@ -43,12 +43,12 @@ extern void interrupt_entry(void);
 #define IPL_NORMAL	7	/* Default interrupt priority level */
 
 /* Interrupt hook vector */
-#define IRQ_VECTOR	*(u_int32_t *)0x3007ffc
+#define IRQ_VECTOR	*(uint32_t *)0x3007ffc
 
 /* Registers for interrupt control unit - enable/flag/master */
-#define ICU_IE		(*(volatile u_int16_t *)0x4000200)
-#define ICU_IF		(*(volatile u_int16_t *)0x4000202)
-#define ICU_IME		(*(volatile u_int16_t *)0x4000208)
+#define ICU_IE		(*(volatile uint16_t *)0x4000200)
+#define ICU_IF		(*(volatile uint16_t *)0x4000202)
+#define ICU_IME		(*(volatile uint16_t *)0x4000208)
 
 /* ICU_IE */
 #define IRQ_VALID	0x3fff
@@ -82,7 +82,7 @@ static volatile int cur_ipl;
  * Interrupt mapping table
  */
 static int irq_level[NR_IRQS];		/* Vector -> level */
-static u_int16_t irq_mask[NR_IPLS];	/* Level -> mask */
+static uint16_t irq_mask[NR_IPLS];	/* Level -> mask */
 
 /*
  * Set mask for current ipl
@@ -97,7 +97,7 @@ static u_int16_t irq_mask[NR_IPLS];	/* Level -> mask */
 void interrupt_unmask(int vector, int level)
 {
 	int i;
-	u_int16_t unmask = (u_int16_t)1 << vector;
+	uint16_t unmask = (uint16_t)1 << vector;
 
 	irq_level[vector] = level;
 	for (i = level + 1; i <= IPL_NORMAL; i++)
@@ -112,7 +112,7 @@ void interrupt_unmask(int vector, int level)
 void interrupt_mask(int vector)
 {
 	int i;
-	u_int mask = (u_int16_t)~(1 << vector);
+	u_int mask = (uint16_t)~(1 << vector);
 
 	for (i = irq_level[vector] + 1; i <= IPL_NORMAL; i++)
 		irq_mask[i] &= mask;
@@ -143,7 +143,7 @@ void interrupt_dispatch(int vector)
 	update_mask();
 
 	/* Send acknowledge to ICU for this irq */
-	ICU_IF = (u_int16_t)(1 << vector);
+	ICU_IF = (uint16_t)(1 << vector);
 
 	/* Allow another interrupt that has higher priority */
 	interrupt_enable();
@@ -163,13 +163,13 @@ void interrupt_dispatch(int vector)
  */
 void interrupt_handler(void)
 {
-	u_int16_t bits;
+	uint16_t bits;
 	int vector;
 
 	bits = ICU_IF;
 retry:
 	for (vector = 0; vector < NR_IRQS; vector++) {
-		if (bits & (u_int16_t)(1 << vector))
+		if (bits & (uint16_t)(1 << vector))
 			break;
 	}
 	if (vector == NR_IRQS)
@@ -206,7 +206,7 @@ void interrupt_init(void)
 		irq_mask[i] = 0;
 
 	ICU_IME = IRQ_OFF;
-	IRQ_VECTOR = (u_int32_t)interrupt_entry; /* Interrupt hook address */
+	IRQ_VECTOR = (uint32_t)interrupt_entry; /* Interrupt hook address */
 	ICU_IE = 0;			/* Mask all interrupts */
 	ICU_IME = IRQ_ON;
 }

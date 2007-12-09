@@ -52,7 +52,7 @@
 
 static char stack[2][1024];
 static thread_t th_1, th_2;
-static mutex_t mu_A, mu_B;
+static mutex_t mtx_A, mtx_B;
 
 thread_t thread_run(void *start, void *stack)
 {
@@ -83,7 +83,7 @@ static void thread_1(void)
 	 * 2) Lock mutex B
 	 */
 	printf("thread_1: 2) lock B\n");
-	err = mutex_lock(&mu_B);
+	err = mutex_lock(&mtx_B);
 	if (err) printf("err=%d\n", err);
 
 	/*
@@ -92,7 +92,7 @@ static void thread_1(void)
 	 * Switch to thread 1.
 	 */
 	printf("thread_1: 3) lock A\n");
-	err = mutex_lock(&mu_A);
+	err = mutex_lock(&mtx_A);
 	if (err) printf("err=%d\n", err);
 
 	printf("thread_1: exit\n");
@@ -112,7 +112,7 @@ static void thread_2(void)
 	 * 1) Lock mutex A
 	 */
 	printf("thread_2: 1) lock A\n");
-	err = mutex_lock(&mu_A);
+	err = mutex_lock(&mtx_A);
 	if (err) printf("err=%d\n", err);
 
 	/*
@@ -127,7 +127,7 @@ static void thread_2(void)
 	 * Deadlock occurs here!
 	 */
 	printf("thread_2: 4) lock B\n");
-	err = mutex_lock(&mu_B);
+	err = mutex_lock(&mtx_B);
 	if (err) printf("err=%d\n", err);
 	if (err == EDEADLK)
 		printf("**** DEADLOCK!! ****\n");
@@ -136,7 +136,7 @@ static void thread_2(void)
 	thread_terminate(th_2);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	printf("Deadlock test program\n");
 
@@ -148,8 +148,8 @@ int main()
 	/*
 	 * Initialize mutexes.
 	 */
-	mutex_init(&mu_A);
-	mutex_init(&mu_B);
+	mutex_init(&mtx_A);
+	mutex_init(&mtx_B);
 
 	/*
 	 * Create new threads

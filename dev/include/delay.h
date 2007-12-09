@@ -31,5 +31,6 @@
 #define _DELAY_H
 
 extern void delay_usec(u_long usec);
+extern void calibrate_delay(void);
 
 #endif /* !_DELAY_H */

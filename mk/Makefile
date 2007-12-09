@@ -7,4 +7,4 @@ LOADER	= $(PREX_SRC)/boot/bootldr
 KERNEL	= $(PREX_SRC)/sys/prex
 
 include $(PREX_SRC)/conf/make.conf
-include $(PREX_SRC)/make/Makefile.inc
+include $(PREX_SRC)/mk/Makefile.inc

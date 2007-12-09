@@ -37,7 +37,7 @@
 #define VID_PORT	0x03d4
 #define VID_RAM		0xB8000
 #define SCR_WIDTH	80
-#define SCR_HIGHT	50
+#define SCR_HIGHT	25
 
 static int console_init();
 static int console_write();
@@ -372,11 +372,6 @@ static int console_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 
 static void init_screen(void)
 {
-	/* scan line */
-	outb(0x0a, VID_PORT);
-	outb(6, VID_PORT + 1);
-	outb(0x0b, VID_PORT);
-	outb(7, VID_PORT + 1);
 }
 
 /*
@@ -386,7 +381,7 @@ static int console_init(void)
 {
 	esc_index = 0;
 	attrib = 0x0F;
-	vram = phys_to_virt(VID_RAM);
+	vram = phys_to_virt((void *)VID_RAM);
 	console_dev = device_create(&console_io, "console");
 	ASSERT(console_dev);
 	init_screen();

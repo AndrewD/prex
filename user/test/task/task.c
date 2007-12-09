@@ -49,7 +49,7 @@ static void test_thread()
 	}
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	task_t task;
 	thread_t th;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,13 +115,15 @@ void trap_handler(struct cpu_regs *regs)
 
 	/*
 	 * Check whether this trap is kernel page fault caused
-	 * by known access to user space.
+	 * by known routine to access user space.
 	 */
 	if (trap_no == 14 && regs->cs == KERNEL_CS &&
 	    (regs->eip == (u_long)known_fault1 ||
 	     regs->eip == (u_long)known_fault2 ||
 	     regs->eip == (u_long)known_fault3)) {
-		printk("*** Detect EFAULT ***\n");
+		printk("*** Detect Fault! task=%x(%s) ***\n",
+		       cur_task(), cur_task()->name);
+
 		regs->eip = (u_long)umem_fault;
 		return;
 	}
@@ -167,6 +169,8 @@ static void trap_dump(struct cpu_regs *r)
 	       r->eip, esp, r->ebp, r->eflags);
 	printk(" cs  %08x ss  %08x ds  %08x es  %08x esp0 %08x\n",
 	       r->cs, ss, r->ds, r->es, tss_get());
+	if (r->cs == KERNEL_CS)
+		printk(" >> Oops! it's kernel mode now!!!\n");
 	if (irq_nesting > 0)
 		printk(" >> trap in isr (irq_nesting=%d)\n", irq_nesting);
 	printk(" >> interrupt is %s\n",
