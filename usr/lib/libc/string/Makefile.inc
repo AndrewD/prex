@@ -5,4 +5,4 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c \
 	strchr.c strcmp.c strcoll.c strcpy.c strncpy.c strncat.c strcspn.c \
 	strlen.c strmode.c strdup.c strncmp.c strerror.c \
 	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c strtok_r.c \
-	strxfrm.c swab.c strlcpy.c strlcat.c
+	strxfrm.c swab.c strlcpy.c strlcat.c strnlen.c
