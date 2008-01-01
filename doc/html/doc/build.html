@@ -9,6 +9,10 @@
   <link rel="stylesheet" type="text/css" href="../print.css" media="print">
 </head>
 <body>
+<div id="top">
+</div>
+<div id="middle">
+
 <table id="content" cellpadding="0" cellspacing="0">
   <tbody>
 
@@ -36,6 +40,7 @@
       <a href="index.html">Document Index</a> >
       Prex Build Guide
     </tr>
+    <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
       <td id="main" style="vertical-align: top;">
@@ -67,7 +72,7 @@ And, some binary files may be available there.
 <h4>Step 1. Prepare Toolchain</h4>
 The following packages are required for compiling Prex.
 <ul>
-  <li>GCC 3.3.1 or later</li>
+  <li>GCC 2.95 or later (~4.2)</li>
   <li>GNU Binutils</li>
   <li>GNU Make</li>
 </ul>
@@ -76,7 +81,7 @@ architecture if you cross-compile Prex.
 
 <h4>Step 2. Unpack Sources</h4>
 Unpack the sources and move to top level directory of the source tree.
-<pre>$ cd /usr/src
+<pre class="terminal">$ cd /usr/src
 $ tar zxvf prex-X.X.X.tar.gz
 $ cd prex-X.X.X
 </pre>
@@ -84,19 +89,19 @@ $ cd prex-X.X.X
 <h4>Step 3. Configure</h4>
 Setup target architecture and platform.
 The following sample shows about i386-pc target.
-<pre>$ ./configure --target=i386-pc
+<pre class="terminal">$ ./configure --target=i386-pc
 </pre>
 
 <h4>Step 4. Make</h4>
 Run make.<br>
-<pre>
+<pre class="terminal">
 $ make
 </pre>
 
 <h4>(Tips)</h4>
 If you want to run 'make' in the subdirectory, you have to set the
 PREX_SRC as follow.<br>
-<pre>
+<pre class="terminal">
 $ export PREX_SRC=/usr/src/prex-X.X.X
 </pre>
 
@@ -123,11 +128,12 @@ at least the following packages in addition to the default selection.<br>
   <li>flex</li>
   <li>perl</li>
 </ul>
+Note: These tools are required to build binutils/gcc.
 
 <h4>Step 2. Unpack Archives</h4>
 You have to download and unpack the following files.
 
-<pre>$ cd /usr/src
+<pre class="terminal">$ cd /usr/src
 $ tar zxvf binitils-2.15.tar.gz
 $ tar zxvf gcc-core-3.4.3.tar.gz
 <!-- Temporary removed
@@ -138,7 +144,7 @@ $ tar zxvf newlib-1.13.0.tar.gz--></pre>
 <p>
 Configure and build binutils.
 </p>
-<pre>$ mkdir binutils-2.15-i386-elf
+<pre class="terminal">$ mkdir binutils-2.15-i386-elf
 $ cd binutils-2.15-i386-elf
 $ ../binutils-2.15/configure --prefix=/usr/local/i386 --target=i386-elf --disable-nls
 $ make
@@ -146,13 +152,13 @@ $ make install</pre>
 <p>
 You must set the path to this binutils before compiling gcc.
 </p>
-<pre>$ export PATH=/usr/local/i386/bin:$PATH
+<pre class="terminal">$ export PATH=/usr/local/i386/bin:$PATH
 $ cd /usr/src</pre>
 
 
 <h4>Step 4. Build gcc</h4>
 
-<pre>$ mkdir gcc-3.4.3-i386-elf
+<pre class="terminal">$ mkdir gcc-3.4.3-i386-elf
 $ cd gcc-3.4.3-i386-elf
 $ ../gcc-3.4.3/configure --prefix=/usr/local/i386 --target=i386-elf \
  --with-gnu-as --with-gnu-ld --disable-nls --enable-languages=c --without-headers \
@@ -165,7 +171,7 @@ $ cd /usr/src</pre>
 <h4>Step 5. Setup</h4>
 
 Set the prefix of the build tools before compiling Prex.
-<pre>$ export CROSS_COMPILE=i386-elf-</pre>
+<pre class="terminal">$ export CROSS_COMPILE=i386-elf-</pre>
 
 <h2 id="custom">Customizing OS Boot Image</h2>
 <p>
@@ -190,16 +196,20 @@ placed in "/img" directory.
 
       </td>
     </tr>
+    <tr>
+      <td id="footer" colspan="2" style="vertical-align: top;">
+        <a href="http://sourceforge.net">
+        <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
+        alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
+        Copyright&copy; 2005-2007 Kohsuke Ohtani
+      </td>
+    </tr>
 
   </tbody>
 </table>
 
-      <div id="footer" style="text-align:center;">
-      <a href="http://sourceforge.net">
-      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
-      alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
-      Copyright&copy; 2005-2007 Kohsuke Ohtani
-      </div>
+</div>
+<div id="bottom"></div>
 
 </body>
 </html>

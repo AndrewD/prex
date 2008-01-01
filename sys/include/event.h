@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,22 +32,17 @@
 
 #include <queue.h>
 
-struct thread;
-
 /*
  * Event for sleep/wakeup
- *
- * Note: The event name is used only for debugging purpose.
  */
 struct event {
-	struct queue	sleepq;		/* Queue for waiting thread */
-	char		*name;		/* Pointer to event name string */
+	struct queue	sleepq;		/* queue for waiting thread */
+	char		*name;		/* pointer to event name string */
 };
-typedef struct event *event_t;
 
 /* Macro to initialize event statically */
 #define EVENT_INIT(event, evt_name) \
-    { {&(event).sleepq, &(event).sleepq}, evt_name}
+			{ {&(event).sleepq, &(event).sleepq}, evt_name}
 
 /* Macro to initialize event dynamically */
 #define event_init(event, evt_name) \

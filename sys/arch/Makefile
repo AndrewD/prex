@@ -1,5 +1,5 @@
-include $(PREX_SRC)/mk/own.mk
+include $(SRCDIR)/mk/own.mk
 
-SUBDIRS	= $(PREX_ARCH)
+SUBDIR=	$(ARCH)
 
-include $(PREX_SRC)/mk/sys.mk
+include $(SRCDIR)/mk/subdir.mk

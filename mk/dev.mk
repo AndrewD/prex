@@ -1,19 +1,16 @@
-#
-# Make options for driver module
-#
-include $(PREX_SRC)/mk/own.mk
+include $(SRCDIR)/mk/own.mk
 
-INC_FLAGS = -I$(PREX_SRC)/conf \
-	-I$(PREX_SRC)/dev/arch/$(PREX_ARCH)/include \
-	-I$(PREX_SRC)/dev/include
+INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/dev/$(ARCH)/include \
+		-I$(SRCDIR)/dev/include -I$(SRCDIR)/include
 
-ASFLAGS = $(INC_FLAGS)
-CFLAGS = $(INC_FLAGS) -nostdinc -fno-builtin
-CPPFLAGS = $(INC_FLAGS)
-LDFLAGS = -static -nostdlib -r
+ASFLAGS+=	$(INCLUDE)
+CFLAGS+=	$(INCLUDE) -nostdinc -fno-builtin -DKERNEL
+CPPFLAGS+=	$(INCLUDE) -DKERNEL
+LDFLAGS+=	-static -nostdlib
+LINTFLAGS+=	-DKERNEL
 
 ifeq ($(KTRACE),1)
-CFLAGS += -finstrument-functions
+CFLAGS+=	-finstrument-functions
 endif
 
-include $(PREX_SRC)/mk/Makefile.inc
+include $(SRCDIR)/mk/Makefile.inc

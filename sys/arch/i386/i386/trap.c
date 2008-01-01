@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -28,23 +28,15 @@
  */
 
 /*
- * trap.c - trap handling routine
+ * trap.c - called from the trap handler when a processor trap occurs.
  */
 
 #include <kernel.h>
-#include <except.h>
+#include <exception.h>
 #include <thread.h>
 #include <task.h>
-#include "cpu.h"
-
-/*
- * Known address which may cause page fault.
- */
-extern void known_fault1(void);
-extern void known_fault2(void);
-extern void known_fault3(void);
-extern void umem_fault(void);
-
+#include <cpu.h>
+#include <locore.h>
 
 #ifdef DEBUG
 static void trap_dump(struct cpu_regs *);
@@ -70,7 +62,7 @@ static char *const trap_name[] = {
 	"Alignment check",	/* 17 */
 	"Cache flush denied"	/* 18 */
 };
-#define MAX_TRAP (sizeof(trap_name) / sizeof(void *) - 1)
+#define MAXTRAP (sizeof(trap_name) / sizeof(void *) - 1)
 #endif	/* DEBUG */
 
 /*
@@ -78,33 +70,34 @@ static char *const trap_name[] = {
  * i386 trap code is translated to the architecture
  * independent exception code.
  */
-static const int trap_map[] = {
-	EXC_FPE,		/*  0: Divide error */
-	EXC_TRAP,		/*  1: Debug trap */
-	EXC_ILL,		/*  2: NMI */
-	EXC_TRAP,		/*  3: Breakpoint */
-	EXC_FPE,		/*  4: Overflow */
-	EXC_ILL,		/*  5: Bounds check */
-	EXC_ILL,		/*  6: Invalid opecode */
-	EXC_FPE,		/*  7: Device not available */
-	EXC_ILL,		/*  8: Double fault */
-	EXC_FPE,		/*  9: Coprocessor overrun */
-	EXC_SEGV,		/* 10: Invalid TSS */
-	EXC_SEGV,		/* 11: Segment not present */
-	EXC_SEGV,		/* 12: Stack bounds */
-	EXC_ILL,		/* 13: General Protection fault */
-	EXC_SEGV,		/* 14: Page fault */
-	EXC_ILL,		/* 15: Reserved */
-	EXC_FPE,		/* 16: Coprocessor error */
-	EXC_ILL,		/* 17: Alignment check */
-	EXC_ILL,		/* 18: Cache flush denied */
+static const int exception_map[] = {
+	SIGFPE,		/*  0: Divide error */
+	SIGTRAP,	/*  1: Debug trap */
+	SIGILL,		/*  2: NMI */
+	SIGTRAP,	/*  3: Breakpoint */
+	SIGFPE,		/*  4: Overflow */
+	SIGILL,		/*  5: Bounds check */
+	SIGILL,		/*  6: Invalid opecode */
+	SIGFPE,		/*  7: Device not available */
+	SIGILL,		/*  8: Double fault */
+	SIGFPE,		/*  9: Coprocessor overrun */
+	SIGSEGV,	/* 10: Invalid TSS */
+	SIGSEGV,	/* 11: Segment not present */
+	SIGSEGV,	/* 12: Stack bounds */
+	SIGILL,		/* 13: General Protection fault */
+	SIGSEGV,	/* 14: Page fault */
+	SIGILL,		/* 15: Reserved */
+	SIGFPE,		/* 16: Coprocessor error */
+	SIGILL,		/* 17: Alignment check */
+	SIGILL,		/* 18: Cache flush denied */
 };
 
 /*
  * Trap handler
  * Invoke the exception handler if it is needed.
  */
-void trap_handler(struct cpu_regs *regs)
+void
+trap_handler(struct cpu_regs *regs)
 {
 	u_long trap_no = regs->trap_no;
 
@@ -121,8 +114,9 @@ void trap_handler(struct cpu_regs *regs)
 	    (regs->eip == (u_long)known_fault1 ||
 	     regs->eip == (u_long)known_fault2 ||
 	     regs->eip == (u_long)known_fault3)) {
-		printk("*** Detect Fault! task=%x(%s) ***\n",
-		       cur_task(), cur_task()->name);
+		printk("\n*** Detect Fault! task:%s (id:%x) ***\n",
+		       cur_task()->name ? cur_task()->name : "no name",
+		       cur_task());
 
 		regs->eip = (u_long)umem_fault;
 		return;
@@ -137,20 +131,19 @@ void trap_handler(struct cpu_regs *regs)
 	if (regs->cs == KERNEL_CS) {
 		interrupt_mask(0);
 		sti();
-		while (1)
-			cpu_idle();
+		for (;;) ;
 	}
-	for (;;);
 #endif
 	if (regs->cs == KERNEL_CS)
 		panic("Kernel exception");
 
-	exception_post(trap_map[trap_no]);
+	exception_mark(exception_map[trap_no]);
 	exception_deliver();
 }
 
 #ifdef DEBUG
-static void trap_dump(struct cpu_regs *r)
+static void
+trap_dump(struct cpu_regs *r)
 {
 	u_long ss, esp, *fp;
 	u_int i;
@@ -169,21 +162,30 @@ static void trap_dump(struct cpu_regs *r)
 	       r->eip, esp, r->ebp, r->eflags);
 	printk(" cs  %08x ss  %08x ds  %08x es  %08x esp0 %08x\n",
 	       r->cs, ss, r->ds, r->es, tss_get());
-	if (r->cs == KERNEL_CS)
-		printk(" >> Oops! it's kernel mode now!!!\n");
-	if (irq_nesting > 0)
-		printk(" >> trap in isr (irq_nesting=%d)\n", irq_nesting);
+
+	if (irq_level > 0)
+		printk(" >> trap in isr (irq_level=%d)\n", irq_level);
 	printk(" >> interrupt is %s\n",
 	       (get_eflags() & EFL_IF) ? "enabled" : "disabled");
-	printk(" >> task: id=%x \'%s\'\n", cur_task(), cur_task()->name);
 
-	printk("Stack trace:\n");
-	fp = (u_long *)r->ebp;
-	for (i = 0; i < 16; i++) {
-		fp = (u_long *)(*fp);	/* XXX: may cause fault */
-		if (!(*(fp + 1) && *fp))
-			break;
-		printk(" %08x\n", *(fp + 1));
+	if (r->cs == KERNEL_CS)
+		printk(" >> Oops! it's kernel mode now!!!\n");
+	else
+		printk(" >> task:%s (id:%x)\n",
+		       cur_task()->name ? cur_task()->name : "no name",
+		       cur_task());
+
+	if (r->cs == KERNEL_CS) {
+		printk("Stack trace:\n");
+		fp = (u_long *)r->ebp;
+		for (i = 0; i < 8; i++) {
+			if (fp == 0)
+				break;
+			fp = (u_long *)(*fp);	/* XXX: may cause fault */
+			if (!(*(fp + 1) && *fp))
+				break;
+			printk(" %08x\n", *(fp + 1));
+		}
 	}
 }
 #endif /* DEBUG */

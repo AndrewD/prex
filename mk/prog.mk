@@ -1,25 +1,16 @@
-#
-# Make options to build POSIX applications.
-#
-include $(PREX_SRC)/mk/own.mk
+include $(SRCDIR)/mk/own.mk
 
-INC_FLAGS = -I$(PREX_SRC)/conf \
-	-I$(PREX_SRC)/user/arch/$(PREX_ARCH) \
-	-I$(PREX_SRC)/user/include
+INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/include -I$(SRCDIR)/usr/include
 
-ASFLAGS = $(INC_FLAGS)
-CFLAGS = $(INC_FLAGS) -nostdinc
-CPPFLAGS = $(INC_FLAGS) -nostdinc
-LDFLAGS = -static
+ASFLAGS+=	$(INCLUDE)
+CFLAGS+=	$(INCLUDE) -nostdinc
+CPPFLAGS+=	$(INCLUDE) -nostdinc
+LDFLAGS+=	-static $(USR_LDFLAGS)
 
-LD_SCRIPT = $(PREX_SRC)/user/arch/$(PREX_ARCH)/$(PREX_PLATFORM).ld
-
-LIBC = $(PREX_SRC)/user/lib/libc.a
-
-CRT0 = $(PREX_SRC)/user/lib/crt0.o
-CFLAGS += -D_PREX_SOURCE
-CPPFLAGS += -D_PREX_SOURCE
-TYPE = EXEC
+LD_SCRIPT=	$(SRCDIR)/usr/arch/$(ARCH)/$(ARCH)-$(PLATFORM).ld
+LIBC=		$(SRCDIR)/usr/lib/libc.a
+CRT0=		$(SRCDIR)/usr/lib/crt0.o
+TYPE=		EXEC
 
 ifdef PROG
 TARGET ?= $(PROG)
@@ -27,11 +18,10 @@ endif
 
 ifndef OBJS
 ifdef SRCS
-OBJS = $(SRCS:.c=.o)
+OBJS= $(SRCS:.c=.o)
 else
-OBJS = $(TARGET).o
+OBJS= $(TARGET).o
 endif
 endif
 
--include $(PREX_SRC)/user/arch/$(PREX_ARCH)/Makefile.$(PREX_PLATFORM)
-include $(PREX_SRC)/mk/Makefile.inc
+include $(SRCDIR)/mk/Makefile.inc

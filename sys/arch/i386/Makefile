@@ -1,3 +1,5 @@
-include $(PREX_SRC)/mk/own.mk
-SUBDIRS	= $(PREX_PLATFORM)
-include $(PREX_SRC)/mk/sys.mk
+include $(SRCDIR)/mk/own.mk
+
+SUBDIR= $(PLATFORM)
+
+include $(SRCDIR)/mk/subdir.mk

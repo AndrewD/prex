@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,58 +30,39 @@
 #ifndef _DEVICE_H
 #define _DEVICE_H
 
-#include <list.h>
-#include <system.h>
-
-#define DEVICE_MAGIC	0x4465763f	/* 'Dev?' */
-
-/*
- * Driver structure
- *
- * "order" is initialize order which must be between 0 and 15.
- * The driver with order 0 is called first.
- */
-struct driver {
-	const char	*name;		/* Name of device driver */
-	const int	order;		/* Initialize order */
-	int		(*init)();	/* Initialize routine */
-};
-typedef struct driver *driver_t;
-
 /*
  * Device I/O table
  */
 struct devio {
-	int (*open)();
-	int (*close)();
-	int (*read)();
-	int (*write)();
-	int (*ioctl)();
-	int (*event)();
+	int	(*open)	(device_t, int);
+	int	(*close)(device_t);
+	int	(*read)	(device_t, char *, size_t *, int);
+	int	(*write)(device_t, char *, size_t *, int);
+	int	(*ioctl)(device_t, int, u_long);
+	int	(*event)(int);
 };
-typedef struct devio *devio_t;
 
 /*
  * Device structure
  */
 struct device {
-	int	    magic;		/* Magic number */
-	int	    ref_count;		/* Reference count */
-	struct list link;		/* Link for device list */
-	devio_t	    devio;		/* Device I/O table */
-	char	    name[MAX_DEVNAME];	/* Name of device */
+	int		magic;		/* magic number */
+	int		ref_count;	/* reference count */
+	int		flags;		/* device characteristics */
+	struct list	link;		/* linkage on device list */
+	struct devio	*devio;		/* device i/o table */
+	char		name[MAXDEVNAME]; /* name of device */
 };
-typedef struct device *device_t;
 
 #define device_valid(dev) (kern_area(dev) && ((dev)->magic == DEVICE_MAGIC))
 
-extern void device_init(void);
-extern int device_open(char *name, int mode, device_t *pdev);
-extern int device_close(device_t dev);
-extern int device_read(device_t dev, void *buf, size_t *nbyte, int blkno);
-extern int device_write(device_t dev, void *buf, size_t *nbyte, int blkno);
-extern int device_ioctl(device_t dev, int cmd, u_long arg);
-extern int device_info(struct info_device *info);
-
+extern int	 device_open(const char *, int, device_t *);
+extern int	 device_close(device_t);
+extern int	 device_read(device_t, void *, size_t *, int);
+extern int	 device_write(device_t, void *, size_t *, int);
+extern int	 device_ioctl(device_t, int, u_long);
+extern int	 device_info(struct info_device *);
+extern void	 device_dump(void);
+extern void	 device_init(void);
 
 #endif /* !_DEVICE_H */

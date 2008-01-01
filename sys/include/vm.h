@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,61 +30,59 @@
 #ifndef _VM_H
 #define _VM_H
 
+#include <arch.h>
+
 /*
- * VM Region
+ * One structure per allocated region.
  */
 struct region {
-	struct region *prev;	/* Region list sorted by address */
-	struct region *next;
-	struct region *sh_prev;	/* Link for all shared region */
-	struct region *sh_next;
-	u_long	addr;		/* Base address */
-	size_t 	size;		/* Size */
-	int 	flags;		/* Flag */
+	struct region	*prev;		/* region list sorted by address */
+	struct region	*next;
+	struct region	*sh_prev;	/* link for all shared region */
+	struct region	*sh_next;
+	u_long		addr;		/* base address */
+	size_t		size;		/* size */
+	int		flags;		/* flag */
 #ifdef CONFIG_MMU
-	u_long 	phys;		/* Physical address */
+	u_long		phys;		/* physical address */
 #endif
 };
 
-/*
- * VM Map
- */
-struct vm_map {
-	struct region head;	/* List head of regions */
-	int	ref_count;	/* Reference count */
-	pgd_t	pgd;		/* Page directory */
-};
-typedef struct vm_map *vm_map_t;
-
-/*
- * Flags for region
- */
+/* Flags for region */
 #define REG_READ	0x00000001
 #define REG_WRITE	0x00000002
 #define REG_EXEC	0x00000004
 #define REG_SHARED	0x00000008
 #define REG_MAPPED	0x00000010
-#define REG_FREE	0x80000000
+#define REG_FREE	0x00000080
 
 /*
- * VM attribute
+ * VM mapping per one task.
  */
-#define ATTR_READ	0x01
-#define ATTR_WRITE	0x02
-#define ATTR_EXEC	0x04
+struct vm_map {
+	struct region	head;		/* list head of regions */
+	int		ref_count;	/* reference count */
+	pgd_t		pgd;		/* page directory */
+};
 
-extern void vm_init(void);
-extern int vm_allocate(task_t task, void **addr, size_t size, int anywhere);
-extern int __vm_allocate(task_t task, void **addr, size_t size,
-			 int anywhere, int pagemap);
-extern int vm_free(task_t task, void *addr);
-extern int vm_attribute(task_t task, void *addr, int attr);
-extern int vm_map(task_t target, void *addr, size_t size, void **alloc);
-extern vm_map_t vm_fork(vm_map_t map);
-extern vm_map_t vm_create(void);
-extern int vm_reference(vm_map_t map);
-extern void vm_terminate(vm_map_t map);
-extern void *vm_translate(void *addr, size_t size);
-extern int vm_access(void *addr, size_t size, int type);
+/* VM attributes */
+#define VMA_READ	0x01
+#define VMA_WRITE	0x02
+#define VMA_EXEC	0x04
+
+extern int	 vm_allocate(task_t, void **, size_t, int);
+extern int	 vm_free(task_t, void *);
+extern int	 vm_attribute(task_t, void *, int);
+extern int	 vm_map(task_t, void *, size_t, void **);
+extern vm_map_t	 vm_fork(vm_map_t);
+extern vm_map_t	 vm_create(void);
+extern int	 vm_reference(vm_map_t);
+extern void	 vm_terminate(vm_map_t);
+extern void	 vm_switch(vm_map_t);
+extern int	 vm_load(vm_map_t, struct module *, void **);
+extern void	*vm_translate(void *, size_t);
+extern int	 vm_access(void *, size_t, int);
+extern void	 vm_dump(void);
+extern void	 vm_init(void);
 
 #endif /* !_VM_H */

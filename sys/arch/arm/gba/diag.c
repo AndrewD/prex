@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,7 +31,6 @@
  * diag.c - GBA screen management
  */
 #include <kernel.h>
-#include <config.h>
 
 #ifdef DEBUG
 /*
@@ -40,9 +39,9 @@
 #ifdef CONFIG_DIAG_SCREEN
 #include "font.h"
 
-#define VSCR_WIDTH	32
-#define SCR_WIDTH	30
-#define SCR_HIGHT	20
+#define VSCR_COLS	32
+#define SCR_COLS	30
+#define SCR_ROWS	20
 
 /* Registers for keypad control */
 #define REG_DISPCNT	(*(volatile u_short *)0x4000000)
@@ -58,28 +57,33 @@ static u_short *vram = VRAM_MAP;
 static int pos_x;
 static int pos_y;
 
-static void scroll_up(void)
+static void
+scroll_up(void)
 {
 	int i;
 
-	for (i = 0; i < VSCR_WIDTH * (SCR_HIGHT - 1); i++)
-		vram[i] = vram[i + VSCR_WIDTH];
-	for (i = 0; i < VSCR_WIDTH; i++)
-		vram[VSCR_WIDTH * (SCR_HIGHT - 1) + i] = ' ';
+	for (i = 0; i < VSCR_COLS * (SCR_ROWS - 1); i++)
+		vram[i] = vram[i + VSCR_COLS];
+	for (i = 0; i < VSCR_COLS; i++)
+		vram[VSCR_COLS * (SCR_ROWS - 1) + i] = ' ';
 }
 
-static void new_line(void)
+static void
+new_line(void)
 {
+
 	pos_x = 0;
 	pos_y++;
-	if (pos_y >= SCR_HIGHT) {
-		pos_y = SCR_HIGHT - 1;
+	if (pos_y >= SCR_ROWS) {
+		pos_y = SCR_ROWS - 1;
 		scroll_up();
 	}
 }
 
-static void put_char(char ch)
+static void
+put_char(char ch)
 {
+
 	switch (ch) {
 	case '\n':
 		new_line();
@@ -94,13 +98,13 @@ static void put_char(char ch)
 		return;
 	}
 
-	vram[pos_y * VSCR_WIDTH + pos_x] = ch;
+	vram[pos_y * VSCR_COLS + pos_x] = ch;
 	pos_x++;
-	if (pos_x >= SCR_WIDTH) {
+	if (pos_x >= SCR_COLS) {
 		pos_x = 0;
 		pos_y++;
-		if (pos_y >= SCR_HIGHT) {
-			pos_y = SCR_HIGHT - 1;
+		if (pos_y >= SCR_ROWS) {
+			pos_y = SCR_ROWS - 1;
 			scroll_up();
 		}
 	}
@@ -109,8 +113,10 @@ static void put_char(char ch)
 /*
  * Write
  */
-void diag_print(char *buf)
+void
+diag_print(char *buf)
 {
+
 	while (*buf)
 		put_char(*buf++);
 }
@@ -118,7 +124,8 @@ void diag_print(char *buf)
 /*
  * Init font
  */
-static void init_font(void)
+static void
+init_font(void)
 {
 	int i, row, col, bit, val = 0;
 	u_short *tile = VRAM_TILE;
@@ -140,7 +147,8 @@ static void init_font(void)
 /*
  * Init screen
  */
-static void init_screen(void)
+static void
+init_screen(void)
 {
 	u_short *pal = BG_PALETTE;
 
@@ -155,27 +163,15 @@ static void init_screen(void)
 }
 #endif /* CONFIG_DIAG_SCREEN */
 
-#ifdef CONFIG_DIAG_VBA
-/*
- * VBA console
- */
-void diag_print(char *buf)
-{
-	__asm__ __volatile__(
-	     "mov r0, %0;"
-	     "swi 0xff0000;"
-	     : 
-	     :"r" (buf)
-	     :"r0");	
-}
-#endif /* CONFIG_DIAG_VBA */
 #endif /* DEBUG */
 
 /*
  * Init
  */
-void diag_init(void)
+void
+diag_init(void)
 {
+
 #ifdef DEBUG
 #ifdef CONFIG_DIAG_SCREEN
 	init_font();

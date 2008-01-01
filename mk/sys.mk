@@ -1,19 +1,16 @@
-#
-# Make options for kernel
-#
-include $(PREX_SRC)/mk/own.mk
+include $(SRCDIR)/mk/own.mk
 
-INC_FLAGS = -I$(PREX_SRC)/conf \
-	    -I$(PREX_SRC)/sys/arch/$(PREX_ARCH)/include \
-	    -I$(PREX_SRC)/sys/include
+INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/sys/arch/$(ARCH)/include \
+		-I$(SRCDIR)/sys/include -I$(SRCDIR)/include
 
-ASFLAGS = $(INC_FLAGS)
-CFLAGS = $(INC_FLAGS) -nostdinc -fno-builtin
-CPPFLAGS = $(INC_FLAGS)
-LDFLAGS = -static -nostdlib
+ASFLAGS+=	$(INCLUDE)
+CFLAGS+=	$(INCLUDE) -nostdinc -fno-builtin -DKERNEL
+CPPFLAGS+=	$(INCLUDE) -DKERNEL
+LDFLAGS+=	-static -nostdlib
+LINTFLAGS+=	-DKERNEL
 
-ifeq ($(KTRACE),1)
-CFLAGS += -finstrument-functions
+ifeq ($(CONFIG_KTRACE),y)
+CFLAGS+= -finstrument-functions
 endif
 
-include $(PREX_SRC)/mk/Makefile.inc
+include $(SRCDIR)/mk/Makefile.inc

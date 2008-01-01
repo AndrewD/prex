@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,7 +40,7 @@ static int null_init(void);
 /*
  * Driver structure
  */
-struct driver null_drv __driver_entry = {
+struct driver null_drv = {
 	/* name */	"NULL device",
 	/* order */	2,
 	/* init */	null_init,
@@ -60,8 +60,10 @@ static device_t null_dev;	/* Device object */
 /*
  * Always returns 0 bytes as the read size.
  */
-static int null_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int
+null_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
+
 	*nbyte = 0;
 	return 0;
 }
@@ -69,8 +71,10 @@ static int null_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 /*
  * Data written to this device is discarded.
  */
-static int null_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int
+null_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
+
 	return 0;
 }
 
@@ -78,10 +82,12 @@ static int null_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 /*
  * Initialize
  */
-static int null_init(void)
+static int
+null_init(void)
 {
+
 	/* Create device object */
-	null_dev = device_create(&null_io, "null");
+	null_dev = device_create(&null_io, "null", DF_CHR);
 	ASSERT(null_dev);
 	return 0;
 }

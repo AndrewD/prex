@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,32 +30,40 @@
 /*
  * main.c - driver main routine
  */
+
 #include <driver.h>
-#include <platform.h>
+#include <machdep.h>
+
+#define MAXDRIVER	100
+
+extern struct driver *driver_table[];
 
 /*
  * Entry point of driver module
  */
-void driver_main(void)
+void
+driver_main(void)
 {
 	struct driver *drv;
-	int order, err;
+	int order, i, err;
 
-	printk("Prex driver module build:" __DATE__ "\n");
+	printk("Prex driver module built: " __DATE__ "\n");
 
 	/*
 	 * Initialize platform hardware.
 	 */
-	if (platform_init())
-		panic("Platform initialization failed\n");
+	if (machine_init())
+		panic("driver_main: init failed");
 
 	/*
 	 * Call init routine for all device drivers with init order.
 	 * Smaller value will be run first.
 	 */
 	for (order = 0; order < 16; order++) {
-		for (drv = &__driver_table; drv != &__driver_table_end;
-		     drv++) {
+		for (i = 0; i < MAXDRIVER; i++) {
+			drv = driver_table[i];
+			if (drv == NULL)
+				break;
 			ASSERT(drv->order < 16);
 			if (drv->order == order) {
 				if (drv->init) {

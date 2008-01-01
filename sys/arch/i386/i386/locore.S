@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,12 +31,9 @@
  * locore.S - low level platform support
  */
 
-#define __ASSEMBLY__
-	
-#include <config.h>
-#include <param.h>
+#include <conf/config.h>
 #include <platform.h>
-#include "cpu.h"
+#include <cpu.h>
 
 #define ENTRY(x) .global x; .align 4,0x90; x##:
 
@@ -72,22 +69,35 @@
 	popl	%es;
 
 #define SETUP_SEG \
-	movl	$KERNEL_DS, %edx; \
+	movl	$(KERNEL_DS), %edx; \
 	movl	%edx, %ds; \
 	movl	%edx, %es;
 
-
-	.section ".rodata","a"
-	
+/*
+ * Pointer to boot infomation
+ */
+	.section ".rodata"
 ENTRY(boot_info)
 	.long	PAGE_OFFSET + BOOT_INFO
 
-	.section ".text","ax"
+/*
+ * Interrupt nest counter.
+ *
+ * This counter is incremented in the entry of interrupt handler
+ * to switch the interrupt stack. Since all interrupt handlers
+ * share same one interrupt stack, each handler must pay attention
+ * to the stack overflow.
+ */
+	.section ".bss"
+irq_nesting:
+	.long	0
+
+	.section ".text"
 
 /*
  * Kernel start point
  *
- * The kernel assumes that the following state is already set by 
+ * The kernel assumes that the following state is already set by
  * the kernel loader.
  * - CPU is in protected mode
  * - Segment registers are set as 32-bit flat segment
@@ -104,12 +114,12 @@ ENTRY(kernel_start)
 	cli				/* Disable interrupt */
 	cld
 
-#ifdef CONFIG_MMU	
+#ifdef CONFIG_MMU
 	/*
 	 * Init page table
 	 * The physical address 0-4M is mapped to virtual address 2G.
 	 */
-	movl	$KERNEL_PGD, %edi	/* Setup kernel page directory */
+	movl	$(KERNEL_PGD), %edi	/* Setup kernel page directory */
 	xorl	%eax, %eax		/* Invalidate all address */
 	movl	$0x1000, %ecx
 	rep
@@ -123,15 +133,15 @@ fill_pte0:
 	stosl
 	add	$0x1000, %eax
 	loop	fill_pte0
-	
+
 	/*
 	 * Enable paging
 	 * The physical address 0-4M is mapped to virtial address 0-4M
 	 * temporary. This is needed to enable paging.
 	 */
-	movl	$KERNEL_PGD, %edi	/* Map address 0-4M */
+	movl	$(KERNEL_PGD), %edi	/* Map address 0-4M */
 	movl	$(BOOT_PTE0+0x07), (%edi)
-	movl	$KERNEL_PGD, %eax	/* Set page directory pointer */
+	movl	$(KERNEL_PGD), %eax	/* Set page directory pointer */
 	movl	%eax, %cr3
 	movl	%cr0, %eax		/* Enable paging bit */
 	orl	$0x80000000, %eax
@@ -162,21 +172,11 @@ cs_reset:
 	 * Setup boot stack
 	 */
 	movl	$(PAGE_OFFSET+BOOT_STACK), %edi
-	movl	$(BOOT_STACK_SIZE), %ecx
+	movl	$0x800, %ecx
 	rep
 	stosb
-	movl	$(PAGE_OFFSET+BOOT_STACK+BOOT_STACK_SIZE), %esp
+	movl	$(PAGE_OFFSET+BOOT_STACK+0x800), %esp
 	movl	%esp, %ebp
-	
-	/*
-	 * Initialize basic h/w
-	 */
-	call	diag_init
-	call	cpu_init
-#ifdef CONFIG_GDB
-	call	gdb_init
-#endif
-	call	interrupt_init
 
 	/*
 	 * Call kernel main routine
@@ -266,7 +266,7 @@ trap_ret:
  */
 ENTRY(trap_default)
 	pushl	$0
-	pushl	$INVALID_INT
+	pushl	$(INVALID_INT)
 	jmp	trap_common
 
 /*
@@ -310,7 +310,7 @@ TRAP_ERR_ENTRY(18)		/* Cache flush denied */
 	.global syscall_ret
 ENTRY(syscall_entry)
 	pushl	$0			/* Dummy for error code */
-	pushl	$SYSCALL_INT		/* Trap number */
+	pushl	$(SYSCALL_INT)		/* Trap number */
 	SAVE_ALL
 	SETUP_SEG
 	cmpl	nr_syscalls, %eax
@@ -326,16 +326,16 @@ bad_syscall:
 	movl	$22, 0x18(%esp)		/* Set EINVAL error to eax */
 	jmp	syscall_ret
 
-	
+
 /*
  * Switch register context.
  * Interrupts must be disabled by caller.
  *
- * syntax - void __context_switch(kern_regs *prev, kern_regs *next)
- *	
+ * syntax - void cpu_switch(kern_regs *prev, kern_regs *next)
+ *
  * Note: GCC assumes ebp,edi,esi registers are not changed in each routine.
  */
-ENTRY(__context_switch)
+ENTRY(cpu_switch)
 	movl	4(%esp), %ebx		/* Point ebx to previous registers */
 	movl	(%esp), %eax		/* Get return address */
 	movl	%eax, 0(%ebx)		/* Save it as eip */
@@ -371,7 +371,7 @@ ENTRY(umem_copyin)
 	movl	%esi, %edx		/* Check if valid user address */
 	addl	%ecx, %edx
 	jc	umem_fault
-	cmpl	$USER_MAX, %edx
+	cmpl	$(USER_MAX), %edx
 	jae	umem_fault
 	cld
 known_fault1:				/* May be fault here */
@@ -403,12 +403,12 @@ ENTRY(umem_copyout)
 	movl	%edi, %edx
 	addl	%ecx, %edx
 	jc	umem_fault
-	cmpl	$USER_MAX, %edx
+	cmpl	$(USER_MAX), %edx
 	jae	umem_fault
 	cld
-known_fault2:	
+known_fault2:
 	rep
-	movsb	
+	movsb
 
 	popl	%eax
 	xorl	%eax, %eax		/* Set no error */
@@ -420,7 +420,7 @@ known_fault2:
  * umem_strnlen - Get length of string in user space
  * Returns 0 on success, or EFAULT on page fault.
  *
- *  syntax - int umem_strnlen(void *uaddr, size_t maxlen, size_t *len)
+ *  syntax - int umem_strnlen(const char *uaddr, size_t maxlen, size_t *len)
  *
  * Note: The returned length value does NOT include the NULL terminator.
  */
@@ -435,7 +435,7 @@ ENTRY(umem_strnlen)
 	movl	24(%esp), %esi
 
 	movl	%edi, %edx
-	cmpl	$USER_MAX, %edx
+	cmpl	$(USER_MAX), %edx
 	jae	umem_fault
 	movl	%ecx, %edx
 	cld
@@ -452,7 +452,7 @@ known_fault3:
 	popl	%edi
 	popl	%esi
 	ret
-	
+
 /*
  * Fault entry for user access
  */
@@ -461,18 +461,13 @@ ENTRY(umem_fault)
 	popl	%edi
 	popl	%esi
 	ret
-	
+
 /*
- * Reset system
- * Use KBD reset and triple fault
+ * Reset cpu
+ * Use triple fault
  */
-ENTRY(system_reset)
+ENTRY(cpu_reset)
 	cli
-	mov	$(0xfe), %al		/* Try to do keyboard reset */
-	outb	%al, $(0x64)
-	mov	$(0x100000), %ecx
-wait_reset:
-	loop	wait_reset
 	movl	$null_idt, %eax		/* Reset by triple fault */
 	lidt	(%eax)
 	int	$3

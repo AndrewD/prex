@@ -9,6 +9,10 @@
   <link rel="stylesheet" type="text/css" href="../print.css" media="print">
 </head>
 <body>
+<div id="top">
+</div>
+<div id="middle">
+
 <table id="content" cellpadding="0" cellspacing="0">
   <tbody>
 
@@ -36,12 +40,13 @@
       <a href="index.html">Document Index</a> >
       Kernel API Reference
     </tr>
+    <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
       <td id="main" style="vertical-align: top;">
       <h1>Prex Kernel API Reference</h1>
 
-<i>Version 1.6.1, 2007/04/13</i><br>
+<i>Version 1.7.0, 2007/12/24</i><br>
 <br>
 
 <h3>Table of Contents</h3>
@@ -323,7 +328,7 @@ object_create() - create a new object
 
 <h3>SYNOPSIS</h3>
 <pre>
-int object_create(char *name, object_t *obj);
+int object_create(const char *name, object_t *obj);
 </pre>
 
 <h3>DESCRIPTION</h3>
@@ -381,7 +386,7 @@ object_lookup() - lookup an object
 
 <h3>SYNOPSIS</h3>
 <pre>
-int object_lookup(char *name, object_t *obj);
+int object_lookup(const char *name, object_t *obj);
 </pre>
 
 <h3>DESCRIPTION</h3>
@@ -419,8 +424,8 @@ A thread can send a message to any object if it knows the object ID.
 <br><br>
 The <i>size</i> argument specifies the size of the message buffer to send.
 <br><br>
-The message is the binary data block that does not have any header
-information. So, the kernel does not touch the message contents. And, it is
+The message is the binary data block which includes a message header.
+The kernel does not touch the message body, and it is
 necessary to recognize the predefined message format between sender
 and receiver.
 
@@ -514,14 +519,14 @@ task_create() - create a new task
 
 <h3>SYNOPSIS</h3>
 <pre>
-int task_create(task_t parent, int vm_inherit, task_t *child);
+int task_create(task_t parent, int vm_option, task_t *child);
 </pre>
 
 <h3>DESCRIPTION</h3>
 The task_create() function create a new task.
-If <i>vm_inherit</i> option can be one of the following:
+If <i>vm_option</i> option can be one of the following:
 <ul>
-<li>VM_NONE - The new task has clean memory image.</li>
+<li>VM_NEW - The new task has clean memory image.</li>
 <li>VM_COPY - The new task will have the duplicated memory image with the parent task.</li>
 <li>VM_SHARE - The new task will share the same memory image with the parent task.</li>
 </ul>
@@ -529,7 +534,7 @@ The child task initially contains no threads.
 So, the caller task must create new thread under the child task to
 run it.
 <br><br>
-<i>vm_inherit</i> flag is supported only with MMU system. The created
+<i>vm_option</i> flag is supported only with MMU system. The created
 task has always new memory map with NOMMU system.
 <br><br>
 The function returns the created task ID in <i>child</i>,
@@ -648,7 +653,7 @@ task_name() - set task name
 
 <h3>SYNOPSIS</h3>
 <pre>
-int task_name(task_t task, char *name);
+int task_name(task_t task, const char *name);
 </pre>
 
 <h3>DESCRIPTION</h3>
@@ -967,8 +972,8 @@ The kernel supports the following scheduling policy.
 <dt>[EINVAL]</dt>
 <dd>The kernel does not support the specified policy.</dd>
 <dt>[EPERM]</dt>
-<dd>The caller task is not an owner of the specified <i>th</i>, but the caller
-task does not have CAP_NICE capability.</dd>
+<dd>The caller task is not an owner of the specified <i>th</i>, or the caller
+task does not have CAP_NICE capability to change the parameter.</dd>
 </dl>
 <br>
 
@@ -1327,7 +1332,7 @@ device_open() - open a device
 
 <h3>SYNOPSIS</h3>
 <pre>
-int device_open(char *name, int mode, device_t *dev);
+int device_open(const char *name, int mode, device_t *dev);
 </pre>
 
 <h3>DESCRIPTION</h3>
@@ -1998,16 +2003,20 @@ The kernel supports the following commands.
 
       </td>
     </tr>
+    <tr>
+      <td id="footer" colspan="2" style="vertical-align: top;">
+        <a href="http://sourceforge.net">
+        <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
+        alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
+        Copyright&copy; 2005-2007 Kohsuke Ohtani
+      </td>
+    </tr>
 
   </tbody>
 </table>
 
-      <div id="footer" style="text-align:center;">
-      <a href="http://sourceforge.net">
-      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
-      alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
-      Copyright&copy; 2005-2007 Kohsuke Ohtani
-      </div>
+</div>
+<div id="bottom"></div>
 
 </body>
 </html>

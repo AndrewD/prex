@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,25 +30,17 @@
 #ifndef _TIMER_H
 #define _TIMER_H
 
-#include <list.h>
 #include <event.h>
-#include <hook.h>
 
-struct thread;
-
-/*
- * Callout timer
- */
 struct timer {
-	struct list	link;		/* Linkage on timer chain */
-	int		active;		/* True if active */
-	u_long		expire;		/* Expire time (ticks) */
-	u_long		interval;	/* Time interval */
-	void		(*func)(void *); /* Function to call */
-	void		*arg;		/* Function argument */
-	struct event	event;		/* Event for this timer */
+	struct list	link;		/* linkage on timer chain */
+	int		active;		/* true if active */
+	u_long		expire;		/* expire time (ticks) */
+	u_long		interval;	/* time interval */
+	struct event	event;		/* event for this timer */
+	void (*func)(void *);		/* function to call */
+	void		*arg;		/* function argument */
 };
-typedef struct timer *timer_t;
 
 /*
  * Macro to compare two timer counts.
@@ -63,26 +55,26 @@ typedef struct timer *timer_t;
 /*
  * Macro to convert milliseconds and tick.
  */
-#define msec_to_tick(ms) (((ms) >= 0x20000) ? \
-	    ((ms) / 1000UL) * HZ : \
-	    ((ms) * HZ) / 1000UL)
+#define msec_to_tick(ms)	(((ms) >= 0x20000) ? \
+				 ((ms) / 1000UL) * HZ : ((ms) * HZ) / 1000UL)
 
-#define tick_to_msec(tick) (((tick) * 1000) / HZ)
+#define tick_to_msec(tick)	(((tick) * 1000) / HZ)
 
-extern void timer_init(void);
-extern void timer_tick(void);
-extern void timer_stop(timer_t tmr);
-extern void timer_timeout(timer_t tmr, void (*func)(void *),
-			  void *arg, u_long msec);
-extern u_long timer_delay(u_long msec);
-extern void timer_cleanup(struct thread *th);
-extern void timer_hook(hook_t hook, void (*func)(void *));
-extern void timer_unhook(hook_t hook);
-extern u_long timer_count(void);
 
-extern int timer_sleep(u_long delay, u_long *remain);
-extern int timer_alarm(u_long delay, u_long *remain);
-extern int timer_periodic(struct thread *th, u_long start, u_long period);
-extern int timer_waitperiod(void);
+extern void	 timer_callout(struct timer *, void (*)(void *), void *,
+			       u_long);
+extern void	 timer_stop(struct timer *);
+extern u_long	 timer_delay(u_long);
+extern int	 timer_sleep(u_long, u_long *);
+extern int	 timer_alarm(u_long, u_long *);
+extern int	 timer_periodic(struct thread *, u_long, u_long);
+extern int	 timer_waitperiod(void);
+extern void	 timer_cleanup(struct thread *);
+extern int	 timer_hook(void (*)(int));
+extern void	 timer_tick(void);
+extern u_long	 timer_count(void);
+extern void	 timer_info(struct info_timer *);
+extern void	 timer_dump(void);
+extern void	 timer_init(void);
 
 #endif /* !_TIMER_H */

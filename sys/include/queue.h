@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,7 +34,6 @@ struct queue {
 	struct queue *next;
 	struct queue *prev;
 };
-
 typedef struct queue *queue_t;
 
 #define queue_init(head)	((head)->next = (head)->prev = (head))
@@ -49,9 +48,9 @@ typedef struct queue *queue_t;
 #define queue_entry(q, type, member) \
     ((type *)((char *)(q) - (unsigned long)(&((type *)0)->member)))
 
-extern void enqueue(queue_t head, queue_t item);
-extern queue_t dequeue(queue_t head);
-extern void queue_insert(queue_t prev, queue_t item);
-extern void queue_remove(queue_t item);
+extern void	 enqueue(queue_t, queue_t);
+extern queue_t	 dequeue(queue_t);
+extern void	 queue_insert(queue_t, queue_t);
+extern void	 queue_remove(queue_t);
 
 #endif /* !_QUEUE_H */

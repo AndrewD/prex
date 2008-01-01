@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,9 +37,6 @@
 
 /* Interrupt vector for timer (TMR0 of GBA) */
 #define CLOCK_IRQ	3
-
-/* Interrupt priority level */
-#define IPL_CLOCK	0
 
 /* The clock rate per second ... 2^24 */
 #define CLOCK_RATE	16777216L
@@ -70,11 +67,14 @@
  * Clock interrupt service routine.
  * No H/W reprogram is required.
  */
-static int clock_isr(int irq)
+static int
+clock_isr(int irq)
 {
+
 	irq_lock();
 	timer_tick();
 	irq_unlock();
+
 	return INT_DONE;
 }
 
@@ -82,7 +82,8 @@ static int clock_isr(int irq)
  * Initialize clock H/W chip.
  * Setup clock tick rate and install clock ISR.
  */
-void clock_init(void)
+void
+clock_init(void)
 {
 	int clock_irq;
 
@@ -90,6 +91,6 @@ void clock_init(void)
 	TMR0_CTRL = (uint16_t)(TMR_IRQEN | TMR_64_CLOCK);
 	clock_irq = irq_attach(CLOCK_IRQ, IPL_CLOCK, 0, clock_isr, NULL);
 	TMR0_CTRL |= TMR_EN;
-	
+
 	ASSERT(clock_irq != -1);
 }

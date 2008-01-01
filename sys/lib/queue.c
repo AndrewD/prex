@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +36,8 @@
 /*
  * Insert element at tail of queue
  */
-void enqueue(queue_t head, queue_t item)
+void
+enqueue(queue_t head, queue_t item)
 {
 	item->next = head;
 	item->prev = head->prev;
@@ -47,7 +48,8 @@ void enqueue(queue_t head, queue_t item)
 /*
  * Remove and return element of head of queue
  */
-queue_t dequeue(queue_t head)
+queue_t
+dequeue(queue_t head)
 {
 	queue_t item;
 
@@ -62,7 +64,8 @@ queue_t dequeue(queue_t head)
 /*
  * Insert element after specified element
  */
-void queue_insert(queue_t prev, queue_t item)
+void
+queue_insert(queue_t prev, queue_t item)
 {
 	item->prev = prev;
 	item->next = prev->next;
@@ -73,7 +76,8 @@ void queue_insert(queue_t prev, queue_t item)
 /*
  * Remove specified element from queue
  */
-void queue_remove(queue_t item)
+void
+queue_remove(queue_t item)
 {
 	item->prev->next = item->next;
 	item->next->prev = item->prev;

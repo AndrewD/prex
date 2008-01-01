@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,6 +29,8 @@
 
 #ifndef _DEBUG_H
 #define _DEBUG_H
+
+#define MSGBUFSZ	128	/* Size of one kernel message */
 
 /*
  * BREAKPOINT()
@@ -64,8 +66,8 @@ extern void printk(const char *fmt, ...);
 #ifdef DEBUG
 extern void panic(const char *fmt, ...);
 #else
-extern void system_reset(void);
-#define panic(fmt...) system_reset()
+extern void machine_reset(void);
+#define panic(fmt...)	machine_reset()
 #endif
 
 /*
@@ -87,44 +89,14 @@ extern void assert(const char *file, int line, const char *exp);
 #endif
 
 /*
- * IRQ_ASSERT()
- *
- * Assert if current processor mode is at interrupt level.
- * There are some routines that can not be called at interrupt
- * level. You can catch the invalid function call by driver
- * with this macro.
- */
-#ifdef DEBUG
-extern volatile int irq_nesting;
-#define IRQ_ASSERT() do { if (irq_nesting > 0) \
-    assert(__FILE__, __LINE__, \
-            "bad irq level"); } while (0)
-#else
-#define IRQ_ASSERT()	do {} while (0)
-#endif
-
-#ifdef CONFIG_KTRACE
-/*
- * Entry for kernel function trace
- */
-struct trace_entry {
-	void	*func;		/* Pointer to function */
-	int	type;		/* Function type */
-};
-
-/* Types of trace function */
-#define FUNC_NONE	0
-#define FUNC_ENTER	1
-#define FUNC_EXIT	2
-#endif /* CONFIG_KTRACE */
-
-/*
  * Command for sys_debug()
  */
-#define DBGCMD_DUMP	0
+#define DCMD_DUMP	0
+#define DCMD_LOGSIZE	1
+#define DCMD_GETLOG	2
 
 /*
- * Items for kernel_dump()
+ * Items for debug_dump()
  */
 #define DUMP_THREAD	1
 #define DUMP_TASK	2
@@ -137,22 +109,10 @@ struct trace_entry {
 #define DUMP_TRACE	9
 
 #ifdef DEBUG
-extern void thread_dump();
-extern void task_dump();
-extern void object_dump();
-extern void timer_dump();
-extern void irq_dump();
-extern void page_dump();
-extern void device_dump();
-extern void kmem_dump();
-extern void vm_dump();
-
-extern void boot_dump();
-extern void memory_dump(void *phys, size_t size);
-#endif /* !DEBUG */
-
-extern int kernel_dump(int item);
-extern void debug_init(void);
-extern void debug_attach(void (*func)(char *));
+extern void	 boot_dump(void);
+extern int	 log_get(char **, size_t *);
+#endif
+extern int	 debug_dump(int);
+extern void	 debug_attach(void (*)(char *));
 
 #endif /* !_DEBUG_H */

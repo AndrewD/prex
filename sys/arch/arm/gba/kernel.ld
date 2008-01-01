@@ -10,13 +10,11 @@ SECTIONS
 {
 	. = 0x02000000 + SIZEOF_HEADERS;
 
-	__text = .;
 	.text : {
 		*(.text)
 		*(.glue_7)
 		*(.glue_7t)
 	} : text = 0xff
-	__etext = .;
 
 	. = ALIGN(4);
 	.rodata : {
@@ -27,7 +25,6 @@ SECTIONS
 	.data ALIGN(4) : {
 		*(.data)
 	} : data = 0xff
-	__edata = .;
 
 	. = ALIGN(4);
 	__bss = . ;

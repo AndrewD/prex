@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -45,10 +45,8 @@
  */
 
 #include <kernel.h>
-#include "cpu.h"
-
-extern void syscall_ret(void);
-extern void __context_switch(struct kern_regs *, struct kern_regs *);
+#include <cpu.h>
+#include <locore.h>
 
 /*
  * Exception frame - stack layout for exception handler
@@ -61,13 +59,14 @@ struct exc_frame {
 
 /*
  * Initialize specified context.
- * All thread will start at syscall_ret().
- * In this time, the interrupt and I/O access are enabled.
- * 
  * @ctx: context id (pointer)
  * @kstack: kernel stack for the context
+ *
+ * All thread will start at syscall_ret().
+ * In this time, the interrupt and I/O access are enabled.
  */
-void context_init(context_t ctx, void *kstack)
+void
+context_init(context_t ctx, u_long kstack)
 {
 	struct kern_regs *k;
 	struct cpu_regs *u;
@@ -88,20 +87,20 @@ void context_init(context_t ctx, void *kstack)
 
 /*
  * Set data to the specific register stored in context.
- *
  * @type: register type to be set
  * @val: register value to be set
  *
  * Note: When user mode program counter is set, all register
  * values except stack pointer are reset to default value.
  */
-void context_set(context_t ctx, int type, u_long val)
+void
+context_set(context_t ctx, int type, u_long val)
 {
 	struct kern_regs *k;
 	struct cpu_regs *u;
 
 	switch (type) {
-	case USER_ENTRY:	/* User mode program counter */
+	case CTX_UENTRY:	/* User mode program counter */
 		u = ctx->uregs;
 		u->eax = u->ebx = u->ecx = u->edx =
 		    u->edi = u->esi = u->ebp = 0;
@@ -110,16 +109,16 @@ void context_set(context_t ctx, int type, u_long val)
 		u->eflags = EFL_IF | EFL_IOPL_KERN;
 		u->eip = val;
 		break;
-	case USER_STACK:	/* User mode stack pointer */
+	case CTX_USTACK:	/* User mode stack pointer */
 		u = ctx->uregs;
 		u->esp = val;
 		u->ss = USER_DS | 3;
 		break;
-	case KERN_ENTRY:	/* Kernel mode program counter */
+	case CTX_KENTRY:	/* Kernel mode program counter */
 		k = &ctx->kregs;
 		k->eip = val;
 		break;
-	case KERN_ARG:		/* Kernel mode argument */
+	case CTX_KARG:		/* Kernel mode argument */
 		k = &ctx->kregs;
 		*(u_long *)(k->esp + sizeof(u_long) * 2) = val;
 		break;
@@ -142,18 +141,18 @@ void context_set(context_t ctx, int type, u_long val)
  *
  * TODO: FPU context is not switched as of now.
  */
-void context_switch(context_t prev, context_t next)
+void
+context_switch(context_t prev, context_t next)
 {
 	/* Set kernel stack pointer in TSS (esp0). */
 	tss_set((u_long)next->esp0);
 
 	/* Save the previous context, and restore the next context */
-	__context_switch(&prev->kregs, &next->kregs);
+	cpu_switch(&prev->kregs, &next->kregs);
 }
 
 /*
  * Save user mode context to handle exceptions.
- *
  * @exc: exception code passed to the exception handler
  *
  * Copy current user mode registers in the kernel stack to the user
@@ -166,7 +165,8 @@ void context_switch(context_t prev, context_t next)
  *
  *   void exception_handler(int exc, void *regs);
  */
-void context_save(context_t ctx, int exc)
+void
+context_save(context_t ctx, int exc)
 {
 	struct cpu_regs *cur, *sav;
 	struct exc_frame *frm;
@@ -186,10 +186,10 @@ void context_save(context_t ctx, int exc)
 
 /*
  * Restore register context to return from the exception handler.
- *
  * @regs: pointer to user mode register context.
  */
-void context_restore(context_t ctx, void *regs)
+void
+context_restore(context_t ctx, void *regs)
 {
 	struct cpu_regs *cur;
 

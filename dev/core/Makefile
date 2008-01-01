@@ -1,4 +1,5 @@
-TARGET	= core.o
-TYPE	= OBJECT
-OBJS-y	= main.o
-include $(PREX_SRC)/mk/dev.mk
+TARGET=	core.o
+TYPE=	OBJECT
+OBJS-y=	main.o dev_conf.o
+
+include $(SRCDIR)/mk/dev.mk

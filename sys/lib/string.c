@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,13 +31,14 @@
  * string.c - Minimum string library for kernel
  */
 
-#include <types.h>
+#include <sys/types.h>
 
 /*
  * Safer version of strncpy
  * The destination string is always terminated with NULL character.
  */
-size_t strlcpy(char *dest, const char *src, size_t count)
+size_t
+strlcpy(char *dest, const char *src, size_t count)
 {
 	char *d = dest;
 	const char *s = src;
@@ -62,7 +63,8 @@ size_t strlcpy(char *dest, const char *src, size_t count)
 	return (size_t)(s - src - 1);	/* count does not include NUL */
 }
 
-int strncmp(const char *src, const char *tgt, size_t count)
+int
+strncmp(const char *src, const char *tgt, size_t count)
 {
 	register signed char res = 0;
 
@@ -75,7 +77,8 @@ int strncmp(const char *src, const char *tgt, size_t count)
 }
 
 /* The returned size does not include the last NULL char */
-size_t strnlen(const char *str, size_t count)
+size_t
+strnlen(const char *str, size_t count)
 {
 	const char *tmp;
 
@@ -83,7 +86,8 @@ size_t strnlen(const char *str, size_t count)
 	return (size_t)(tmp - str);
 }
 
-void *memcpy(void *dest, const void *src, size_t count)
+void *
+memcpy(void *dest, const void *src, size_t count)
 {
 	char *tmp = (char *)dest, *s = (char *)src;
 
@@ -93,7 +97,8 @@ void *memcpy(void *dest, const void *src, size_t count)
 	return dest;
 }
 
-void *memset(void *dest, int ch, size_t count)
+void *
+memset(void *dest, int ch, size_t count)
 {
 	char *p = (char *)dest;
 

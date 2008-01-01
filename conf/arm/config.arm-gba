@@ -1,0 +1,76 @@
+#
+# System configuration file.
+#
+
+#
+# Tunable paramters
+#
+CONFIG_HZ=100			# Ticks/second of the clock
+CONFIG_TIME_SLICE=100		# Context switch ratio (msec)
+CONFIG_PAGE_SIZE=1024		# Physical/logical page size
+CONFIG_KSTACK_SIZE=768		# Kernel stack size
+CONFIG_USTACK_SIZE=4096		# User stack size
+CONFIG_USER_PRIO=200		# Default priority for user threads
+CONFIG_OPEN_MAX=8		# Max open files per process
+CONFIG_BUF_CACHE=8		# Blocks for buffer cache
+CONFIG_FS_THREADS=1		# Number of file system threads
+
+#
+# Platform settings
+#
+CONFIG_MMU=n			# Memory management unit
+CONFIG_CACHE=n			# Cache memory
+CONFIG_FPU=n			# Floating point unit
+CONFIG_XIP=y			# Execution in place
+CONFIG_LITTLE_ENDIAN=y		# Byte order
+CONFIG_BIG_ENDIAN=n		# Byte order
+CONFIG_ROM_BOOT=y		# Boot from ROM
+
+#
+# Device drivers
+#
+CONFIG_KEYBOARD=y		# Keyboard
+CONFIG_CONSOLE=y		# Console
+CONFIG_FDD=n			# Floppy disk drive
+CONFIG_MOUSE=n			# Mouse
+CONFIG_RTC=n			# Real time clock
+CONFIG_RAMDISK=y		# RAM disk
+CONFIG_TTY=y			# TTY driver
+CONFIG_PM=y			# Power management
+CONFIG_CPUFREQ=n		# CPU frequency control
+CONFIG_KEYPAD=y			# Keypad
+
+#
+# Power management
+#
+CONFIG_PM_POWERSAVE=n		# Power policy: Battery optimized
+CONFIG_PM_PERFORMANCE=n		# Power policy: Parformance optimized
+CONFIG_DVS_EMULATION=n		# Dynamic voltage scaling emulation
+
+#
+# Diagnostic options
+#
+CONFIG_DIAG_SCREEN=y		# Diagnostic via screen
+CONFIG_DIAG_VBA=n		# Diagnostic via VBA emulater
+
+#
+# Kernel hacking
+#
+CONFIG_KDUMP=n			# Kernel dump
+CONFIG_DMESG=n			# Enable ring buffer for diagnostic message
+CONFIG_GDB=n			# GDB stub
+CONFIG_VMTRACE=n		# Trace virtual memory allocation
+CONFIG_MIN_MEMORY=n		# Test under limited memory size
+
+#
+# File system
+#
+CONFIG_DEVFS=y			# Device file system
+CONFIG_RAMFS=y			# RAM file system
+CONFIG_ARFS=y			# Archive file system
+CONFIG_FATFS=n			# FAT file system
+
+#
+# Executable file formats
+#
+CONFIG_ELF=y			# ELF file format

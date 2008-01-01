@@ -1,4 +1,7 @@
-TARGET	= libdev.a
-TYPE	= LIBRARY
-OBJS	= stdlib.o string.o queue.o assert.o
-include $(PREX_SRC)/mk/dev.mk
+TARGET=	libdev.a
+TYPE=	LIBRARY
+OBJS=	queue.o assert.o atol.o \
+	htonl.o htons.o ntohl.o ntohs.o \
+	strncpy.o strlcpy.o strncmp.o strnlen.o memcpy.o memset.o
+
+include $(SRCDIR)/mk/dev.mk

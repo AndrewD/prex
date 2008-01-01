@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,65 +34,57 @@
 #ifndef _DRIVER_H
 #define _DRIVER_H
 
-#include <config.h>
-#include <types.h>
-#include <errno.h>
-#include <list.h>
+#include <conf/config.h>
+#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/null.h>
+#include <sys/types.h>
+#include <sys/errno.h>
+#include <sys/list.h>
+#include <prex/bootinfo.h>
 #include <queue.h>
-#include <bootinfo.h>
+#include <drvlib.h>
 
 /*
- * Clock Rate
+ * Kernel types
  */
-#define HZ		CONFIG_HZ	/* Ticks per second */
+typedef unsigned long	device_t;
+typedef unsigned long	task_t;
 
-/*
- * Page
- */
-#define PAGE_SIZE	CONFIG_PAGE_SIZE	/* Bytes per page */
+#define NULL_DEVICE	((device_t)0)
+#define NULL_TASK	((task_t)0)
 
 /*
  * Driver structure
  *
  * "order" is initialize order which must be between 0 and 15.
  * The driver with order 0 is called first.
- *
- * The maximum length of device name is 12.
  */
 struct driver {
 	const char	*name;		/* Name of device driver */
 	const int	order;		/* Initialize order */
-	int		(*init)();	/* Initialize routine */
+	int		(*init)(void);	/* Initialize routine */
 };
-typedef struct driver *driver_t;
-
-#define __driver_entry __attribute__ ((section(".driver_table")))
-
-extern struct driver __driver_table, __driver_table_end;
 
 /*
  * Device I/O table
  */
 struct devio {
-	int (*open)();
-	int (*close)();
-	int (*read)();
-	int (*write)();
-	int (*ioctl)();
-	int (*event)();
+	int (*open)	(device_t dev, int mode);
+	int (*close)	(device_t dev);
+	int (*read)	(device_t dev, char *buf, size_t *nbyte, int blkno);
+	int (*write)	(device_t dev, char *buf, size_t *nbyte, int blkno);
+	int (*ioctl)	(device_t dev, int cmd, u_long arg);
+	int (*event)	(int event);
 };
-typedef struct devio *devio_t;
-
-typedef int *device_t;
 
 /*
- * Device Object
+ * Flags for device_create()
  */
-extern device_t device_create(devio_t io, const char *name);
-extern int device_delete(device_t dev);
-extern int device_broadcast(int event, int force);
-
-#define MAX_DEVNAME	12
+#define DF_CHR		0x00000001	/* Character device */
+#define DF_BLK		0x00000002	/* Block device */
+#define DF_RDONLY	0x00000004	/* Read only device */
+#define DF_REM		0x00000008	/* Removable device */
 
 /*
  * Device open mode
@@ -103,44 +95,6 @@ extern int device_broadcast(int event, int force);
 #define DO_RWMASK	0x3
 
 /*
- * Device event
- */
-#define EVT_SHUTDOWN	0
-#define EVT_SUSPEND	1
-#define EVT_RESUME	2
-#define EVT_REMOVE	3
-#define EVT_INSERT	4
-	
-/*
- * Kernel Memory
- */
-extern void *kmem_alloc(size_t size);
-extern void  kmem_free(void *ptr);
-extern void *kmem_map(void *addr, size_t size);
-
-/*
- * User memory access
- */
-extern int umem_copyin(void *uaddr, void *kaddr, size_t len);
-extern int umem_copyout(void *kaddr, void *uaddr, size_t len);
-extern int umem_strnlen(void *uaddr, size_t maxlen, size_t *len);
-
-/*
- * Physical page services
- */
-#define PAGE_SIZE	CONFIG_PAGE_SIZE
-#define PAGE_MASK	(PAGE_SIZE-1)
-#define PAGE_ALIGN(n)	((((u_long)(n)) + PAGE_MASK) & ~PAGE_MASK)
-#define PAGE_TRUNC(n)	(((u_long)(n)) & ~PAGE_MASK)
-
-extern void *page_alloc(size_t size);
-extern void page_free(void *addr, size_t size);
-extern int page_reserve(void *addr, size_t size);
-
-extern void *phys_to_virt(void *p_addr);
-extern void *virt_to_phys(void *v_addr);
-
-/*
  * Return value of ISR
  */
 #define INT_DONE	0
@@ -148,49 +102,36 @@ extern void *virt_to_phys(void *v_addr);
 #define INT_CONTINUE	2
 
 /*
- * Interrupt services
+ * Interrupt priority levels
  */
-extern int irq_attach(int irqno, int level, int shared, int (*isr)(int), void (*ist)(int));
-extern void irq_detach(int handle);
-extern void irq_lock(void);
-extern void irq_unlock(void);
-
-/*
- * Interrupt priority level
- */
-#define IPL_CLOCK	0	/* System Clock Timer */
-#define IPL_RTC		1	/* RTC Alarm */
-#define IPL_BUS		2	/* USB, PCCARD */
-#define IPL_AUDIO	3	/* Audio */
-#define IPL_INPUT	4	/* Keyboard, Mouse */
+#define IPL_NONE	0	/* Nothing */
+#define IPL_COMM	1	/* Serial, Parallel */
+#define IPL_BLOCK	2	/* FDD, IDE */
+#define IPL_NET		3	/* Network */
 #define IPL_DISPLAY	4	/* Screen */
-#define IPL_NET		5	/* Network */
-#define IPL_BLOCK	6	/* FDD, IDE */
-#define IPL_COMM	7	/* Serial, Parallel */
+#define IPL_INPUT	5	/* Keyboard, Mouse */
+#define IPL_AUDIO	6	/* Audio */
+#define IPL_BUS		7	/* USB, PCCARD */
+#define IPL_RTC		8	/* RTC Alarm */
+#define IPL_PROFILE	9	/* Profiling timer */
+#define IPL_CLOCK	10	/* System Clock Timer */
+#define IPL_HIGH	11	/* Everything */
+
+#define NIPL		12
 
 /*
  * Event for sleep/wakeup
  */
 struct event {
-	struct queue sleepq;	/* Queue for waiting thread */
-	char *name;		/* Event name */
+	struct queue	sleepq;		/* queue for waiting thread */
+	const char	*name;		/* pointer to event name string */
 };
-typedef struct event *event_t;
 
 #define EVENT_INIT(event, evt_name) \
     { {&(event).sleepq, &(event).sleepq}, evt_name}
 
 #define event_init(event, evt_name) \
     do { list_init(&(event)->sleepq); (event)->name = evt_name; } while (0)
-
-/*
- * System hook descriptor
- */
-struct hook {
-	struct list	link;		/* Linkage on hook chain */
-	void		(*func)(void *); /* Hook function */
-};
-typedef struct hook *hook_t;
 
 /*
  * Sleep result
@@ -210,18 +151,6 @@ struct dpc {
 	void		(*func)(void *); /* Call back routine */
 	void		*arg;		/* Argument to pass */
 };
-typedef struct dpc *dpc_t;
-
-/*
- * Scheduler services
- */
-extern void sched_lock(void);
-extern void sched_unlock(void);
-extern int sched_tsleep(event_t event, u_long timeout);
-extern void sched_wakeup(event_t event);
-extern void sched_dpc(dpc_t dpc, void (*func)(void *), void *arg);
-
-#define sched_sleep(event)  sched_tsleep((event), 0)
 
 /*
  * Macro to convert milliseconds and tick.
@@ -244,66 +173,11 @@ struct timer {
 	void		*arg;		/* Function argument */
 	struct event	event;		/* Event for this timer */
 };
-typedef struct timer *timer_t;
 
 #define timer_init(tmr)     (tmr)->expire = 0;
 
 /*
- * Timer services
- */
-extern void timer_timeout(timer_t tmr, void (*func)(u_long), u_long arg, u_long msec);
-extern void timer_stop(timer_t tmr);
-extern u_long timer_delay(u_long msec);
-extern u_long timer_count(void);
-extern void timer_hook(hook_t hook, void (*func)(void *));
-extern void timer_unhook(hook_t hook);
-
-/*
- * Security services
- */
-extern int task_capable(int cap);
-
-/*
- * printk()
- *
- * Print the debug message to the output device.
- * The message is enabled only when DEBUG build.
- */
-#ifdef DEBUG
-extern void printk(const char *fmt, ...);
-#else
-#define printk(fmt...)
-#endif
-
-/*
- * panic()
- *
- * Reset CPU for fatal error.
- * If debugger is attached, break into it.
- */
-#ifdef DEBUG
-extern void panic(const char *fmt, ...);
-#else
-#undef panic
-#define panic(fmt...)  do { for (;;) ; } while (0)
-#endif
-
-/*
- * ASSERT(exp)
- *
- *  If exp is false(zero), stop with source info.
- *  This is enabled only when DEBUG build.
- */
-#ifdef DEBUG
-extern void assert(const char *file, int line, const char *exp);
-#define ASSERT(exp) do { if (!(exp)) \
-    assert(__FILE__, __LINE__, #exp); } while (0)
-#else
-#define ASSERT(exp)
-#endif
-
-/*
- * Kenrel dump
+ * Items for debug_dump()
  */
 #define DUMP_THREAD	1
 #define DUMP_TASK	2
@@ -315,10 +189,65 @@ extern void assert(const char *file, int line, const char *exp);
 #define DUMP_MSGLOG	8
 #define DUMP_TRACE	9
 
-extern int kernel_dump(int index);
+__BEGIN_DECLS
+device_t device_create(struct devio *io, const char *name, int flags);
+int	 device_destroy(device_t dev);
+int	 device_broadcast(int event, int force);
 
-extern void system_reset(void);
-extern void debug_attach(void (*func)(char *));
-extern void system_bootinfo(struct boot_info **);
+int	 umem_copyin(void *uaddr, void *kaddr, size_t len);
+int	 umem_copyout(void *kaddr, void *uaddr, size_t len);
+int	 umem_strnlen(const char *uaddr, size_t maxlen, size_t *len);
+
+void	*kmem_alloc(size_t size);
+void	 kmem_free(void *ptr);
+void	*kmem_map(void *addr, size_t size);
+
+void	*page_alloc(size_t size);
+void	 page_free(void *addr, size_t size);
+int	 page_reserve(void *addr, size_t size);
+
+int	 irq_attach(int irqno, int level, int shared, int (*isr)(int), void (*ist)(int));
+void	 irq_detach(int handle);
+void	 irq_lock(void);
+void	 irq_unlock(void);
+
+void	 timer_callout(struct timer *tmr, void (*func)(u_long), u_long arg, u_long msec);
+void	 timer_stop(struct timer *tmr);
+u_long	 timer_delay(u_long msec);
+u_long	 timer_count(void);
+int	 timer_hook(void (*func)(int));
+
+void	 sched_lock(void);
+void	 sched_unlock(void);
+int	 sched_tsleep(struct event *evt, u_long timeout);
+void	 sched_wakeup(struct event *evt);
+void	 sched_dpc(struct dpc *dpc, void (*func)(void *), void *arg);
+#define	 sched_sleep(event)  sched_tsleep((event), 0)
+
+int	 exception_post(task_t task, int exc);
+int	 task_capable(int cap);
+
+void	*phys_to_virt(void *p_addr);
+void	*virt_to_phys(void *v_addr);
+
+void	 machine_reset(void);
+void	 machine_idle(void);
+void	 machine_bootinfo(struct boot_info **);
+
+void	 debug_attach(void (*func)(char *));
+int	 debug_dump(int index);
+
+#ifdef DEBUG
+void	 printk(const char *fmt, ...);
+void	 panic(const char *fmt, ...);
+void	 assert(const char *file, int line, const char *exp);
+#define ASSERT(exp) do { if (!(exp)) \
+	assert(__FILE__, __LINE__, #exp); } while (0)
+#else
+#define printk(fmt...)  do {} while (0)
+#define panic(fmt...)  do { for (;;) ; } while (0)
+#define ASSERT(exp)
+#endif
+__END_DECLS
 
 #endif /* !_DRIVER_H */

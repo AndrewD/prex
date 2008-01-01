@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,81 +33,64 @@
 #include <event.h>
 #include <task.h>
 
-/*
- * Semaphore
- */
-struct semaphore {
-	int		magic;	/* Magic number */
-	task_t		task;	/* Owner task */
-	struct event	event;	/* Event */
-	u_int		value;	/* Current value */
+struct sem {
+	int		magic;		/* magic number */
+	task_t		task;		/* owner task */
+	struct event	event;		/* event */
+	u_int		value;		/* current value */
 };
-typedef struct semaphore *sem_t;
 
-#define SEM_MAX		((u_int)((~0u) >> 1))
-#define SEM_MAGIC	0x53656d3f	/* 'Sem?' */
-
-#define sem_valid(s) (kern_area(s) && ((s)->magic == SEM_MAGIC))
-
-extern int sem_init(sem_t *sem, u_int value);
-extern int sem_destroy(sem_t *sem);
-extern int sem_wait(sem_t *sem, u_long timeout);
-extern int sem_trywait(sem_t *sem);
-extern int sem_post(sem_t *sem);
-extern int sem_getvalue(sem_t *sem, u_int *value);
-
-
-/*
- * Mutex
- */
 struct mutex {
-	int		magic;	/* Magic number */
-	task_t		task;	/* Owner task */
-	struct event	event;	/* Event */
-	struct list	link;	/* Link to locked mutex list */
-	thread_t	owner;	/* Owner thread locking this mutex */
-	int		prio;	/* Highest prio in waiting threads */
-	int		lock_count; /* Counter for recursive lock */
+	int		magic;		/* magic number */
+	task_t		task;		/* owner task */
+	struct event	event;		/* event */
+	struct list	link;		/* linkage on locked mutex list */
+	thread_t	owner;		/* owner thread locking this mutex */
+	int		prio;		/* highest prio in waiting threads */
+	int		lock_count;	/* counter for recursive lock */
 };
-typedef struct mutex *mutex_t;
 
-#define MUTEX_MAGIC		0x4d75783f		/* 'Mux?' */
-#define MUTEX_INITIALIZER	(mutex_t)0x4d496e69	/* 'MIni' */
+struct cond {
+	int		magic;		/* magic number */
+	task_t		task;		/* owner task */
+	struct event	event;		/* event */
+};
 
-#define mutex_valid(m)  (kern_area(m) && \
+#define sem_valid(s)	(kern_area(s) && ((s)->magic == SEM_MAGIC))
+
+#define mutex_valid(m)	(kern_area(m) && \
 			 ((m)->magic == MUTEX_MAGIC) && \
 			 ((m)->task == cur_task()))
 
-extern int mutex_init(mutex_t *mtx);
-extern int mutex_destroy(mutex_t *mtx);
-extern int mutex_lock(mutex_t *mtx);
-extern int mutex_trylock(mutex_t *mtx);
-extern int mutex_unlock(mutex_t *mtx);
-extern void mutex_cleanup(thread_t th);
-extern void mutex_setprio(thread_t th, int prio);
+#define cond_valid(c)	(kern_area(c) && \
+			 ((c)->magic == COND_MAGIC) && \
+			 ((c)->task == cur_task()))
 
+/* maximum value for semaphore. */
+#define MAXSEMVAL		((u_int)((~0u) >> 1))
 
-/*
- * Condition Variable
- */
-struct cond {
-	int		magic;	/* Magic number */
-	task_t		task;	/* Owner task */
-	struct event	event;	/* Event */
-};
-typedef struct cond *cond_t;
-
-#define COND_MAGIC		0x436f6e3f	/* 'Con?' */
+#define MUTEX_INITIALIZER	(mutex_t)0x4d496e69	/* 'MIni' */
 #define COND_INITIALIZER	(cond_t)0x43496e69	/* 'CIni' */
 
-#define cond_valid(c) (kern_area(c) && \
-		       ((c)->magic == COND_MAGIC) && \
-		       ((c)->task == cur_task()))
+extern int	 sem_init(sem_t *, u_int);
+extern int	 sem_destroy(sem_t *);
+extern int	 sem_wait(sem_t *, u_long);
+extern int	 sem_trywait(sem_t *);
+extern int	 sem_post(sem_t *);
+extern int	 sem_getvalue(sem_t *, u_int *);
 
-extern int cond_init(cond_t *cond);
-extern int cond_destroy(cond_t *cond);
-extern int cond_wait(cond_t *cond, mutex_t *mtx);
-extern int cond_signal(cond_t *cond);
-extern int cond_broadcast(cond_t *cond);
+extern int	 mutex_init(mutex_t *);
+extern int	 mutex_destroy(mutex_t *);
+extern int	 mutex_lock(mutex_t *);
+extern int	 mutex_trylock(mutex_t *);
+extern int	 mutex_unlock(mutex_t *);
+extern void	 mutex_cleanup(thread_t);
+extern void	 mutex_setprio(thread_t, int);
+
+extern int	 cond_init(cond_t *);
+extern int	 cond_destroy(cond_t *);
+extern int	 cond_wait(cond_t *, mutex_t *);
+extern int	 cond_signal(cond_t *);
+extern int	 cond_broadcast(cond_t *);
 
 #endif /* !_SYNC_H */

@@ -1,13 +1,10 @@
-include $(PREX_SRC)/mk/own.mk
+include $(SRCDIR)/mk/own.mk
 
-TARGET	= bootldr
-TYPE	= BINARY
-SUBDIRS	= lib arch common
-OBJS	= ./arch/$(PREX_ARCH)/$(PREX_PLATFORM)/boot.o \
-	./common/common.o
-LIBS	= ./lib/libboot.a $(LIBGCC_PATH)libgcc.a
-LD_SCRIPT= ./arch/$(PREX_ARCH)/$(PREX_PLATFORM)/boot.ld
-#DISASM	= bootldr.lst
-#MAP	= bootldr.map
+TARGET=		bootldr
+TYPE=		BINARY
+SUBDIR=		lib $(ARCH) common
+OBJS=		./$(ARCH)/$(PLATFORM)/boot.o ./common/common.o
+LIBS=		./lib/libboot.a $(LIBGCC_PATH)libgcc.a
+LD_SCRIPT=	./$(ARCH)/$(PLATFORM)/boot.ld
 
-include $(PREX_SRC)/mk/boot.mk
+include $(SRCDIR)/mk/boot.mk

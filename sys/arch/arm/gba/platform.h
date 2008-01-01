@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,66 +27,151 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _MACHINE_PLATFORM_H
-#define _MACHINE_PLATFORM_H
+#ifndef _GBA_PLATFORM_H
+#define _GBA_PLATFORM_H
 
-/*--------------------------------------------------------------------------
- * Address/Locations
+/*
+ * Memory location
  */
 
 #define PAGE_OFFSET	0x00000000
 
-/* Memory segments */
 #define KERNEL_BASE	0x02000000
-#define KERNEL_MAX	0x02040000
+#define KERNEL_MAX	0x02400000
 #define USER_BASE	0x02000000
 #define USER_MAX	0x02040000
 
-/* Kernel reserved area */
-#define RESERVED_START	0
-#define RESERVED_SIZE	0
-
-/* Predefined region */
 #define BOOT_INFO	0x03006000
 #define BOOT_STACK	0x03007000
 #define INT_STACK	0x03007900
 #define SYS_STACK	0x0203ff00
 
+#ifndef __ASSEMBLY__
+
+/*
+ * Page mapping
+ */
+#define phys_to_virt(p_addr)	(void *)((u_long)(p_addr) + PAGE_OFFSET)
+#define virt_to_phys(v_addr)	(void *)((u_long)(v_addr) - PAGE_OFFSET)
+
+/*
+ * Kernel/User Locations
+ */
 #define kern_area(addr)	\
 	(((u_long)(addr) >= KERNEL_BASE) && ((u_long)(addr) < KERNEL_MAX))
 #define user_area(addr) \
 	(((u_long)(addr) >= USER_BASE) && ((u_long)(addr) < USER_MAX))
 
-
-#ifndef __ASSEMBLY__
-/*--------------------------------------------------------------------------
+/*
  * Interrupt
  */
+#define NIRQS		14		/* number of interrupt vectors */
 
-#define NR_IRQS		14		/* Number of interrupt vectors */
+static __inline void
+interrupt_enable(void)
+{
+#ifndef __lint__
+	u_long val;
+
+	__asm__ __volatile__(
+		"mrs %0, cpsr\n\t"
+		"bic %0, %0, #0xc0\n\t"		/* Enable IRQ & FIQ */
+		"msr cpsr_c, %0\n\t"
+		:"=&r" (val)
+		:
+		: "memory");
+#endif
+}
+
+static __inline void
+interrupt_disable(void)
+{
+#ifndef __lint__
+	u_long val;
+
+	__asm__ __volatile__(
+		"mrs %0, cpsr\n\t"
+		"orr %0, %0, #0xc0\n\t"		/* Disable IRQ & FIQ */
+		"msr cpsr_c, %0\n\t"
+		:"=&r" (val)
+		:
+		: "memory");
+#endif
+}
+
+static __inline void
+interrupt_save(int *sts)
+{
+	u_long val;
+
+	__asm__ __volatile__(
+		"mrs %0, cpsr\n\t"
+		:"=&r" (val)
+		:
+		:"memory");
+	*sts = (int)val;
+}
+
+static __inline void
+interrupt_restore(int sts)
+{
+
+	__asm__ __volatile__(
+		"msr cpsr_c, %0\n\t"
+		:
+		:"r" (sts)
+		:"memory");
+}
+
+extern void interrupt_mask(int);
+extern void interrupt_unmask(int, int);
+extern void interrupt_setup(int, int);
+extern void interrupt_init(void);
 
 /* Interrupt mode for interrupt_setup() */
-#define IMODE_EDGE	0		/* Edge trigger */
-#define IMODE_LEVEL	1		/* Level trigger */
-
-extern void interrupt_mask(int vector);
-extern void interrupt_unmask(int vector, int level);
-extern void interrupt_setup(int vector, int mode);
-
-/*--------------------------------------------------------------------------
- * Clock
- */
+#define IMODE_EDGE	0		/* edge trigger */
+#define IMODE_LEVEL	1		/* level trigger */
 
 extern void clock_init(void);
 
-/*--------------------------------------------------------------------------
- * Misc.
- */
+extern void diag_init(void);
 
-extern void system_reset(void);
-extern void diag_print(char *buf);
-extern void cpu_idle(void);
+#ifdef CONFIG_DIAG_VBA
+static __inline void
+diag_print(char *buf)
+{
+
+	__asm__ __volatile__(
+		"mov r0, %0\n\t"
+		"swi 0xff0000\n\t"		/* VBA emulator call */
+		:
+		:"r" (buf)
+		:"r0");
+}
+
+#else
+extern void diag_print(char *);
+#endif
+
+static __inline void
+machine_idle(void)
+{
+
+	__asm__ __volatile__(
+		"swi 0x20000\n\t"		/* GBA BIOS call */
+		:::"r0", "r1", "r2", "r3");
+}
+
+static __inline void
+machine_reset(void)
+{
+
+	__asm__ __volatile__(
+		"swi 0\n\t"			/* GBA BIOS call */
+		:::"r0", "r1", "r2", "r3");
+}
+
+extern void machine_init(void);
 
 #endif /* !__ASSEMBLY__ */
-
-#endif /* !_MACHINE_PLATFORM_H */
+#endif /* !_GBA_PLATFORM_H */

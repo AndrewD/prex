@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,23 +30,11 @@
 #ifndef _PAGE_H
 #define _PAGE_H
 
-/*
- * Macro to adjust alignment
- */
-#define PAGE_MASK	(PAGE_SIZE-1)
-#define PAGE_ALIGN(n)	((((u_long)(n)) + PAGE_MASK) & ~PAGE_MASK)
-#define PAGE_TRUNC(n)	(((u_long)(n)) & ~PAGE_MASK)
-
-/*
- * Page mapping
- */
-#define phys_to_virt(p_addr)	(void *)((u_long)(p_addr) + PAGE_OFFSET)
-#define virt_to_phys(v_addr)	(void *)((u_long)(v_addr) - PAGE_OFFSET)
-
-extern void page_init(void);
-extern void *page_alloc(size_t size);
-extern void page_free(void *addr, size_t size);
-extern int page_reserve(void *addr, size_t size);
-extern void page_info(size_t *total, size_t *free);
+extern void	*page_alloc(size_t);
+extern void	 page_free(void *, size_t);
+extern int	 page_reserve(void *, size_t);
+extern void	 page_info(size_t *, size_t *);
+extern void	 page_dump(void);
+extern void	 page_init(void);
 
 #endif /* !_PAGE_H */

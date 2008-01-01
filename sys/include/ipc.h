@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,47 +32,40 @@
 
 #include <queue.h>
 
-struct task;
 struct thread;
 
-#define OBJECT_MAGIC	0x4f626a3f	/* 'Obj?' */
-
-/*
- * Object
- */
 struct object {
-	int		magic;		/* Magic number */
-	struct list	name_link;	/* List for name hash table */
-	struct list	task_link;	/* Link all objects in same task */
-	char		*name;		/* Object name */
-	task_t		owner;		/* Owner task of this object */
-	struct queue	sendq;		/* Queue for sender threads */
-	struct queue	recvq;		/* Queue for receiver threads */
+	int		magic;		/* magic number */
+	char		name[MAXOBJNAME]; /* object name */
+	struct list	name_link;	/* list for name hash table */
+	struct list	task_link;	/* link all objects in same task */
+	task_t		owner;		/* owner task of this object */
+	struct queue	sendq;		/* queue for sender threads */
+	struct queue	recvq;		/* queue for receiver threads */
 };
-typedef struct object *object_t;
 
 #define object_valid(obj)  (kern_area(obj) && ((obj)->magic == OBJECT_MAGIC))
-
 
 /*
  * Message header
  */
 struct msg_header {
-	task_t	task;		/* ID of send task */
-	int	code;		/* Message code */
-	int	status;		/* Return status */
+	task_t		task;		/* id of a sender task */
+	int		code;		/* message code */
+	int		status;		/* return status */
 };
 
-extern void object_init(void);
-extern int object_create(char *name, object_t *obj);
-extern int object_lookup(char *name, object_t *obj);
-extern int object_delete(object_t obj);
+extern int	 object_create(const char *, object_t *);
+extern int	 object_lookup(const char *, object_t *);
+extern int	 object_destroy(object_t);
+extern void	 object_init(void);
+extern void	 object_dump(void);
 
-extern int msg_send(object_t obj, void *msg, size_t size);
-extern int msg_receive(object_t obj, void *msg, size_t size);
-extern int msg_reply(object_t obj, void *msg, size_t size);
-
-extern void msg_cleanup(struct thread *th);
-extern void msg_cancel(struct object *obj);
+extern int	 msg_send(object_t, void *, size_t);
+extern int	 msg_receive(object_t, void *, size_t);
+extern int	 msg_reply(object_t, void *, size_t);
+extern void	 msg_cleanup(struct thread *);
+extern void	 msg_cancel(struct object *);
+extern void	 msg_init(void);
 
 #endif /* !_IPC_H */

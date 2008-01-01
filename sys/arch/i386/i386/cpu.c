@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,33 +33,23 @@
 
 #include <kernel.h>
 #include <page.h>
-#include "cpu.h"
+#include <cpu.h>
+#include <locore.h>
 
-extern void trap_default(), syscall_entry();
-
-extern void intr_0(),  intr_1(),  intr_2(),  intr_3(),
-	    intr_4(),  intr_5(),  intr_6(),  intr_7(),
-	    intr_8(),  intr_9(),  intr_10(), intr_11(),
-	    intr_12(), intr_13(), intr_14(), intr_15();
-
-extern void trap_0(),  trap_1(),  trap_2(),  trap_3(),
-	    trap_4(),  trap_5(),  trap_6(),  trap_7(),
-	    trap_8(),  trap_9(),  trap_10(), trap_11(),
-	    trap_12(), trap_13(), trap_14(), trap_15(),
-	    trap_16(), trap_17(), trap_18();
+typedef void (*trapfn_t)(void);
 
 /*
  * Descriptors
  */
-static struct seg_desc gdt[NR_GDT];
-static struct gate_desc idt[NR_IDT];
+static struct seg_desc gdt[NGDTS];
+static struct gate_desc idt[NIDTS];
 static struct tss tss;
 
 /*
  * Interrupt table
  */
-static void *const intr_table[] = {
-	intr_0, intr_1, intr_2, intr_3,	intr_4, intr_5, intr_6, 
+static const trapfn_t intr_table[] = {
+	intr_0, intr_1, intr_2, intr_3,	intr_4, intr_5, intr_6,
 	intr_7, intr_8, intr_9, intr_10, intr_11, intr_12, intr_13,
 	intr_14, intr_15
 };
@@ -67,35 +57,40 @@ static void *const intr_table[] = {
 /*
  * Trap table
  */
-static void *const trap_table[] = {
-	trap_0, trap_1, trap_2, trap_3,	trap_4, trap_5, trap_6, 
+static const trapfn_t trap_table[] = {
+	trap_0, trap_1, trap_2, trap_3,	trap_4, trap_5, trap_6,
 	trap_7,	trap_8, trap_9, trap_10, trap_11, trap_12, trap_13,
 	trap_14, trap_15, trap_16, trap_17, trap_18
 };
-#define NR_TRAP (sizeof(trap_table) / sizeof(void *))
+#define NTRAPS	(int)(sizeof(trap_table) / sizeof(void *))
 
 /*
  * Set kernel stack pointer in TSS (task state segment).
  * An actual value of the register is automatically set when
  * CPU enters kernel mode next time.
  */
-void tss_set(u_long kstack)
+void
+tss_set(u_long kstack)
 {
+
 	tss.esp0 = kstack;
 }
 
 /*
  * tss_get() returns current esp0 value for trap handler.
  */
-u_long tss_get(void)
+u_long
+tss_get(void)
 {
+
 	return tss.esp0;
 }
 
 /*
  * Set GDT (global descriptor table) members into specified vector
  */
-static void gdt_set(int vec, void *base, size_t limit, int type, int size)
+static void
+gdt_set(int vec, void *base, size_t limit, int type, int size)
 {
 	struct seg_desc *seg = &gdt[vec];
 
@@ -114,7 +109,8 @@ static void gdt_set(int vec, void *base, size_t limit, int type, int size)
 /*
  * Set IDT (interrupt descriptor table) members into specified vector
  */
-static void idt_set(int vec, void *off, int sel, int type)
+static void
+idt_set(int vec, trapfn_t off, int sel, int type)
 {
 	struct gate_desc *gate = &idt[vec];
 
@@ -128,7 +124,8 @@ static void idt_set(int vec, void *off, int sel, int type)
 /*
  * Setup the GDT and load it.
  */
-static void gdt_init(void)
+static void
+gdt_init(void)
 {
 	struct desc_p gdt_p;
 
@@ -160,17 +157,18 @@ static void gdt_init(void)
  *  0x20 - 0x3f ... H/W interrupt
  *  0x40        ... System call trap
  */
-static void idt_init(void)
+static void
+idt_init(void)
 {
 	struct desc_p idt_p;
 	int i;
 
 	/* Fill all vectors with default handler */
-	for (i = 0; i < NR_IDT; i++)
+	for (i = 0; i < NIDTS; i++)
 		idt_set(i, trap_default, KERNEL_CS, ST_KERN | ST_TRAP_GATE);
 
 	/* Setup trap handlers */
-	for (i = 0; i < NR_TRAP; i++)
+	for (i = 0; i < NTRAPS; i++)
 		idt_set(i, trap_table[i], KERNEL_CS, ST_KERN | ST_TRAP_GATE);
 
 	/* Setup interrupt handlers */
@@ -195,14 +193,16 @@ static void idt_init(void)
  * Initialize the task state segment.
  * Only one static TSS is used for all contexts.
  */
-static void tss_init(void)
+static void
+tss_init(void)
 {
+
 	gdt_set(KERNEL_TSS / 8, &tss, sizeof(struct tss) - 1,
 		ST_KERN | ST_TSS, 0);
 	/* Setup TSS */
 	memset(&tss, 0, sizeof(struct tss));
 	tss.ss0 = KERNEL_DS;
-	tss.esp0 = (u_long)phys_to_virt(BOOT_STACK + BOOT_STACK_SIZE - 1);
+	tss.esp0 = (u_long)phys_to_virt(BOOT_STACK + 0x800 - 1);
 	tss.cs = USER_CS | 3;
 	tss.ds = tss.es = tss.ss = tss.fs = tss.gs = USER_CS | 3;
 	tss.io_bitmap_offset = INVALID_IO_BITMAP;
@@ -213,11 +213,12 @@ static void tss_init(void)
 /*
  * Set trap handler for GDB
  */
-void trap_set(int vec, void *handler)
+void
+trap_set(int vec, void *handler)
 {
 	struct desc_p idt_p;
 
-	idt_set(vec, handler, KERNEL_CS, ST_KERN | ST_TRAP_GATE);
+	idt_set(vec, (trapfn_t)handler, KERNEL_CS, ST_KERN | ST_TRAP_GATE);
 	idt_p.limit = sizeof(idt) - 1;
 	idt_p.base = (u_long)&idt;
 	lidt(&idt_p);
@@ -228,8 +229,10 @@ void trap_set(int vec, void *handler)
  * Initialize CPU state.
  * Setup segment and interrupt descriptor.
  */
-void cpu_init(void)
+void
+cpu_init(void)
 {
+
 	/* Enable write protection from kernel code */
 	set_cr0(get_cr0() | CR0_WP);
 
@@ -240,8 +243,18 @@ void cpu_init(void)
 	 */
 	set_eflags(get_eflags() & ~(EFL_IF | EFL_DF | EFL_NT | EFL_IOPL));
 
-	/* Initialize descriptors. */
+	/*
+	 * Initialize descriptors.
+	 * Setup segment and interrupt descriptor.
+	 */
 	gdt_init();
 	idt_init();
 	tss_init();
+
+	/*
+	 * Initialize GDB stub
+	 */
+#ifdef CONFIG_GDB
+	gdb_init();
+#endif
 }

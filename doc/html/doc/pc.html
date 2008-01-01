@@ -9,6 +9,10 @@
   <link rel="stylesheet" type="text/css" href="../print.css" media="print">
 </head>
 <body>
+<div id="top">
+</div>
+<div id="middle">
+
 <table id="content" cellpadding="0" cellspacing="0">
   <tbody>
 
@@ -36,6 +40,7 @@
       <a href="index.html">Document Index</a> >
       i386 PC
     </tr>
+    <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
       <td id="main" style="vertical-align: top;">
@@ -98,7 +103,7 @@ The following is the most easy step to hack the Prex kernel on i386-pc.
 
   <li>Replace the kernel image (prexos) in the demo floppy by your own 
   image. You can use mtools to do it.
-  <pre> $ mcopy prexos a:\</pre>
+  <pre class="terminal"> $ mcopy prexos a:\</pre>
   Or, it may be easy to copy it by mounting the FAT file system to the floppy
   if your OS supports it. 
   </li>
@@ -121,16 +126,16 @@ The following is the most easy step to hack the Prex kernel on i386-pc.
  </li>
 
  <li>Unpack the image
- <pre>$ gunzip prex-X.X.X.i386-pc.img.gz</pre>
+ <pre class="terminal">$ gunzip prex-X.X.X.i386-pc.img.gz</pre>
  </li>
 
  <li>Create the floppy
  <ul>
    <li>Unix:
-   <pre>$ dd if=(your directory)/prex-X.X.X.i386-pc.img of=/dev/fd0</pre>
+   <pre class="terminal">$ dd if=(your directory)/prex-X.X.X.i386-pc.img of=/dev/fd0</pre>
    </li>
    <li>Windows
-   <pre>>rawritewin (your directory)/prex-X.X.X.i386-pc.img a:</pre>
+   <pre class="terminal">>rawritewin (your directory)/prex-X.X.X.i386-pc.img a:</pre>
    </li>
  </ul>
  </li>
@@ -164,7 +169,7 @@ image with FAT file format. And, this image can be used as a Bochs floppy image.
  </li>
 
  <li>Unpack the image.
- <pre>$ gunzip prex-X.X.X.i386-pc.img.gz</pre></li>
+ <pre class="terminal">$ gunzip prex-X.X.X.i386-pc.img.gz</pre></li>
 
  <li>Set the path for the floppy image in your Bochs setting file "bochsrc", like:
  <pre>floppya: 1_44=(your directory)/prex-X.X.X.i386-pc.img, status=inserted</pre>
@@ -174,7 +179,7 @@ image with FAT file format. And, this image can be used as a Bochs floppy image.
  <pre>boot: floppy</pre></li>
 
  <li>Run Bochs.
- <pre>$ bochs -q</pre></li>
+ <pre class="terminal">$ bochs -q</pre></li>
 </ol>
 
 <h2 id="qemu">How to run Prex with QEMU?</h2>
@@ -183,7 +188,7 @@ image with FAT file format. And, this image can be used as a Bochs floppy image.
  can be used.
  You can simply try Prex with QEMU by the following command.
 </p>
-<pre>$ qemu -fda (your directory)/prex-X.X.X.i386-pc.img -localtime</pre>
+<pre class="terminal">$ qemu -fda (your directory)/prex-X.X.X.i386-pc.img -localtime</pre>
 
 
 
@@ -200,7 +205,7 @@ To replace the file in the floppy image, "mtools" is useful. Before using
 </p>
 <pre>drive a: file="(your directory)/prex-X.X.X.i386-pc.img"</pre>
 Then, the file copy can be performed by:
-<pre> $ mcopy -o prexos a:\</pre>
+<pre class="terminal"> $ mcopy -o prexos a:\</pre>
 <p>
 You can use this customized Prex image with Bochs, or you can create an actual
 bootable floppy disk and test it with the real PC hardware.
@@ -220,7 +225,7 @@ You can create the Prex bootable floppy by the following steps.
  <li>Boot DOS, and put "bootsect.bin" and "mkboot.com" in the same directory.</li>
  <li> Type as follow:</li>
 </ol>
-<pre>a:\>mkboot a:</pre>
+<pre class="terminal">a:\>mkboot a:</pre>
 
 <p>
  You can perform these steps within Bochs if you have a DOS bootable image for
@@ -230,7 +235,7 @@ You can create the Prex bootable floppy by the following steps.
 floppyb: 1_44=(your directory)/prex-X.X.X.i386-pc.img, status=inserted</pre>
 
  Then, type:
-<pre>a:\>mkboot b:</pre>
+<pre class="terminal">a:\>mkboot b:</pre>
 
 Note: You had better download an Prex bootable image rather than this method.
 
@@ -317,21 +322,25 @@ the console window.
 The Bochs internal debugger is also useful to debug kernel. It can be
 enabled with the following configuration.
 </p>
-<pre>$ ./configure --enable-debugger --enable-disasm --enable-port-e9-hack</pre>
+<pre class="terminal">$ ./configure --enable-debugger --enable-disasm --enable-port-e9-hack</pre>
 
 
+      </td>
+    </tr>
+    <tr>
+      <td id="footer" colspan="2" style="vertical-align: top;">
+        <a href="http://sourceforge.net">
+        <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
+        alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
+        Copyright&copy; 2005-2007 Kohsuke Ohtani
       </td>
     </tr>
 
   </tbody>
 </table>
 
-      <div id="footer" style="text-align:center;">
-      <a href="http://sourceforge.net">
-      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
-      alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
-      Copyright&copy; 2005-2007 Kohsuke Ohtani
-      </div>
+</div>
+<div id="bottom"></div>
 
 </body>
 </html>

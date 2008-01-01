@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,10 +30,11 @@
 #ifndef _KMEM_H
 #define _KMEM_H
 
-extern void kmem_init(void);
-extern void *kmem_alloc(size_t size);
-extern void kmem_free(void *ptr);
-extern void *kmem_map(void *addr, size_t size);
-extern void kmem_info(size_t *size);
+extern void	*kmem_alloc(size_t);
+extern void	 kmem_free(void *);
+extern void	*kmem_map(void *, size_t);
+extern void	 kmem_info(size_t *);
+extern void	 kmem_dump(void);
+extern void	 kmem_init(void);
 
 #endif /* !_KMEM_H */

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,35 +32,22 @@
  */
 
 #include <kernel.h>
-#include <types.h>
+#include <sys/types.h>
 
 #define isdigit(c)  ((unsigned)((c) - '0') < 10)
 
-static int divide(long *n, int base)
+static int
+divide(long *n, int base)
 {
 	int res;
 
-#ifdef __lint__
-	 res = *n % base;
-	 *n = *n / base;
-#else
-	/*
-	 * Note: Optimized for ARM processor which does not support
-	 * divide instructions.
-	 */
-
-	if (base == 10) {
-		res = ((unsigned long)*n) % 10U;
-		*n = ((unsigned long)*n) / 10U;
-	} else {
-		res = ((unsigned long)*n) % 16U;
-		*n = ((unsigned long)*n) / 16U;
-	}
-#endif
+	res = ((u_long)*n) % base;
+	*n = ((u_long)*n) / base;
 	return res;
 }
 
-static int atoi(const char **s)
+static int
+atoi(const char **s)
 {
 	int i = 0;
 	while (isdigit((int)**s))
@@ -81,7 +68,8 @@ static int atoi(const char **s)
  * Flags:
  *   0 - Zero pad
  */
-int vsprintf(char *buf, const char *fmt, va_list args)
+int
+vsprintf(char *buf, const char *fmt, va_list args)
 {
 	char *p, *str;
 	const char *digits = "0123456789abcdef";

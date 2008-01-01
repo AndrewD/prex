@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,14 +32,13 @@
  */
 
 #include <driver.h>
-#include <string.h>
 
 /* #define DEBUG_RAMDISK 1 */
 
 #ifdef DEBUG_RAMDISK
-#define rd_dbg(x,y...) printk("%s: "x, __FUNCTION__, ##y)
+#define rd_printf(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
 #else
-#define rd_dbg(x,y...)
+#define rd_printf(fmt...)	do {} while (0)
 #endif
 
 /* Block size */
@@ -52,7 +51,7 @@ static int ramdisk_init(void);
 /*
  * Driver structure
  */
-struct driver ramdisk_drv __driver_entry = {
+struct driver ramdisk_drv = {
 	/* name */	"RAM disk",
 	/* order */	6,
 	/* init */	ramdisk_init,
@@ -72,20 +71,21 @@ static device_t ramdisk_dev;	/* Device object */
 static char *img_start;
 static size_t img_size;
 
-static int ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int
+ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
 	void *kbuf;
 	size_t nr_read;
-	
-	rd_dbg("read buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno);
+
+	rd_printf("read buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno);
 
 	/* Check overrun */
-	if (blkno * BSIZE > img_size) {
-		rd_dbg("Overrun!\n");
+	if ((size_t)blkno * BSIZE > img_size) {
+		rd_printf("Overrun!\n");
 		return EIO;
 	}
 	nr_read = *nbyte;
-	if (blkno * BSIZE + nr_read > img_size)
+	if ((size_t)blkno * BSIZE + nr_read > img_size)
 		nr_read = img_size - blkno * BSIZE;
 
 	/* Translate buffer address to kernel address */
@@ -102,18 +102,19 @@ static int ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 /*
  * Data written to this device is discarded.
  */
-static int ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int
+ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
 	void *kbuf;
 	size_t nr_write;
-	
-	rd_dbg("write buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno);
+
+	rd_printf("write buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno);
 
 	/* Check overrun */
-	if (blkno * BSIZE > img_size)
+	if ((size_t)blkno * BSIZE > img_size)
 		return EIO;
 	nr_write = *nbyte;
-	if (blkno * BSIZE + nr_write > img_size)
+	if ((size_t)blkno * BSIZE + nr_write > img_size)
 		nr_write = img_size - blkno * BSIZE;
 
 	/* Translate buffer address to kernel address */
@@ -130,21 +131,22 @@ static int ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 /*
  * Initialize
  */
-static int ramdisk_init(void)
+static int
+ramdisk_init(void)
 {
 	struct boot_info *boot_info;
-	struct mem_info *rd;
+	struct mem_map *rd;
 
-	system_bootinfo(&boot_info);
-	rd = (struct mem_info *)&boot_info->ram_disk;
+	machine_bootinfo(&boot_info);
+	rd = (struct mem_map *)&boot_info->ram_disk;
 	img_start = (char *)phys_to_virt((void *)rd->start);
 	img_size = rd->size;
 	if (img_size == 0)
 		return -1;
-	printk("RAM disk image start=%x size=%dK\n", img_start, img_size/1024);
+	printk("RAM disk at 0x%08x (%dK bytes)\n", img_start, img_size/1024);
 
 	/* Create device object */
-	ramdisk_dev = device_create(&ramdisk_io, "ram0");
+	ramdisk_dev = device_create(&ramdisk_io, "ram0", DF_BLK);
 	ASSERT(ramdisk_dev);
 	return 0;
 }

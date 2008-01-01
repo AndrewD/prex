@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,38 +31,45 @@
  * main.c - Prex boot loader main module
  */
 
-#include <bootinfo.h>
+#include <prex/bootinfo.h>
+#include <platform.h>
 #include <boot.h>
 #include <ar.h>
 
-u_long load_base;	/* Current load address */
-u_long load_start;	/* Start address for loading */
-int nr_img;		/* number of images */
+u_long load_base;	/* current load address */
+u_long load_start;	/* start address for loading */
+int nr_img;		/* number of module images */
 
-/*
- * Pointer to boot information.
- * The boot information is placed at the pre-defined memory area.
- * 'BOOTINFO_ADDR' must be defined properly for each platform.
- */
-static struct boot_info *boot_info = (struct boot_info *)BOOTINFO_ADDR;
+struct boot_info *boot_info;	 /* pointer to boot information. */
 
 /*
  * Define memory block as reserved area.
  */
-void reserve_memory(u_long start, size_t size)
+void
+reserve_memory(u_long start, size_t size)
 {
 	int i;
+	u_long mem_end;
 
 	printk("reserve_memory: start=%x size=%x\n", start, size);
 
-	for (i = 0; i < 8; i++) {
+	if (boot_info->main_mem.size == 0)
+		panic("bad mem size");
+
+	mem_end = boot_info->main_mem.start + boot_info->main_mem.size;
+	if (start > mem_end)
+		return;
+	if (start + size > mem_end)
+		size = mem_end - start;
+
+	for (i = 0; i < NRESMEM; i++) {
 		if (boot_info->reserved[i].size == 0) {
 			boot_info->reserved[i].start = start;
 			boot_info->reserved[i].size = size;
 			break;
 		}
 	}
-	if (i == 8)
+	if (i == NRESMEM)
 		panic("No memory slot to reserve");
 }
 
@@ -70,21 +77,22 @@ void reserve_memory(u_long start, size_t size)
  * Load all images.
  * Return 0 on success, -1 on failure.
  */
-static int load_image(struct ar_hdr *hdr, struct img_info *info)
+static int
+load_image(struct ar_hdr *hdr, struct module *m)
 {
 	char *c;
 
-	if (strncmp((char *)&hdr->eol, EOLSIG, 2))
+	if (strncmp((char *)&hdr->ar_fmag, ARFMAG, 2))
 		return -1;
 
-	strncpy((char *)&info->name, (char *)&hdr->name, 16);
-	c = (char *)&info->name;
+	strncpy((char *)&m->name, (char *)&hdr->ar_name, 16);
+	c = (char *)&m->name;
 	while (*c != '/' && *c != ' ')
 		c++;
 	*c = '\0';
- 	printk("load_image hdr=%x info=%x name=%s\n",
-	       (int)hdr, (int)info, (char *)&info->name);
-	if (elf_load((char *)hdr + sizeof(struct ar_hdr), info))
+ 	printk("load_image hdr=%x module=%x name=%s\n",
+	       (int)hdr, (int)m, (char *)&m->name);
+	if (elf_load((char *)hdr + sizeof(struct ar_hdr), m))
 		panic("Load error");
 	return 0;
 }
@@ -93,20 +101,23 @@ static int load_image(struct ar_hdr *hdr, struct img_info *info)
 /*
  * Setup for RAMDISK
  */
-static void setup_ramdisk(struct ar_hdr *hdr)
+static void
+setup_ramdisk(struct ar_hdr *hdr)
 {
-	struct mem_info *ram_disk;
+	struct mem_map *ram_disk;
 	size_t size;
 
-	if (strncmp((char *)&hdr->eol, EOLSIG, 2))
+	if (strncmp((char *)&hdr->ar_fmag, ARFMAG, 2))
 		return;
-	size = (size_t)atol((char *)&hdr->size);
+	size = (size_t)atol((char *)&hdr->ar_size);
 	if (size == 0)
 		return;
 
-	ram_disk = (struct mem_info *)&boot_info->ram_disk;
+	ram_disk = (struct mem_map *)&boot_info->ram_disk;
 	ram_disk->start = (u_long)hdr + sizeof(struct ar_hdr);
 	ram_disk->size = size;
+
+	reserve_memory(ram_disk->start, ram_disk->size);
 
 	printk("RAM disk base=%x size=%x\n", ram_disk->start, ram_disk->size);
 }
@@ -120,10 +131,11 @@ static void setup_ramdisk(struct ar_hdr *hdr)
  *
  * The image information is strored into the boot information area.
  */
-static void setup_image(void)
+static void
+setup_image(void)
 {
 	char *hdr;
-	struct img_info *img;
+	struct module *m;
 	char *magic;
 	int i;
 	long len;
@@ -131,8 +143,8 @@ static void setup_image(void)
 	/*
 	 *  Validate archive image
 	 */
-	magic = (char *)ARCHIVE_START;
-	if (strncmp(magic, ARCMAG, 8))
+	magic = (char *)boot_info->archive;
+	if (strncmp(magic, ARMAG, 8))
 		panic("Invalid OS image");
 
 	/*
@@ -145,7 +157,7 @@ static void setup_image(void)
 	/*
 	 * Load driver module
 	 */
-	len = atol((char *)&((struct ar_hdr *)hdr)->size);
+	len = atol((char *)&((struct ar_hdr *)hdr)->ar_size);
 	if (len == 0)
 		panic("Invalid OS image");
 	hdr = (char *)((u_long)hdr + sizeof(struct ar_hdr) + len);
@@ -156,10 +168,10 @@ static void setup_image(void)
 	 * Load boot tasks
 	 */
 	i = 0;
-	img = (struct img_info *)&boot_info->tasks[0];
+	m = (struct module *)&boot_info->tasks[0];
 	while (1) {
 		/* Proceed to next archive header */
-		len = atol((char *)&((struct ar_hdr *)hdr)->size);
+		len = atol((char *)&((struct ar_hdr *)hdr)->ar_size);
 		if (len == 0)
 			break;
 		hdr = (char *)((u_long)hdr + sizeof(struct ar_hdr) + len);
@@ -168,23 +180,25 @@ static void setup_image(void)
 		hdr += ((u_long)hdr % 2);
 
 		/* Check archive header */
-		if (strncmp((char *)&((struct ar_hdr *)hdr)->eol, EOLSIG, 2))
+		if (strncmp((char *)&((struct ar_hdr *)hdr)->ar_fmag,
+			    ARFMAG, 2))
 			break;
 
 #ifdef CONFIG_RAMDISK
 		/* Load RAM disk image */
-		if (!strncmp((char *)&((struct ar_hdr *)hdr)->name,
+		if (!strncmp((char *)&((struct ar_hdr *)hdr)->ar_name,
 			    "ramdisk.a", 9)) {
 			setup_ramdisk((struct ar_hdr *)hdr);
-			break;
+			continue;
 		}
 #endif /* CONFIG_RAMDISK */
 		/* Load task */
-		if (load_image((struct ar_hdr *)hdr, img))
+		if (load_image((struct ar_hdr *)hdr, m))
 			break;
 		i++;
-		img++;
+		m++;
 	}
+
 	boot_info->nr_tasks = i;
 
 	if (boot_info->nr_tasks == 0)
@@ -194,30 +208,32 @@ static void setup_image(void)
 	 * Save information for boot modules.
 	 * This includes kernel, driver, and boot tasks.
 	 */
-	boot_info->boot_modules.start = load_start;
-	boot_info->boot_modules.size = (size_t)(load_base - load_start);
+	boot_info->modules.start = load_start;
+	boot_info->modules.size = (size_t)(load_base - load_start);
 }
 
 #ifdef DEBUG_BOOT
-static void dump_image(struct img_info *img)
+static void
+dump_image(struct module *m)
 {
 	printk
 	    ("%s: entry=%x phys=%x size=%x text=%x data=%x textsz=%x datasz=%x bss=%x\n",
-	     img->name, (int)img->entry, (int)img->phys, (int)img->size,
-	     (int)img->text, (int)img->data, (int)img->text_size,
-	     (int)img->data_size, (int)img->bss_size);
+	     m->name, (int)m->entry, (int)m->phys, (int)m->size,
+	     (int)m->text, (int)m->data, (int)m->textsz,
+	     (int)m->datasz, (int)m->bsssz);
 }
 
-static void dump_bootinfo(void)
+static void
+dump_bootinfo(void)
 {
-	struct img_info *img;
+	struct module *m;
 	int i;
 
 	printk("main memory start=%x size=%x\n",
 	       (int)boot_info->main_mem.start,
 	       (int)boot_info->main_mem.size);
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < NRESMEM; i++) {
 		if (boot_info->reserved[i].size != 0) {
 			printk("reserved mem start=%x size=%x\n",
 			       (int)boot_info->reserved[i].start,
@@ -231,16 +247,17 @@ static void dump_bootinfo(void)
 	dump_image(&boot_info->kernel);
 	dump_image(&boot_info->driver);
 
-	img = (struct img_info *)&boot_info->tasks[0];
-	for (i = 0; i < boot_info->nr_tasks; i++, img++)
-		dump_image(img);
+	m = (struct module *)&boot_info->tasks[0];
+	for (i = 0; i < boot_info->nr_tasks; i++, m++)
+		dump_image(m);
 }
 #endif
 
 /*
  * C entry point
  */
-void loader_main(void)
+void
+loader_main(void)
 {
 	u_int kernel_entry;
 
@@ -250,16 +267,13 @@ void loader_main(void)
 	load_start = 0;
 	nr_img = 0;
 
-	memset(boot_info, 0, sizeof(struct boot_info));
-	get_meminfo(boot_info);
-
+	setup_bootinfo(&boot_info);
 	setup_image();
-
 #ifdef DEBUG_BOOT
 	dump_bootinfo();
 #endif
 	kernel_entry = (unsigned int)phys_to_virt(boot_info->kernel.entry);
 	printk("kernel_entry=%x\n", kernel_entry);
-
+	printk("Entering kernel...\n\n");
 	start_kernel(kernel_entry, (unsigned int)boot_info);
 }

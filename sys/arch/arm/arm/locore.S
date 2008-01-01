@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,11 +31,9 @@
  * locore.S - low level platform support
  */
 
-#define __ASSEMBLY__
-
-#include <config.h>
+#include <conf/config.h>
 #include <platform.h>
-#include "cpu.h"
+#include <cpu.h>
 
 #define ENTRY(x) .global x; .align; x##:
 
@@ -60,7 +58,7 @@ ENTRY(kernel_start)
 	nop				/* 0x14 reserved */
 	ldr	pc, irq_target		/* 0x18 mode: irq */
 	ldr	pc, fiq_target		/* 0x1c mode: fiq */
-	
+
 reset_target:		.word	reset_entry
 undefined_target:	.word	undefined_entry
 swi_target:		.word	syscall_entry
@@ -76,7 +74,7 @@ int_stack_top:		.word	INT_STACK + 0x500
 irq_mode_stack:		.word	INT_STACK
 sys_mode_stack:		.word	SYS_STACK
 irq_nest_count:		.word	irq_nesting
-		
+
 reset_entry:
 	/*
 	 * Clear kernel BSS
@@ -100,26 +98,20 @@ reset_entry:
 	mov	r0, #(PSR_SYS_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
 	msr	cpsr, r0
 	ldr	sp, sys_mode_stack	/* Set SYS mode stack */
-				
+
 	mov	r0, #(PSR_SVC_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
 	msr	cpsr, r0
 	ldr	sp, boot_stack_top	/* Set SVC mode stack */
 
 	/*
-	 * Initialize basic h/w
-	 */
-	bl	diag_init
-	bl	interrupt_init
-
-	/*
 	 * Jump to kernel main routine
-	 */	
+	 */
 	b	kernel_main
 
 /*
  * Interrupt entry point
  */
-/*	
+/*
  * Memo: GBA BIOS interrupt handler.
  *
  *	stmfd	sp!, {r0-r3,r12,lr}
@@ -174,7 +166,7 @@ ENTRY(interrupt_entry)
 	and	r0, r0, #PSR_MODE
 	cmp	r0, #PSR_APP_MODE	/* Return to application mode? */
 	bleq	exception_deliver	/* If so, check exception */
-	
+
 nested_irq:
 	mov	r0, sp
  	ldr	sp, [r0, #(4*15)]	/* Restore svc_sp */
@@ -184,14 +176,14 @@ nested_irq:
 	bic	r1, r1, #PSR_MODE
 	orr	r1, r1, #PSR_IRQ_MODE
 	msr	cpsr_c, r1
-	
+
  	ldr	lr, [r0, #(4*17)]	/* Restore lr */
  	ldr	r1, [r0, #(4*18)]	/* Restore spsr */
  	msr	spsr_all, r1
  	ldmfd	r0, {r0-r14}^		/* Restore user mode registers */
 	nop				/* Instruction gap for ldm^ */
 	movs	pc, lr			/* Exit, with restoring cpsr */
-	
+
 /*
  * System call entry
  */
@@ -241,8 +233,8 @@ bad_syscall:
 	mov	r0, #22			/* Set EINVAL to r0 */
 	str	r0, [sp, #(4*0)]
 	b	syscall_ret
-		
-		
+
+
 /*
  * TODO: Need to handle following exceptions.
  */
@@ -251,20 +243,20 @@ ENTRY(prefetch_entry)
 ENTRY(abort_entry)
 ENTRY(fiq_entry)
 	b	fiq_entry		/* hang... */
-			
+
 /*
  * Switch register context.
  * r0 = previous kern_regs, r1 = next kern_regs
  * Interrupts must be disabled by caller.
  *
- * syntax - void __context_switch(kern_regs *prev, kern_regs *next)
+ * syntax - void cpu_switch(kern_regs *prev, kern_regs *next)
  *
  * Note: GCC uses r0-r3,r12 as scratch registers
  */
-ENTRY(__context_switch)
+ENTRY(cpu_switch)
 	stmia	r0, {r4-r11, sp, lr}	/* Save previous register context */
 	ldmia	r1, {r4-r11, sp, pc}	/* Restore next register context */
-	
+
 /*
  * Entry point for kernel thread
  */
@@ -272,4 +264,16 @@ ENTRY(kernel_thread_entry)
 	mov	r0, r5			/* Set argument */
 	mov	pc, r4			/* Jump to kernel thread */
 
+
+/*
+ * Interrupt nest counter.
+ *
+ * This counter is incremented in the entry of interrupt handler
+ * to switch the interrupt stack. Since all interrupt handlers
+ * share same one interrupt stack, each handler must pay attention
+ * to the stack overflow.
+ */
+	.section ".bss","a"
+irq_nesting:
+	.long	0
 	.end

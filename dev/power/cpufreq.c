@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,17 +31,17 @@
  * cpufreq.c - CPU frequency control
  */
 
+#include <sys/ioctl.h>
 #include <driver.h>
-#include <platform.h>
 #include <pm.h>
 #include "dvs.h"
 
 /* #define DEBUG_CPUFREQ 1 */
 
 #ifdef DEBUG_CPUFREQ
-#define cpufreq_dbg(x,y...) printk("cpufreq: "x, ##y)
+#define cf_printf(fmt, args...) printk("cpufreq: " fmt, ## args)
 #else
-#define cpufreq_dbg(x,y...)
+#define cf_printf(fmt...)	 do {} while (0)
 #endif
 
 static int cpufreq_open(device_t dev, int mode);
@@ -52,7 +52,7 @@ static int cpufreq_init(void);
 /*
  * Driver structure
  */
-struct driver cpufreq_drv __driver_entry = {
+struct driver cpufreq_drv = {
 	/* name */	"CPU Frequency Control",
 	/* order */	3,		/* Must larger than pm driver */
 	/* init */	cpufreq_init,
@@ -74,23 +74,31 @@ static device_t cpufreq_dev;		/* Device object */
  */
 static int cpufreq_policy;
 
-static int cpufreq_open(device_t dev, int mode)
+static int
+cpufreq_open(device_t dev, int mode)
 {
+
 	return 0;
 }
 
-static int cpufreq_close(device_t dev)
+static int
+cpufreq_close(device_t dev)
 {
+
 	return 0;
 }
 
-static int cpufreq_ioctl(device_t dev, int cmd, u_long arg)
+static int
+cpufreq_ioctl(device_t dev, int cmd, u_long arg)
 {
+
 	return 0;
 }
 
-void cpufreq_setpolicy(int policy)
+void
+cpufreq_setpolicy(int policy)
 {
+
 	switch (cpufreq_policy) {
 	case CPUFREQ_ONDEMAND:
 		if (policy == PM_POWERSAVE)
@@ -106,12 +114,13 @@ void cpufreq_setpolicy(int policy)
 	}
 }
 
-static int cpufreq_init(void)
+static int
+cpufreq_init(void)
 {
 	int policy;
 
 	/* Create device object */
-	cpufreq_dev = device_create(&cpufreq_io, "cpufreq");
+	cpufreq_dev = device_create(&cpufreq_io, "cpufreq", DF_CHR);
 	ASSERT(cpufreq_dev);
 
 	dvs_init();

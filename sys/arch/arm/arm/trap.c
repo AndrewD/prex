@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -28,20 +28,20 @@
  */
 
 /*
- * trap.c - trap handling routine
+ * trap.c - called from the trap handler when a processor trap occurs.
  */
 
 #include <kernel.h>
-#include <except.h>
+#include <exception.h>
 #include <thread.h>
 #include <task.h>
-#include "cpu.h"
+#include <cpu.h>
 
 #ifdef DEBUG
 void trap_dump(struct cpu_regs *);
 
 static char *const trap_name[] = {
-	"Reset",		
+	"Reset",
 	"Undefined instruction",
 	"Software interrupt",
 	"Prefetch abort",
@@ -50,7 +50,7 @@ static char *const trap_name[] = {
 	"IRQ",
 	"FIQ",
 };
-#define MAX_TRAP (sizeof(trap_name) / sizeof(void *) - 1)
+#define MAXTRAP (sizeof(trap_name) / sizeof(void *) - 1)
 #endif	/* DEBUG */
 
 /*
@@ -58,12 +58,12 @@ static char *const trap_name[] = {
  * ARM exception is translated to the architecture
  * independent exception code.
  */
-static const int trap_map[] = {
+static const int exception_map[] = {
 	0,
-	EXC_ILL,	/* Undefined instruction */
+	SIGILL,		/* Undefined instruction */
 	0,
-	EXC_SEGV,	/* Prefech abort */
-	EXC_SEGV,	/* Data abort */
+	SIGSEGV,	/* Prefech abort */
+	SIGSEGV,	/* Data abort */
 	0,
 	0,
 };

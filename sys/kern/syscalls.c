@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,81 +30,82 @@
 /*
  * syscalls.c - system call table
  */
+
 #include <kernel.h>
 #include <thread.h>
 #include <timer.h>
 #include <vm.h>
 #include <task.h>
-#include <except.h>
+#include <exception.h>
 #include <ipc.h>
 #include <device.h>
 #include <sync.h>
 #include <system.h>
 
-typedef void (*syscall_func)(void);
+typedef void (*sysfn_t)(void);
 
-#define SYSENT(func)	(syscall_func)(func)
+#define SYSENT(func)	(sysfn_t)(func)
 
-const syscall_func syscall_table[] = {
-	SYSENT(object_create),		/* 0 */
-	SYSENT(object_delete),
-	SYSENT(object_lookup),
-	SYSENT(msg_send),
-	SYSENT(msg_receive),
-	SYSENT(msg_reply),
-	SYSENT(vm_allocate),
-	SYSENT(vm_free),
-	SYSENT(vm_attribute),
-	SYSENT(vm_map),
-	SYSENT(task_create),		/* 10 */
-	SYSENT(task_terminate),
-	SYSENT(task_self),
-	SYSENT(task_suspend),
-	SYSENT(task_resume),
-	SYSENT(task_name),
-	SYSENT(task_getcap),
-	SYSENT(task_setcap),
-	SYSENT(thread_create),
-	SYSENT(thread_terminate),
-	SYSENT(thread_load),		/* 20 */
-	SYSENT(thread_self),
-	SYSENT(thread_yield),
-	SYSENT(thread_suspend),
-	SYSENT(thread_resume),
-	SYSENT(thread_schedparam),
-	SYSENT(timer_sleep),
-	SYSENT(timer_alarm),
-	SYSENT(timer_periodic),
-	SYSENT(timer_waitperiod),
-	SYSENT(exception_setup),	/* 30 */
-	SYSENT(exception_return),
-	SYSENT(exception_raise),
-	SYSENT(exception_wait),
-	SYSENT(device_open),
-	SYSENT(device_close),
-	SYSENT(device_read),
-	SYSENT(device_write),
-	SYSENT(device_ioctl),
-	SYSENT(mutex_init),
-	SYSENT(mutex_destroy),		/* 40 */
-	SYSENT(mutex_lock),
-	SYSENT(mutex_trylock),
-	SYSENT(mutex_unlock),
-	SYSENT(cond_init),
-	SYSENT(cond_destroy),
-	SYSENT(cond_wait),
-	SYSENT(cond_signal),
-	SYSENT(cond_broadcast),
-	SYSENT(sem_init),
-	SYSENT(sem_destroy),		/* 50 */
-	SYSENT(sem_wait),
-	SYSENT(sem_trywait),
-	SYSENT(sem_post),
-	SYSENT(sem_getvalue),
-	SYSENT(sys_log),
-	SYSENT(sys_panic),
-	SYSENT(sys_info),
-	SYSENT(sys_time),
-	SYSENT(sys_debug),
+const sysfn_t syscall_table[] = {
+	/*  0 */ SYSENT(object_create),
+	/*  1 */ SYSENT(object_destroy),
+	/*  2 */ SYSENT(object_lookup),
+	/*  3 */ SYSENT(msg_send),
+	/*  4 */ SYSENT(msg_receive),
+	/*  5 */ SYSENT(msg_reply),
+	/*  6 */ SYSENT(vm_allocate),
+	/*  7 */ SYSENT(vm_free),
+	/*  8 */ SYSENT(vm_attribute),
+	/*  9 */ SYSENT(vm_map),
+	/* 10 */ SYSENT(task_create),
+	/* 11 */ SYSENT(task_terminate),
+	/* 12 */ SYSENT(task_self),
+	/* 13 */ SYSENT(task_suspend),
+	/* 14 */ SYSENT(task_resume),
+	/* 15 */ SYSENT(task_name),
+	/* 16 */ SYSENT(task_getcap),
+	/* 17 */ SYSENT(task_setcap),
+	/* 18 */ SYSENT(thread_create),
+	/* 19 */ SYSENT(thread_terminate),
+	/* 20 */ SYSENT(thread_load),
+	/* 21 */ SYSENT(thread_self),
+	/* 22 */ SYSENT(thread_yield),
+	/* 23 */ SYSENT(thread_suspend),
+	/* 24 */ SYSENT(thread_resume),
+	/* 25 */ SYSENT(thread_schedparam),
+	/* 26 */ SYSENT(timer_sleep),
+	/* 27 */ SYSENT(timer_alarm),
+	/* 28 */ SYSENT(timer_periodic),
+	/* 29 */ SYSENT(timer_waitperiod),
+	/* 30 */ SYSENT(exception_setup),
+	/* 31 */ SYSENT(exception_return),
+	/* 32 */ SYSENT(exception_raise),
+	/* 33 */ SYSENT(exception_wait),
+	/* 34 */ SYSENT(device_open),
+	/* 35 */ SYSENT(device_close),
+	/* 36 */ SYSENT(device_read),
+	/* 37 */ SYSENT(device_write),
+	/* 38 */ SYSENT(device_ioctl),
+	/* 39 */ SYSENT(mutex_init),
+	/* 40 */ SYSENT(mutex_destroy),
+	/* 41 */ SYSENT(mutex_lock),
+	/* 42 */ SYSENT(mutex_trylock),
+	/* 43 */ SYSENT(mutex_unlock),
+	/* 44 */ SYSENT(cond_init),
+	/* 45 */ SYSENT(cond_destroy),
+	/* 46 */ SYSENT(cond_wait),
+	/* 47 */ SYSENT(cond_signal),
+	/* 48 */ SYSENT(cond_broadcast),
+	/* 49 */ SYSENT(sem_init),
+	/* 50 */ SYSENT(sem_destroy),
+	/* 51 */ SYSENT(sem_wait),
+	/* 52 */ SYSENT(sem_trywait),
+	/* 53 */ SYSENT(sem_post),
+	/* 54 */ SYSENT(sem_getvalue),
+	/* 55 */ SYSENT(sys_log),
+	/* 56 */ SYSENT(sys_panic),
+	/* 57 */ SYSENT(sys_info),
+	/* 58 */ SYSENT(sys_time),
+	/* 59 */ SYSENT(sys_debug),
 };
-const int nr_syscalls = (int)(sizeof(syscall_table) / (sizeof(syscall_func)));
+const int nr_syscalls = (int)(sizeof(syscall_table) / (sizeof(sysfn_t)));

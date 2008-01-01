@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,47 +30,53 @@
 #ifndef _KERNEL_H
 #define _KERNEL_H
 
-#include <config.h>
-#include <param.h>
-#include <types.h>
-#include <platform.h>
+#include <sys/param.h>
+#include <sys/list.h>
+#include <sys/errno.h>
+#include <prex/bootinfo.h>
+#include <machine/stdarg.h>
 #include <arch.h>
-#include <errno.h>
+#include <platform.h>
 #include <debug.h>
 
-#define s2(x) #x
-#define s(x) s2(x)
+typedef struct object	*object_t;
+typedef struct task	*task_t;
+typedef struct thread	*thread_t;
+typedef struct device	*device_t;
+typedef struct mutex	*mutex_t;
+typedef struct cond	*cond_t;
+typedef struct sem	*sem_t;
+typedef struct vm_map	*vm_map_t;
+typedef uint32_t	cap_t;
 
-#define BANNAR \
-	SYSNAME " version " s(VERSION) "." s(PATCHLEVEL) "." s(SUBLEVEL) \
-	" for " s(__ARCH__) "-" s(__PLATFORM__) \
-	" ("__DATE__ " " __TIME__ ")\n"
-
-
-#define min(a,b)	(((a) < (b)) ? (a) : (b))
+#include <prex/sysinfo.h>
 
 /*
- * Variable argument
+ * Magic numbers
  */
-typedef __builtin_va_list va_list;
-#define va_start(v,l)	__builtin_stdarg_start((v),l)
-#define va_end		__builtin_va_end
-#define va_arg		__builtin_va_arg
-#define __va_copy(d,s)	__builtin_va_copy((d),(s))
+#define OBJECT_MAGIC	0x4f626a3f	/* 'Obj?' */
+#define TASK_MAGIC	0x54736b3f	/* 'Tsk?' */
+#define THREAD_MAGIC	0x5468723f	/* 'Thr?' */
+#define DEVICE_MAGIC	0x4465763f	/* 'Dev?' */
+#define MUTEX_MAGIC	0x4d75783f	/* 'Mux?' */
+#define COND_MAGIC	0x436f6e3f	/* 'Con?' */
+#define SEM_MAGIC	0x53656d3f	/* 'Sem?' */
 
-#ifdef __lint__
-#define	__builtin_stdarg_start(a, l)	((a) = ((l) ? 0 : 0))
-#define	__builtin_va_arg(a, t)		((a) ? 0 : 0)
-#define	__builtin_va_end		/* nothing */
-#define	__builtin_va_copy(d, s)		((d) = (s))
+/*
+ * Global variables
+ */
+extern struct thread	*cur_thread;	/* pointer to the current thread */
+extern struct task	kern_task;	/* kernel task */
+extern struct boot_info	*boot_info;	/* pointer to boot information */
+#ifdef DEBUG
+extern volatile int	irq_level;	/* current interrupt level */
 #endif
 
-extern size_t strlcpy(char *dest, const char *src, size_t count);
-extern int strncmp(const char *src, const char *tgt, size_t count);
-extern size_t strnlen(const char *str, size_t count);
-extern void *memcpy(void *dest, const void *src, size_t count);
-extern void *memset(void *dest, int ch, size_t count);
-
-extern int vsprintf(char *, const char *, va_list);
+extern size_t	 strlcpy(char *, const char *, size_t);
+extern int	 strncmp(const char *, const char *, size_t);
+extern size_t	 strnlen(const char *, size_t);
+extern void	*memcpy(void *, const void *, size_t);
+extern void	*memset(void *, int, size_t);
+extern int	 vsprintf(char *, const char *, va_list);
 
 #endif /* !_KERNEL_H */

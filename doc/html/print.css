@@ -1,8 +1,8 @@
 body {
-	font-family: 'Lucida Grande', 'Lucida Sans', 'Lucida Sans Unicode', Verdana, Arial, Helvetica, sans-serif;
+	font-family: Verdana, Arial, Sans-Serif;
 	padding: 0;
 	margin: 0;
-	color: #666;
+	color: black;
 }
 
 h1, h2 {
@@ -17,16 +17,21 @@ h1 {
 }
 
 h2 {
-	padding:  .3em 0 .1em 0;
+	padding:  .3em 0 0 0;
 	margin: .5em 0 .5em 0;
 	font-size: 1.8em;
 	border-bottom: 2px solid #fc9;
 	color: #e60;
 }
 
+h2 span {
+	font-size: 0.7em;
+}
+
 h3 {
-	font-size: 1.1em;
+	font-size: 1.2em;
 	color: #333;
+	margin: 1em 0 0.7em 0;
 }
 
 a {
@@ -34,8 +39,23 @@ a {
 	color: blue;
 }
 
+div.toplink {
+	display: none
+}
+
+div.morelink {
+	display: none
+}
+
+td.pad {	
+	display: none
+}
+
+#top {
+	display: none
+}
+
 #content {
-	width: 750px;
 	font-size: 0.8em;
 }
 
@@ -57,7 +77,7 @@ a {
 
 
 #info a {
-	color: #006699;
+	display: none
 }
 
 #main {
@@ -85,5 +105,13 @@ a {
 }
 
 #footer {
+	padding: 10px 0 0 0;
+	font-size: 0.7em;
+	line-height: 2em;
+	color: #999;
+	text-align: center;
+}
+
+#bottom {
 	display: none
 }

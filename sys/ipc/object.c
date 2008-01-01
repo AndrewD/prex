@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,37 +34,36 @@
 /*
  * An object represents service, state, or policies etc. To manipulate
  * objects, kernel provide 3 functions: create, delete, lookup.
- * Prex task will create an object to provide its interface to other tasks.
- * The tasks will communicate by sending a message to the object each other.
- * For example, a server task creates some objects and client task will send
- * a request message to it.
+ * Prex task will create an object to provide its interface to other
+ * tasks. The tasks will communicate by sending a message to the object
+ * each other. For example, a server task creates some objects and client
+ * task will send a request message to it.
  *
  * A substance of object is stored in kernel space, and it is protected
- * from user mode code. Each object data is managed with the hash table 
+ * from user mode code. Each object data is managed with the hash table
  * by using its name string. Usually, an object has a unique name within
  * a system. Before a task sends a message to the specific object, it must
  * obtain the object ID by looking up the name of the target object.
- * 
- * An object can be created without its name. These object can be used as 
+ *
+ * An object can be created without its name. These object can be used as
  * private objects that are used by threads in same task.
  */
 
 #include <kernel.h>
 #include <queue.h>
-#include <list.h>
 #include <kmem.h>
 #include <sched.h>
 #include <task.h>
 #include <ipc.h>
 
-#define OBJ_MAXBUCKETS	64	/* Size of object hash buckets */
+#define OBJ_MAXBUCKETS	32	/* Size of object hash buckets */
 
 /*
  * Object hash table
  *
  * All objects are hashed by its name string. If an object has no
  * name, it is linked to index zero.
- * The scheduler must be locked when this table is modified.
+ * The scheduler must be locked when this table is touched.
  */
 static struct list obj_table[OBJ_MAXBUCKETS];
 
@@ -72,7 +71,8 @@ static struct list obj_table[OBJ_MAXBUCKETS];
  * Calculate the hash index for specified name string.
  * The name can be NULL if the object does not have name.
  */
-static u_int object_hash(const char *name)
+static u_int
+object_hash(const char *name)
 {
 	u_int h = 0;
 
@@ -84,9 +84,11 @@ static u_int object_hash(const char *name)
 }
 
 /*
- * Find an object from the specified name.
+ * Helper function to find the object from the specified name.
+ * Returns NULL if not found.
  */
-static object_t object_find(char *name)
+static object_t
+object_find(const char *name)
 {
 	list_t head, n;
 	object_t obj = NULL;
@@ -95,7 +97,7 @@ static object_t object_find(char *name)
 	for (n = list_first(head); n != head; n = list_next(n)) {
 		obj = list_entry(n, struct object, name_link);
 		ASSERT(obj->magic == OBJECT_MAGIC);
-		if (!strncmp(obj->name, name, MAX_OBJNAME))
+		if (!strncmp(obj->name, name, MAXOBJNAME))
 			break;
 	}
 	if (n == head)
@@ -105,28 +107,30 @@ static object_t object_find(char *name)
 
 /*
  * Search an object in the object name space. The object name must
- * be null-terminated string. The object ID is returned in obj on
- * success.
+ * be null-terminated string. The object ID is returned in obj
+ * on success.
  */
-__syscall int object_lookup(char *name, object_t *pobj)
+int
+object_lookup(const char *name, object_t *objp)
 {
 	object_t obj;
 	size_t len;
-	char str[MAX_OBJNAME];
+	char str[MAXOBJNAME];
 
-	if (umem_strnlen(name, MAX_OBJNAME, &len))
+	if (umem_strnlen(name, MAXOBJNAME, &len))
 		return EFAULT;
-	if (len == 0 || len >= MAX_OBJNAME)
+	if (len == 0 || len >= MAXOBJNAME)
 		return ESRCH;
-	if (umem_copyin(name, str, len + 1)) 
+	if (umem_copyin((void *)name, str, len + 1))
 		return EFAULT;
 
 	sched_lock();
 	obj = object_find(str);
 	sched_unlock();
+
 	if (obj == NULL)
 		return ENOENT;
-	if (umem_copyout(&obj, pobj, sizeof(object_t)))
+	if (umem_copyout(&obj, objp, sizeof(object_t)))
 		return EFAULT;
 	return 0;
 }
@@ -134,24 +138,25 @@ __syscall int object_lookup(char *name, object_t *pobj)
 /*
  * Create a new object.
  *
- * The ID of the new object is stored in obj on success.
- * The name of the object must be unique in the system. Or, the 
+ * The ID of the new object is stored in pobj on success.
+ * The name of the object must be unique in the system. Or, the
  * object can be created without name by setting NULL as name
  * argument. This object can be used as a private object which
  * can be accessed only by threads in same task.
  */
-__syscall int object_create(char *name, object_t *pobj)
+int
+object_create(const char *name, object_t *objp)
 {
 	object_t obj = 0;
-	char str[MAX_OBJNAME];
+	char str[MAXOBJNAME];
 	size_t len;
 
 	if (name != NULL) {
-		if (umem_strnlen(name, MAX_OBJNAME, &len))
+		if (umem_strnlen(name, MAXOBJNAME, &len))
 			return EFAULT;
-		if (len >= MAX_OBJNAME)
+		if (len >= MAXOBJNAME)
 			return ENAMETOOLONG;
-		if (umem_copyin(name, str, len + 1))
+		if (umem_copyin((void *)name, str, len + 1))
 			return EFAULT;
 		str[len] = '\0';
 	}
@@ -159,13 +164,13 @@ __syscall int object_create(char *name, object_t *pobj)
 
 	/*
 	 * Check user buffer first. This can reduce the error
-	 * recovery for the following resource allocations.
+	 * recovery for the subsequence resource allocations.
 	 */
-	if (umem_copyout(&obj, pobj, sizeof(object_t))) {
+	if (umem_copyout(&obj, objp, sizeof(object_t))) {
 		sched_unlock();
 		return EFAULT;
 	}
-	if ((obj = object_find(str)) != NULL) {
+	if (object_find(str) != NULL) {
 		sched_unlock();
 		return EEXIST;
 	}
@@ -173,15 +178,9 @@ __syscall int object_create(char *name, object_t *pobj)
 		sched_unlock();
 		return ENOMEM;
 	}
-	if (name != NULL) {
-		obj->name = kmem_alloc(len + 1);
-		if (obj->name == NULL) {
-			kmem_free(obj);
-			sched_unlock();
-			return ENOMEM;
-		}
+	if (name != NULL)
 		strlcpy(obj->name, str, len + 1);
-	}
+
 	queue_init(&obj->sendq);
 	queue_init(&obj->recvq);
 	obj->owner = cur_task();
@@ -189,43 +188,45 @@ __syscall int object_create(char *name, object_t *pobj)
 	list_insert(&obj_table[object_hash(name)], &obj->name_link);
 	list_insert(&(cur_task()->objects), &obj->task_link);
 
-	umem_copyout(&obj, pobj, sizeof(object_t));
+	umem_copyout(&obj, objp, sizeof(object_t));
 	sched_unlock();
 	return 0;
 }
 
 /*
- * Delete an object.
+ * Destroy an object.
  *
- * A thread can delete the object only when the target object is created
- * by the thread of the same task. All pending messages related to the 
- * deleted object are automatically canceled.
+ * A thread can delete the object only when the target object is
+ * created by the thread of the same task.
+ * All pending messages related to the deleted object are
+ * automatically canceled.
  */
-__syscall int object_delete(object_t obj)
+int
+object_destroy(object_t obj)
 {
+	int err = 0;
+
 	sched_lock();
 	if (!object_valid(obj)) {
-		sched_unlock();
-		return EINVAL;
+		err = EINVAL;
 	}
-	if (obj->owner != cur_task()) {
-		sched_unlock();
-		return EACCES;
+	else if (obj->owner != cur_task()) {
+		err = EACCES;
 	}
-	obj->magic = 0;
-	msg_cancel(obj);
-
-	list_remove(&obj->task_link);
-	list_remove(&obj->name_link);
-	if (obj->name != NULL)
-		kmem_free(obj->name);
-	kmem_free(obj);
+	else {
+		obj->magic = 0;
+		msg_cancel(obj);
+		list_remove(&obj->task_link);
+		list_remove(&obj->name_link);
+		kmem_free(obj);
+	}
 	sched_unlock();
-	return 0;
+	return err;
 }
 
 #if defined(DEBUG) && defined(CONFIG_KDUMP)
-void object_dump(void)
+void
+object_dump(void)
 {
 	int i;
 	list_t head, n;
@@ -246,11 +247,11 @@ void object_dump(void)
 }
 #endif
 
-void object_init(void)
+void
+object_init(void)
 {
 	int i;
 
-	/* Initialize object lookup table */
 	for (i = 0; i < OBJ_MAXBUCKETS; i++)
 		list_init(&obj_table[i]);
 }

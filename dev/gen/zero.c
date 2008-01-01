@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,7 +32,6 @@
  */
 
 #include <driver.h>
-#include <string.h>
 
 static int zero_read(device_t dev, char *buf, size_t *nbyte, int blkno);
 static int zero_write(device_t dev, char *buf, size_t *nbyte, int blkno);
@@ -41,7 +40,7 @@ static int zero_init(void);
 /*
  * Driver structure
  */
-struct driver zero_drv __driver_entry = {
+struct driver zero_drv = {
 	/* name */	"Zero device",
 	/* order */	2,
 	/* init */	zero_init,
@@ -61,8 +60,10 @@ static device_t zero_dev;	/* Device object */
 /*
  * Read
  */
-static int zero_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int
+zero_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
+
 	/* User buffer was already verified by kernel.  */
 	memset(buf, 0, *nbyte);
 	return 0;
@@ -71,8 +72,10 @@ static int zero_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 /*
  * Writing data to this device is ignored.
  */
-static int zero_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+static int
+zero_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
+
 	return 0;
 }
 
@@ -80,10 +83,12 @@ static int zero_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 /*
  * Initialize
  */
-static int zero_init(void)
+static int
+zero_init(void)
 {
+
 	/* Create device object */
-	zero_dev = device_create(&zero_io, "zero");
+	zero_dev = device_create(&zero_io, "zero", DF_CHR);
 	ASSERT(zero_dev);
 	return 0;
 }

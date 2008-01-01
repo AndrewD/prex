@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,17 +31,19 @@
  * pm.c - power management driver (hardware independent)
  */
 
+#include <sys/ioctl.h>
 #include <driver.h>
-#include <platform.h>
+#include <machdep.h>
+#include <event.h>
 #include <pm.h>
 #include "dvs.h"
 
 /* #define DEBUG_PM 1 */
 
 #ifdef DEBUG_PM
-#define pm_dbg(x,y...) printk("pm: "x, ##y)
+#define pm_printf(fmt, args...)	printk("pm: " fmt, ## args)
 #else
-#define pm_dbg(x,y...)
+#define pm_printf(fmt...)	do {} while (0)
 #endif
 
 
@@ -59,7 +61,7 @@ static int pm_init(void);
 /*
  * Driver structure
  */
-struct driver pm_drv __driver_entry = {
+struct driver pm_drv = {
 	/* name */	"Power Management",
 	/* order */	2,
 	/* init */	pm_init,
@@ -93,24 +95,26 @@ static u_long suspend_timeout;	/* Time until auto suspend in sec */
  * Set system to suspend state
  * Call to all devices and architecture depended code.
  */
-int pm_suspend(void)
+int
+pm_suspend(void)
 {
 	int err;
 
-	pm_dbg("Suspend system\n");
+	pm_printf("Suspend system\n");
 	err = device_broadcast(EVT_SUSPEND, 1);
 	if (err)
 		return err;
-	platform_suspend();
+	machine_suspend();
 	return 0;
 }
 
 /*
  * Resume
  */
-int pm_resume(void)
+int
+pm_resume(void)
 {
-	pm_dbg("Resume system\n");
+	pm_printf("Resume system\n");
 	device_broadcast(EVT_RESUME, 1);
 	return 0;
 }
@@ -119,26 +123,28 @@ int pm_resume(void)
  * Power off system
  * Call to all devices and architecture depended code.
  */
-int pm_poweroff(void)
+int
+pm_poweroff(void)
 {
 	int err;
 
-	pm_dbg("Power off...\n");
+	pm_printf("Power off...\n");
 	err = device_broadcast(EVT_SHUTDOWN, 1);
 	if (err)
 		return err;
-	platform_poweroff();
+	machine_poweroff();
 	return 0;
 }
 
 /*
  * Reboot system.
  */
-int pm_reboot(void)
+int
+pm_reboot(void)
 {
 	int err;
 
-	pm_dbg("reboot\n");
+	pm_printf("rebooting...\n");
 	err = device_broadcast(EVT_SHUTDOWN, 1);
 	if (err)
 		return err;
@@ -148,32 +154,36 @@ int pm_reboot(void)
 	/*
 	 * Do reset.
 	 */
-	system_reset();
+	machine_reset();
 	return 0;
 }
 
 /*
  * Idle timer handler
  */
-static void idle_timeout(u_long dummy)
+static void
+idle_timeout(u_long dummy)
 {
+
 	irq_lock();
 	idle_count++;
 	irq_unlock();
 	if (idle_count >= suspend_timeout)
 		pm_suspend();
 	else
-		timer_timeout(&idle_timer, idle_timeout, 0, 1000);
+		timer_callout(&idle_timer, idle_timeout, 0, 1000);
 }
 
 /*
  * Set suspend timer
  */
-int pm_settimer(u_long sec)
+int
+pm_settimer(u_long sec)
 {
+
 	sched_lock();
 	if (sec)
-		timer_timeout(&idle_timer, idle_timeout, 0, 1000);
+		timer_callout(&idle_timer, idle_timeout, 0, 1000);
 	else
 		timer_stop(&idle_timer);
 	idle_count = 0;
@@ -185,8 +195,10 @@ int pm_settimer(u_long sec)
 /*
  * Get power management timer
  */
-int pm_gettimer(u_long *sec)
+int
+pm_gettimer(u_long *sec)
 {
+
 	*sec = suspend_timeout;
 	return 0;
 }
@@ -194,16 +206,20 @@ int pm_gettimer(u_long *sec)
 /*
  * Reload idle timer
  */
-void pm_active(void)
+void
+pm_active(void)
 {
+
 	idle_count = 0;
 }
 
 /*
  * Set power policy
  */
-static int pm_setpolicy(int policy)
+static int
+pm_setpolicy(int policy)
 {
+
 	if (policy != PM_POWERSAVE && policy != PM_PERFORMANCE)
 		return EINVAL;
 #ifdef CONFIG_CPUFREQ
@@ -216,8 +232,10 @@ static int pm_setpolicy(int policy)
 /*
  * Get current power policy
  */
-int pm_getpolicy(void)
+int
+pm_getpolicy(void)
 {
+
 	return power_policy;
 }
 
@@ -229,23 +247,28 @@ int pm_getpolicy(void)
  * the power off should be done by the privileged task like a process
  * server.
  */
-static int pm_open(device_t dev, int mode)
+static int
+pm_open(device_t dev, int mode)
 {
+
 	if (nr_open > 0)
 		return EBUSY;
 	nr_open++;
 	return 0;
 }
 
-static int pm_close(device_t dev)
+static int
+pm_close(device_t dev)
 {
+
 	if (nr_open != 1)
 		return EINVAL;
 	nr_open--;
 	return 0;
 }
 
-static int pm_ioctl(device_t dev, int cmd, u_long arg)
+static int
+pm_ioctl(device_t dev, int cmd, u_long arg)
 {
 	int err = 0;
 	int policy;
@@ -283,10 +306,12 @@ static int pm_ioctl(device_t dev, int cmd, u_long arg)
 /*
  * Initialize
  */
-static int pm_init(void)
+static int
+pm_init(void)
 {
+
 	/* Create device object */
-	pm_dev = device_create(&pm_io, "pm");
+	pm_dev = device_create(&pm_io, "pm", DF_CHR);
 	ASSERT(pm_dev);
 
 	nr_open = 0;
@@ -294,7 +319,7 @@ static int pm_init(void)
 	suspend_timeout = 0;
 	power_policy = DEFAULT_POWER_POLICY;
 	timer_init(&idle_timer);
-	printk("Default power policy: %s mode\n",
+	printk("pm: Default power policy is %s mode\n",
 	       (power_policy == PM_POWERSAVE) ? "power save" : "performance");
 	return 0;
 }

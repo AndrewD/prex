@@ -1,0 +1,4 @@
+OBJCOPYFLAGS+= -I elf32-littlearm -O binary -R .note -R .comment -S
+CFLAGS+=	-mcpu=arm7tdmi -mtune=arm7tdmi
+
+USR_LDFLAGS=	-r -d

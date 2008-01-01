@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,6 +32,13 @@
  */
 
 #include <kernel.h>
+#include <task.h>
+#include <ipc.h>
+#include <thread.h>
+#include <device.h>
+#include <page.h>
+#include <kmem.h>
+#include <vm.h>
 #include <irq.h>
 
 #ifdef DEBUG
@@ -43,42 +50,33 @@
 #undef panic
 #endif
 
-typedef void (* volatile print_func_t)(char *);
-
 #ifdef CONFIG_DMESG
-#define LOGBUF_SIZE	1024	/* Size of ring buffer for log */
-#define LOGBUF_MASK	(LOGBUF_SIZE-1)
+#define LOG_SIZE	2048		/* size of ring buffer for log */
+#define LOG_MASK	(LOG_SIZE-1)
 
 static void log_save(char *buf);
-static void log_dump(void);
 
-static char log_buf[LOGBUF_SIZE];	/* Buffer for message log */
-static u_long log_start;		/* Start index of log_buf */
-static u_long log_end;			/* End index of log_buf */
-static u_long log_len;			/* Length of logged char */
-#endif /* CONFIG_DMESG */
+static char log_buf[LOG_SIZE];		/* buffer for message log */
+static u_long log_start;		/* start index of log_buf */
+static u_long log_end;			/* end index of log_buf */
+static u_long log_len;			/* length of logged char */
+#endif
 
-#ifdef CONFIG_KTRACE
-#define NR_TRACE	128		/* Number of traced functions */
-
-static struct trace_entry trace_buf[NR_TRACE];	/* Ring buffer */
-static int trace_index;			/* Current trace index */
-static int trace_mode = 1;		/* True if trace is enabled */
-#endif /* CONFIG_KTRACE */
-
-static char msg_buf[LOGMSG_SIZE];	/* Buffer for a message */
-static print_func_t alt_print;		/* Alternate print handler */
+static char msg_buf[MSGBUFSZ];		/* temporary buffer for message */
+static void (*alt_print)(char *);	/* alternate print handler */
 
 /*
  * Print out the specified string with a variable argument.
  *
  * An actual output is displayed via the platform specific device by
- * diag_print() routine. In addition, the device driver can replace
- * the print routine by using debug_attach().
- * All printk() inside the kernel are defined as a macro. The printk()
- * macro is compiled only when the debug option is enabled (NDEBUG=0).
+ * diag_print() routine in kernel. As an alternate option, the device
+ * driver can replace the print routine by using debug_attach().
+ * All printk() inside the kernel are defined as a macro.
+ * The printk() macro is compiled only when the debug option is
+ * enabled (NDEBUG=0).
  */
-void printk(const char *fmt, ...)
+void
+printk(const char *fmt, ...)
 {
 	va_list args;
 
@@ -88,7 +86,7 @@ void printk(const char *fmt, ...)
 #ifdef CONFIG_DMESG
 	log_save(msg_buf);
 #endif
-	if (alt_print)
+	if (alt_print != NULL)
 		alt_print(msg_buf);
 	else
 		diag_print(msg_buf);
@@ -99,16 +97,18 @@ void printk(const char *fmt, ...)
 /*
  * Kernel assertion.
  *
- * assert() is called only when the expression is false in ASSERT() macro.
- * ASSERT() macro is compiled only when the debug option is enabled.
+ * assert() is called only when the expression is false in ASSERT()
+ * macro. ASSERT() macro is compiled only when the debug option is
+ * enabled.
  */
-void assert(const char *file, int line, const char *exp)
+void
+assert(const char *file, int line, const char *exp)
 {
 	irq_lock();
 	printk("\nAssertion failed: %s line:%d '%s'\n", file, line, exp);
 	BREAKPOINT();
 	for (;;)
-		cpu_idle();
+		machine_idle();
 	/* NOTREACHED */
 }
 
@@ -116,10 +116,12 @@ void assert(const char *file, int line, const char *exp)
  * Kernel panic.
  *
  * panic() is called for a fatal kernel error. It shows specified
- * information, and stop CPU.
- * If the kernel is not debug version, it just resets the system.
+ * message, and stops CPU. If the kernel is not debug version,
+ * panic() macro will reset the system instead of calling this
+ * routine.
  */
-void panic(const char *fmt, ...)
+void
+panic(const char *fmt, ...)
 {
 	va_list args;
 
@@ -133,141 +135,51 @@ void panic(const char *fmt, ...)
 	irq_unlock();
 	BREAKPOINT();
 	for (;;)
-		cpu_idle();
+		machine_idle();
 	/* NOTREACHED */
 }
-
-#ifdef CONFIG_KTRACE
-/*
- * Kernel Trace:
- *
- *  The function trace will record the function entry/exit of all kernel
- *  routines. It is helpful to debug some types of the asynchronous
- *  problem like a deadlock problem. To enable the kernel trace, set
- *  the environment variable "KTRACE=1" before compiling the kernel.
- */
-
-/*
- * Start function trace.
- */
-void __attribute__ ((no_instrument_function)) trace_on(void)
-{
-	trace_mode = 1;
-}
-
-/*
- * End of function trace.
- */
-void __attribute__ ((no_instrument_function)) trace_off(void)
-{
-	trace_mode = 0;
-}
-
-/*
- * Dump the latest function trace.
- */
-static void __attribute__ ((no_instrument_function)) trace_dump(void)
-{
-	int i, j, depth, mode;
-
-	irq_lock();
-	printk("trace_dump\n");
-
-	/* Save current trace mode and disable tracing. */
-	mode = trace_mode;
-	trace_mode = 0;
-
-	/*
-	 * Dump the trace log with time order.
-	 */
-	depth = 0;
-	i = trace_index;
-	do {
-		if (++i >= NR_TRACE)
-			i = 0;
-		if (trace_buf[i].type == FUNC_NONE)
-			continue;
-		/*
-		 * Format display column.
-		 */
-		if (trace_buf[i].type == FUNC_ENTER)
-			depth++;
-		for (j = 0; j < depth + 1; j++)
-			printk("  ");
-		if (trace_buf[i].type == FUNC_EXIT)
-			depth--;
-		/*
-		 * Show function address.
-		 */
-		printk("%s %x\n",
-		       (trace_buf[i].type == FUNC_ENTER) ? "Enter" : "Exit ",
-		       trace_buf[i].func);
-
-	} while (i != trace_index);
-
-	trace_mode = mode;
-	irq_unlock();
-}
-
-/*
- * Store information for the function entery & exit.
- */
-static inline void __attribute__ ((no_instrument_function))
-     trace_log(int type, void *func)
-{
-	trace_index = ((trace_index + 1) & (NR_TRACE - 1));
-	trace_buf[trace_index].type = type;
-	trace_buf[trace_index].func = func;
-}
-
-/*
- * This is called at the entry of all functions.
- * gcc automatically inserts the call for this profiling routine
- * when "-finstrument-functions" option is applied.
- */
-void __attribute__ ((no_instrument_function))
-     __cyg_profile_func_enter(void *this_fn, void *call_site)
-{
-	if (trace_mode)
-		trace_log(FUNC_ENTER, this_fn);
-	return;
-}
-
-/*
- * This is called at the exit of all functions.
- */
-void __attribute__ ((no_instrument_function))
-     __cyg_profile_func_exit (void *this_fn, void *call_site)
-{
-	if (trace_mode)
-		trace_log(FUNC_EXIT, this_fn);
-	return;
-}
-#endif /* CONFIG_KTRACE */
 
 #ifdef CONFIG_DMESG
 /*
  * Save diag message to ring buffer
  */
-static void log_save(char *buf)
+static void
+log_save(char *buf)
 {
 	char *p;
 
 	for (p = buf; *p != '\0'; p++) {
-		log_buf[log_end & LOGBUF_MASK] = *p;
+		log_buf[log_end & LOG_MASK] = *p;
 		log_end++;
-		if (log_end - log_start > LOGBUF_SIZE)
-			log_start = log_end - LOGBUF_SIZE;
-		if (log_len < LOGBUF_SIZE)
+		if (log_end - log_start > LOG_SIZE)
+			log_start = log_end - LOG_SIZE;
+		if (log_len < LOG_SIZE)
 			log_len++;
 	}
-
+	/* Store end tag */
+	log_buf[log_end & LOG_MASK] = -1;
 }
+#endif
 
 /*
- * Dump log buffer
+ * Return infomation about log
  */
-static void log_dump(void)
+int
+log_get(char **buf, size_t *size)
+{
+
+#ifdef CONFIG_DMESG
+	*buf = log_buf;
+	*size = LOG_SIZE;
+	return 0;
+#else
+	return -1;
+#endif
+}
+
+#if defined(CONFIG_DMESG) && defined (CONFIG_KDUMP)
+static void
+log_dump(void)
 {
 	int i, len;
 	u_long index;
@@ -275,30 +187,31 @@ static void log_dump(void)
 
 	index = log_start;
 	len = log_len;
-	if (log_len == LOGBUF_SIZE) {
+	if (log_len == LOG_SIZE) {
 		/* Skip first line */
-		while (log_buf[index & LOGBUF_MASK] != '\n') {
+		while (log_buf[index & LOG_MASK] != '\n') {
 			index++;
 			len--;
 		}
 	}
 	for (i = 0; i < len; i++) {
-		c = log_buf[index & LOGBUF_MASK];
+		c = log_buf[index & LOG_MASK];
 		printk("%c", c);
 		index++;
 	}
 }
-#endif /* CONFIG_DMESG */
+#endif
 
 /*
- * Dump kernel information.
+ * Dump system information.
  *
  * A keyboard driver may call this routine if a user presses
  * a predefined "dump" key.
  * Since interrupt is locked in this routine, there is no need
  * to lock the interrupt/scheduler in each dump function.
  */
-int kernel_dump(int item)
+int
+debug_dump(int item)
 {
 #ifdef CONFIG_KDUMP
 	int err = 0;
@@ -329,17 +242,11 @@ int kernel_dump(int item)
 		kmem_dump();
 		vm_dump();
 		break;
-	case DUMP_MSGLOG:
 #ifdef CONFIG_DMESG
+	case DUMP_MSGLOG:
 		log_dump();
-#endif
 		break;
-	case DUMP_TRACE:
-#ifdef CONFIG_KTRACE
-		trace_dump();
 #endif
-		break;
-
 	default:
 		err = 1;
 		break;
@@ -355,10 +262,11 @@ int kernel_dump(int item)
  * Attach an alternate print handler.
  * A device driver can hook the function to display message.
  */
-void debug_attach(void (*func)(char *))
+void
+debug_attach(void (*fn)(char *))
 {
-	ASSERT(func);
-	alt_print = func;
+	ASSERT(fn);
+	alt_print = fn;
 }
 
 #else /* !DEBUG */
@@ -366,16 +274,14 @@ void debug_attach(void (*func)(char *))
 /*
  * Stubs for the release build.
  */
-int kernel_dump(int item)
+int
+debug_dump(int item)
 {
 	return ENOSYS;
 }
 
-void debug_attach(void (*func)(char *))
+void
+debug_attach(void (*fn)(char *))
 {
 }
 #endif /* !DEBUG */
-
-void debug_init(void)
-{
-}

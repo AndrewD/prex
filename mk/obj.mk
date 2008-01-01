@@ -1,19 +1,16 @@
-#
-# Make rules to build object module.
-#
-include $(PREX_SRC)/mk/own.mk
+include $(SRCDIR)/mk/own.mk
 
-INC_FLAGS += -I$(PREX_SRC)/conf \
-	-I$(PREX_SRC)/user/arch/$(PREX_ARCH) \
-	-I$(PREX_SRC)/user/include
+INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/include -I$(SRCDIR)/usr/include
 
-ASFLAGS = $(INC_FLAGS)
-CFLAGS = $(INC_FLAGS) -nostdinc
-CPPFLAGS = $(INC_FLAGS) -nostdinc
-LDFLAGS = -static
+ASFLAGS+=	$(INCLUDE)
+CFLAGS+=	$(INCLUDE) -nostdinc
+CPPFLAGS+=	$(INCLUDE) -nostdinc
+LDFLAGS+=	-static $(USR_LDFLAGS)
 
-CFLAGS += -D_PREX_SOURCE
-CPPFLAGS += -D_PREX_SOURCE
-TYPE    = OBJECT
+TYPE=		OBJECT
 
-include $(PREX_SRC)/mk/Makefile.inc
+ifdef SRCS
+OBJS+= $(SRCS:.c=.o)
+endif
+
+include $(SRCDIR)/mk/Makefile.inc

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,15 +30,11 @@
 #ifndef _ARCH_H
 #define _ARCH_H
 
-/*--------------------------------------------------------------------------
- * Context
- */
-
 /*
  * Common register frame for trap/interrupt.
  * These cpu state are saved into top of the kernel stack in
  * trap/interrupt entries. Since the arguments of system calls are
- * passed via registers, the system call library is completely 
+ * passed via registers, the system call library is completely
  * dependent on this register format.
  *
  * The value of ss & esp are not valid for kernel mode trap
@@ -94,101 +90,57 @@ struct fpu_regs {
  * Processor context
  */
 struct context {
-	struct kern_regs kregs;		/* Kernel mode registers */
-	struct cpu_regs	*uregs;		/* User mode registers */
+	struct kern_regs kregs;		/* kernel mode registers */
+	struct cpu_regs	*uregs;		/* user mode registers */
 #ifdef CONFIG_FPU
-	struct fpu_regs	*fregs;		/* Co-processor registers */
+	struct fpu_regs	*fregs;		/* co-processor registers */
 #endif
-	char   *esp0;			/* Top of kernel stack */
+	u_long	esp0;			/* top of kernel stack */
 };
 
 typedef struct context *context_t;	/* context id */
 
-/* Types for context_set */
-#define USER_ENTRY	0		/* Set user mode entry addres */
-#define USER_STACK	1		/* Set user mode stack address */
-#define KERN_ENTRY	2		/* Set kernel mode entry address */
-#define KERN_ARG	3		/* Set kernel mode argument */
+/* types for context_set */
+#define CTX_UENTRY	0		/* set user mode entry addres */
+#define CTX_USTACK	1		/* set user mode stack address */
+#define CTX_KENTRY	2		/* set kernel mode entry address */
+#define CTX_KARG	3		/* set kernel mode argument */
 
-extern void context_init(context_t ctx, void *kstack);
-extern void context_set(context_t ctx, int type, u_long val);
-extern void context_switch(context_t prev, context_t next);
-extern void context_save(context_t ctx, int exc);
-extern void context_restore(context_t ctx, void *regs);
+extern void context_init(context_t, u_long);
+extern void context_set(context_t, int, u_long);
+extern void context_switch(context_t, context_t);
+extern void context_save(context_t, int);
+extern void context_restore(context_t, void *);
 
-/*--------------------------------------------------------------------------
- * Interrupt
- */
-
-#define interrupt_enable()	__asm__ __volatile__("sti"::)
-#define interrupt_disable()	__asm__ __volatile__("cli"::)
-
-static inline void interrupt_save(int *sts)
-{
-	register u_long eflags;
-	__asm__ __volatile__(
-		"pushfl\n\t"
-		"popl %0\n\t"
-		:"=r" (eflags));
-	*sts = (int)(eflags & 0x200);
-}
-
-static inline void interrupt_restore(int sts)
-{
-	__asm__ __volatile__(
-		"pushfl\n\t"
-		"popl %%eax\n\t"
-		"andl $0xfffffdff, %%eax\n\t"
-		"orl %0, %%eax\n\t"
-		"pushl %%eax\n\t"
-		"popfl\n\t"
-		:
-		:"r" (sts)
-		:"eax");
-}
-
-/*--------------------------------------------------------------------------
+/*
  * Memory Management Unit
  */
 
-typedef long *pgd_t;				/* Page directory */
+typedef long *pgd_t;			/* page directory */
 
-/* Memory page type */
+/* memory page type */
 #define PG_UNMAP	0		/* no page */
 #define PG_READ		1		/* read only */
 #define PG_WRITE	2		/* read/write */
 
 #ifdef CONFIG_MMU
 extern void mmu_init(void);
-extern int  mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type);
 extern pgd_t mmu_newmap(void);
-extern void mmu_delmap(pgd_t pgd);
-extern void mmu_switch(pgd_t pgd);
-extern void *mmu_extract(pgd_t pgd, void *virt, size_t size);
+extern void mmu_delmap(pgd_t);
+extern int  mmu_map(pgd_t, void *, void *, size_t, int);
+extern void mmu_switch(pgd_t);
+extern void *mmu_extract(pgd_t, void *, size_t);
 #else /* CONFIG_MMU */
 #define mmu_init()		do {} while (0)
-#define mmu_switch(pgd)		do {} while (0)
 #endif /* CONFIG_MMU */
 
-/*--------------------------------------------------------------------------
- * User Memory
+/*
+ * User Memory access
  */
-
-extern int umem_copyin(void *uaddr, void *kaddr, size_t len);
-extern int umem_copyout(void *kaddr, void *uaddr, size_t len);
-extern int umem_strnlen(void *uaddr, size_t maxlen, size_t *len);
-
-/*--------------------------------------------------------------------------
- * Misc.
- */
+extern int umem_copyin(void *, void *, size_t);
+extern int umem_copyout(void *, void *, size_t);
+extern int umem_strnlen(const char *, size_t, size_t *);
 
 #define breakpoint()	__asm__ __volatile__("int $3"::)
-
-/*
- * All the arguments of system calls are passed via a stack in i386 system.
- * The following macro directs the compiler not to use any register for
- * the arguments of the system call function.
- */
-#define __syscall __attribute__ ((regparm(0)))
 
 #endif /* !_ARCH_H */

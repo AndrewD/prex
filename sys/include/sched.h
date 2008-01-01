@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,26 +32,18 @@
 
 #include <event.h>
 #include <thread.h>
-#include <system.h>
 
 /*
- * Scheduling policy
+ * Scheduling policies defined by IEEE Std 1003.1-2001
  */
-#define SCHED_FIFO	0	/* First In First Out */
-#define SCHED_RR	1	/* Round Robin */
-#define SCHED_OTHER	2	/* Other */
+#define SCHED_FIFO	0	/* First in-first out */
+#define SCHED_RR	1	/* Round robin */
+#define	SCHED_OTHER	2	/* Another scheduling policy */
 
 /*
  * Scheduling quantum (Ticks for context switch)
  */
-#define QUANTUM		(TIME_SLICE * HZ / 1000)
-
-/*
- * Scheduling priority (Smaller value means higher priority.)
- */
-#define MAX_PRIO	0
-#define MIN_PRIO	(NR_PRIO - 1)
-#define PRIO_IDLE	MIN_PRIO /* Priority for idle thread */
+#define QUANTUM		(CONFIG_TIME_SLICE * HZ / 1000)
 
 /*
  * DPC (Deferred Procedure Call) object
@@ -59,37 +51,33 @@
 struct dpc {
 	struct queue	link;		/* Linkage on DPC queue */
 	int		state;
-	void		(*func)(void *); /* Call back routine */
+	void		(*func)(void *); /* Callback routine */
 	void		*arg;		/* Argument to pass */
 };
-typedef struct dpc *dpc_t;
 
-/*
- * State for DPC
- */
+/* state for DPC */
 #define DPC_FREE	0x4470463f	/* 'DpF?' */
 #define DPC_PENDING	0x4470503f	/* 'DpP?' */
 
-#define sched_sleep(evt) sched_tsleep((evt), 0)
+#define sched_sleep(evt)	sched_tsleep((evt), 0)
 
-extern void sched_init(void);
-extern void sched_lock(void);
-extern void sched_unlock(void);
-extern void sched_yield(void);
-extern int sched_tsleep(event_t event, u_long timeout);
-extern void sched_wakeup(event_t event);
-extern thread_t sched_wakeone(event_t event);
-extern void sched_unsleep(thread_t th, int result);
-extern void sched_suspend(thread_t th);
-extern void sched_resume(thread_t th);
-extern void sched_start(thread_t th);
-extern void sched_stop(thread_t th);
-extern void sched_tick(void);
-extern int sched_getprio(thread_t th);
-extern void sched_setprio(thread_t th, int base, int prio);
-extern int sched_getpolicy(thread_t th);
-extern int sched_setpolicy(thread_t th, int policy);
-extern void sched_info(struct info_sched *info);
-extern void sched_dpc(dpc_t dpc, void (*func)(void *), void *arg);
+extern int	 sched_tsleep(struct event *, u_long);
+extern void	 sched_wakeup(struct event *);
+extern thread_t	 sched_wakeone(struct event *);
+extern void	 sched_unsleep(thread_t, int);
+extern void	 sched_yield(void);
+extern void	 sched_suspend(thread_t);
+extern void	 sched_resume(thread_t);
+extern void	 sched_tick(void);
+extern void	 sched_start(thread_t);
+extern void	 sched_stop(thread_t);
+extern void	 sched_lock(void);
+extern void	 sched_unlock(void);
+extern int	 sched_getprio(thread_t);
+extern void	 sched_setprio(thread_t, int, int);
+extern int	 sched_getpolicy(thread_t);
+extern int	 sched_setpolicy(thread_t, int);
+extern void	 sched_dpc(struct dpc *, void (*)(void *), void *);
+extern void	 sched_init(void);
 
 #endif /* !_SCHED_H */

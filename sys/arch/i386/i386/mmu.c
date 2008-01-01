@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,11 +38,8 @@
  */
 
 #include <kernel.h>
-#include <bootinfo.h>
 #include <page.h>
-#include "cpu.h"
-
-#ifdef CONFIG_MMU
+#include <cpu.h>
 
 /*
  * Map physical memory range into virtual address
@@ -57,7 +54,7 @@
  * Setup the appropriate page tables for mapping. If there is no
  * page table for the specified address, new page table is allocated.
  *
- * This routine does not return any error even if the specified 
+ * This routine does not return any error even if the specified
  * address has been already mapped to other physical address.
  * In this case, it will just override the existing mapping.
  *
@@ -68,14 +65,16 @@
  *
  * TODO: TLB should be flushed for specific page by invalpg in case of i486.
  */
-int mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type)
+int
+mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type)
 {
 	long pg_type;
 	page_table_t pte;
 	void *pg;	/* page */
+	u_long va, pa;
 
-	phys = (void *)PAGE_ALIGN(phys);
-	virt = (void *)PAGE_ALIGN(virt);
+	pa = PAGE_ALIGN(phys);
+	va = PAGE_ALIGN(virt);
 	size = PAGE_TRUNC(size);
 
 	/* Build page type */
@@ -92,26 +91,26 @@ int mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type)
 	}
 	/* Map all pages */
 	while (size > 0) {
-		if (pte_present(pgd, virt)) {
+		if (pte_present(pgd, va)) {
 			/* Page table already exists for the address */
-			pte = pgd_to_pte(pgd, virt);
+			pte = pgd_to_pte(pgd, va);
 		} else {
 			ASSERT(pg_type != 0);
 			if ((pg = page_alloc(PAGE_SIZE)) == NULL) {
 				printk("Error: MMU mapping failed\n");
 				return -1;
 			}
-			pgd[PAGE_DIR(virt)] =
+			pgd[PAGE_DIR(va)] =
 			    (u_long)pg | PDE_PRESENT | PDE_WRITE | PDE_USER;
 			pte = phys_to_virt(pg);
 			memset(pte, 0, PAGE_SIZE);
 		}
 		/* Set new entry into page table */
-		pte[PAGE_TABLE(virt)] = (u_long)phys | pg_type;
+		pte[PAGE_TABLE(va)] = pa | pg_type;
 
 		/* Process next page */
-		phys += PAGE_SIZE;
-		virt += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
 	flush_tlb();
@@ -125,7 +124,8 @@ int mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type)
  * map must have the same kernel page table in it. So, the kernel
  * page tables are copied to newly created map.
  */
-pgd_t mmu_newmap(void)
+pgd_t
+mmu_newmap(void)
 {
 	void *pg;
 	pgd_t pgd, kern_pgd;
@@ -147,9 +147,10 @@ pgd_t mmu_newmap(void)
 /*
  * Delete all page map.
  */
-void mmu_delmap(pgd_t pgd)
+void
+mmu_delmap(pgd_t pgd)
 {
-	int i;
+	u_long i;
 	page_table_t pte;
 
 	flush_tlb();
@@ -158,7 +159,7 @@ void mmu_delmap(pgd_t pgd)
 	for (i = 0; i < PAGE_DIR(PAGE_OFFSET); i++) {
 		pte = (page_table_t)pgd[i];
 		if (pte != 0)
-			page_free((void *)((u_long)pte & PTE_ADDRESS), 
+			page_free((void *)((u_long)pte & PTE_ADDRESS),
 				  PAGE_SIZE);
 	}
 	/* Release page directory */
@@ -172,9 +173,13 @@ void mmu_delmap(pgd_t pgd)
  * Whole TLB are flushed automatically by loading
  * CR3 register.
  */
-void mmu_switch(pgd_t pgd)
+void
+mmu_switch(pgd_t pgd)
 {
-	set_cr3((u_long)virt_to_phys(pgd));
+	u_long phys = (u_long)virt_to_phys(pgd);
+
+	if (phys != get_cr3())
+		set_cr3(phys);
 }
 
 /*
@@ -182,13 +187,14 @@ void mmu_switch(pgd_t pgd)
  * This routine checks if the virtual area actually exist.
  * It returns NULL if at least one page is not mapped.
  */
-void *mmu_extract(pgd_t pgd, void *virt, size_t size)
+void *
+mmu_extract(pgd_t pgd, void *virt, size_t size)
 {
 	page_table_t pte;
-	void *start, *end, *pg, *phys;
+	u_long start, end, pg;
 
-	start = (void *)PAGE_TRUNC(virt);
-	end = (void *)PAGE_TRUNC(virt + size - 1);
+	start = PAGE_TRUNC(virt);
+	end = PAGE_TRUNC((u_long)virt + size - 1);
 
 	/* Check all pages exist */
 	for (pg = start; pg <= end; pg += PAGE_SIZE) {
@@ -198,18 +204,16 @@ void *mmu_extract(pgd_t pgd, void *virt, size_t size)
 		if (!page_present(pte, pg))
 			return NULL;
 	}
-	
+
 	/* Get physical address */
 	pte = pgd_to_pte(pgd, start);
-	pg = (void *)pte_to_page(pte, start);
-	phys = pg + (virt - start);
-	return phys;
+	pg = pte_to_page(pte, start);
+	return (void *)(pg + ((u_long)virt - start));
 }
 
 /*
  * Initialize mmu
  *
- * Build kernel page directory.
  * Paging is already enabled in locore.S. And, physical address
  * 0-4M has been already mapped into kernel space in locore.S.
  * Now, all physical memory is mapped into kernel virtual address
@@ -222,25 +226,28 @@ void *mmu_extract(pgd_t pgd, void *virt, size_t size)
  * become large, too. For example, page table requires 512K bytes
  * for 512M bytes system RAM.
  */
-void mmu_init(void)
+void
+mmu_init(void)
 {
 	pgd_t kern_pgd;
-	int nr_page, nr_pte;
+	int npages, nptes;
 	u_long pte_entry, pgd_index, *pte;
 	int i, j;
 	void *pg;
 
 	kern_pgd = phys_to_virt(KERNEL_PGD);
-	nr_page = boot_info->main_mem.size / PAGE_SIZE;
-	nr_pte = (nr_page + 1023) / 1024;
+	npages = boot_info->main_mem.size / PAGE_SIZE;
+	nptes = (npages + 1023) / 1024;
 	pgd_index = PAGE_DIR(PAGE_OFFSET);
 	pte_entry = 0 | PTE_PRESENT | PTE_WRITE;
 
-	/* Build kernel page tables for whole physical pages */
-	for (i = 0; i < nr_pte; i++) {
+	/*
+	 * Build kernel page tables for whole physical pages.
+	 */
+	for (i = 0; i < nptes; i++) {
 		/* Allocate new page table */
 		if ((pg = page_alloc(PAGE_SIZE)) == NULL)
-			panic("mmu_init: no memory");
+			panic("mmu_init: out of memory");
 		pte = phys_to_virt(pg);
 		memset(pte, 0, PAGE_SIZE);
 
@@ -248,7 +255,7 @@ void mmu_init(void)
 		for (j = 0; j < 1024; j++) {
 			pte[j] = pte_entry;
 			pte_entry += PAGE_SIZE;
-			if (--nr_page <= 0)
+			if (--npages <= 0)
 				break;
 		}
 		/* Set the page table address into page directory. */
@@ -262,5 +269,3 @@ void mmu_init(void)
 	/* Flush translation look-aside buffer */
 	flush_tlb();
 }
-
-#endif /* CONFIG_MMU */

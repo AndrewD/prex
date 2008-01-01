@@ -1004,7 +1004,8 @@ breakpoint (void)
 }
 */
 
-void gdb_init(void)
+void
+gdb_init(void)
 {
 	if (serial_init())
 		return;

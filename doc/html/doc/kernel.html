@@ -9,6 +9,10 @@
   <link rel="stylesheet" type="text/css" href="../print.css" media="print">
 </head>
 <body>
+<div id="top">
+</div>
+<div id="middle">
+
 <table id="content" cellpadding="0" cellspacing="0">
   <tbody>
 
@@ -36,6 +40,7 @@
       <a href="index.html">Document Index</a> >
       Kernel Internals
     </tr>
+    <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
       <td id="main" style="vertical-align: top;">
@@ -224,37 +229,35 @@ in the kernel codes.
 </p>
 <pre>
 struct thread {
-        int             magic;          /* Magic number */
-        task_t          task;           /* Pointer to owner task */
-        struct list     task_link;      /* Link for all threads in same task */
-        struct queue    link;           /* Link for scheduling queue */
-        int             state;          /* Thread state */
-        int             policy;         /* Scheduling policy */
-        int             prio;           /* Current priority */
-        int             base_prio;      /* Base priority */
-        int             ticks_left;     /* Remaining ticks to run */
-        u_int           quantum;        /* Execution time limit */
-        int             need_resched;   /* True if rescheduling is needed */
-        int             lock_count;     /* Schedule lock counter */
-        int             sus_count;      /* Suspend counter */
-        event_t         sleep_event;    /* Sleep event */
-        int             sleep_result;   /* Sleep result */
-        u_int           total_ticks;    /* Total running ticks */
-        struct timer    timeout;        /* Thread timer */
-        struct timer    *periodic;      /* Pointer to periodic timer */
-        struct queue    ipc_link;       /* Link for IPC queue */
-        void            *msg_addr;      /* Kernel address of IPC message */
-        u_long          msg_size;       /* Size of IPC message */
-        struct thread   *sender;        /* Thread that sends message */
-        struct thread   *receiver;      /* Thread that receives message */
-        object_t        send_obj;       /* Current send target object */
-        object_t        recv_obj;       /* Current receive target object */
-        u_int32_t       exc_bitmap;     /* Bitmap of pending exceptions */
-        int             wait_exc;       /* True if wait any exception */
-        struct list     mutexes;        /* Mutexes this thread locking now */
-        struct mutex    *wait_mutex;    /* Mutex pointer currently waiting */
-        void            *kstack;        /* Base address of kernel stack */
-        struct context  context;        /* Machine specific registers */
+        int             magic;          /* magic number */
+        task_t          task;           /* pointer to owner task */
+        struct list     task_link;      /* link for threads in same task */
+        struct queue    link;           /* linkage on scheduling queue */
+        int             state;          /* thread state */
+        int             policy;         /* scheduling policy */
+        int             prio;           /* current priority */
+        int             base_prio;      /* base priority */
+        int             ticks_left;     /* remaining ticks to run */
+        u_int           total_ticks;    /* total running ticks */
+        int             need_resched;   /* true if rescheduling is needed */
+        int             lock_count;     /* schedule lock counter */
+        int             suspend_count;  /* suspend counter */
+        struct event    *sleep_event;   /* sleep event */
+        int             sleep_result;   /* sleep result */
+        struct timer    timeout;        /* thread timer */
+        struct timer    *periodic;      /* pointer to periodic timer */
+        struct queue    ipc_link;       /* linkage on IPC queue */
+        void            *msg_addr;      /* kernel address of IPC message */
+        size_t          msg_size;       /* size of IPC message */
+        struct thread   *sender;        /* thread that sends IPC message */
+        struct thread   *receiver;      /* thread that receives IPC message */
+        object_t        send_obj;       /* IPC object sending to */
+        object_t        recv_obj;       /* IPC object receiving from */
+        uint32_t        exc_bitmap;     /* bitmap of pending exceptions */
+        struct list     mutexes;        /* mutexes locked by this thread */
+        struct mutex    *wait_mutex;    /* mutex pointer currently waiting */
+        void            *kstack;        /* base address of kernel stack */
+        struct context  context;        /* machine specific context */
 };</pre>
 
 <h3>Thread Creation</h3>
@@ -383,12 +386,13 @@ mode context.
 The scheduling policy is set to SCHED_FIFO by default.
 </p>
 <p>
-Currently, the kernel is using the three types of the following kernel thread.
+Currently, the following kernel threads are running in kernel mode.
 </p>
 <ul>
-  <li>Interrupt Service Thread</li>
+  <li>Interrupt Service Threads</li>
   <li>Timer Thread</li>
   <li>Idle Thread</li>
+  <li>DPC Thread</li>
 </ul>
 
 <h3>Idle Thread</h3>
@@ -827,27 +831,27 @@ The following pre-defined exceptions are raised by kernel itself.
   <th>Reason</th>
 </tr>
 <tr>
-  <td>EXC_ILL</td>
+  <td>SIGILL</td>
   <td align="center">H/W</td>
   <td>Illegal instruction</td>
 </tr>
 <tr>
-  <td>EXC_TRAP</td>
+  <td>SIGTRAP</td>
   <td align="center">H/W</td>
   <td>Break point</td>
 </tr>
 <tr>
-  <td>EXC_FPE</td>
+  <td>SIGFPE</td>
   <td align="center">H/W</td>
   <td>Math error</td>
 </tr>
 <tr>
-  <td>EXC_SEGV</td>
+  <td>SIGSEGV</td>
   <td align="center">H/W</td>
   <td>Invalid memory access</td>
 </tr>
 <tr>
-  <td>EXC_ALRM</td>
+  <td>SIGALRM</td>
   <td align="center">S/W</td>
   <td>Alarm event</td>
 </tr>
@@ -1055,16 +1059,20 @@ There are following debugging support functions:
   are logged.
 </ul>
     </tr>
+    <tr>
+      <td id="footer" colspan="2" style="vertical-align: top;">
+        <a href="http://sourceforge.net">
+        <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
+        alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
+        Copyright&copy; 2005-2007 Kohsuke Ohtani
+      </td>
+    </tr>
 
   </tbody>
 </table>
 
-      <div id="footer" style="text-align:center;">
-      <a href="http://sourceforge.net">
-      <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
-      alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
-      Copyright&copy; 2005-2007 Kohsuke Ohtani
-      </div>
+</div>
+<div id="bottom"></div>
 
 </body>
 </html>

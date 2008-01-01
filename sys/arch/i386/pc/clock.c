@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,13 +34,10 @@
 #include <kernel.h>
 #include <timer.h>
 #include <irq.h>
-#include "../i386/cpu.h"
+#include <cpu.h>
 
 /* Interrupt vector for clock */
 #define CLOCK_IRQ	0
-
-/* Interrupt priority level */
-#define IPL_CLOCK	0
 
 /* The internal tick rate in ticks per second */
 #define PIT_TICK	1193180L
@@ -56,11 +53,14 @@
  * Clock interrupt service routine.
  * No H/W reprogram is required.
  */
-static int clock_isr(int irq)
+static int
+clock_isr(int irq)
 {
+
 	irq_lock();
 	timer_tick();
 	irq_unlock();
+
 	return INT_DONE;
 }
 
@@ -68,7 +68,8 @@ static int clock_isr(int irq)
  * Initialize clock H/W chip.
  * Setup clock tick rate and install clock ISR.
  */
-void clock_init(void)
+void
+clock_init(void)
 {
 	int clock_irq;
 
@@ -78,4 +79,6 @@ void clock_init(void)
 
 	clock_irq = irq_attach(CLOCK_IRQ, IPL_CLOCK, 0, clock_isr, NULL);
 	ASSERT(clock_irq != -1);
+
+	printk("Clock rate: %d ticks/sec\n", CONFIG_HZ);
 }

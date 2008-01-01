@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,42 +32,46 @@
  */
 
 #include <kernel.h>
+#include <task.h>
 #include <thread.h>
 #include <timer.h>
 #include <page.h>
 #include <kmem.h>
 #include <vm.h>
 #include <sched.h>
-#include <task.h>
-#include <except.h>
+#include <exception.h>
 #include <irq.h>
 #include <ipc.h>
 #include <device.h>
 #include <sync.h>
-#include <system.h>
+#include <version.h>
 
 /*
- * Kernel main routine.
- *
- * This is called from kernel_start() routine that is included
- * in architecture dependent layer. We assumes that the following
- * machine state are already set before calling this routine.
- *
- *  - All interrupts are disabled.
- *  - Minimum page table is set.
- *  - Kernel BSS is cleared.
- *  - Kernel stack is configured.
+ * Initialization code.
+ * This is called from kernel_start() routine that
+ * is implemented in the architecture dependent layer.
+ * We assumes that the following machine state are
+ * already set before this routine.
+ *	- Kernel BSS section is filled with 0.
+ *	- Kernel stack is configured.
+ *	- All interrupts are disabled.
+ *	- Minimum page table is set. (MMU only)
  */
-void kernel_main(void)
+void
+kernel_main(void)
 {
-	/*
-	 * Initialize debug core
-	 */
-	debug_init();
-	printk(BANNAR);
 
 	/*
-	 * Initialize memory managers
+	 * Do machine-dependent
+	 * initialization.
+	 */
+	diag_init();
+	printk(BANNAR);
+	sched_lock();
+	machine_init();
+
+	/*
+	 * Initialize memory managers.
 	 */
 	page_init();
 	mmu_init();
@@ -75,30 +79,38 @@ void kernel_main(void)
 	vm_init();
 
 	/*
-	 * Initialize kernel core
+	 * Initialize kernel core.
 	 */
-	object_init();
+	task_init();
 	thread_init();
 	sched_init();
-	task_init();
+	exception_init();
+	timer_init();
 
 	/*
-	 * Initialize device drivers
+	 * Initialize IPC related stuff.
+	 */
+	object_init();
+	msg_init();
+
+	/*
+	 * Enable interrupt and
+	 * initialize devices.
 	 */
 	irq_init();
 	clock_init();
-	timer_init();
 	device_init();
 
 	/*
-	 * Start boot tasks
+	 * Set up boot tasks and
+	 * start scheduler.
 	 */
-	task_boot();
+	task_bootstrap();
+	sched_unlock();
 
 	/*
-	 * Do idle loop
+	 * Enter idle loop.
 	 */
 	thread_idle();
-
 	/* NOTREACHED */
 }

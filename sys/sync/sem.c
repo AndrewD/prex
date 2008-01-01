@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,7 +32,7 @@
  */
 
 /*
- * All of the the Prex semaphore is un-named semaphore. Instead, the
+ * All of the Prex semaphore is un-named semaphore. Instead, the
  * named semaphore is implemented by a file system server.
  * In order to access the other task's semaphore, the task must
  * have CAP_SEMAPHORE capability.
@@ -46,37 +46,34 @@
 #include <sync.h>
 
 /*
- * Initialize a semaphore.
+ * sem_init - initialize a semaphore.
+ * @sem: ID for new semaphore.
+ * @value: initial semaphore count.
  *
  * sem_init() creates a new semaphore if the specified semaphore does
  * not exist yet. If the semaphore already exists, it is re-initialized
  * only if nobody is waiting for it. The initial semaphore value is set
  * to the requested value.
- *
- * @sem: ID for new semaphore.
- * @value: Initial value.
  */
-__syscall int sem_init(sem_t *sem, u_int value)
+int
+sem_init(sem_t *sem, u_int value)
 {
-	struct semaphore *s, *sem_org;
+	struct sem *s, *sem_org;
 	int err = 0;
 
-	if (value > SEM_MAX)
+	if (value > MAXSEMVAL)
 		return EINVAL;
-
-	sched_lock();
-
-	if (umem_copyin(sem, &sem_org, sizeof(sem_t))) {
-		sched_unlock();
+	if (umem_copyin(sem, &sem_org, sizeof(sem_t)))
 		return EFAULT;
-	}
+
 	/*
 	 * An application can call sem_init() to reset the
 	 * value of existing semaphore. So, we have to check
 	 * the semaphore is already allocated.
 	 */
+	sched_lock();
 	if (sem_valid(sem_org)) {
-		/* 
+		/*
 		 * Semaphore already exists.
 		 */
 		if (sem_org->task != cur_task() &&
@@ -90,7 +87,7 @@ __syscall int sem_init(sem_t *sem, u_int value)
 		/*
 		 * Create new semaphore.
 		 */
-		if ((s = kmem_alloc(sizeof(struct semaphore))) == NULL)
+		if ((s = kmem_alloc(sizeof(struct sem))) == NULL)
 			err = ENOSPC;
 		else {
 			event_init(&s->event, "semaphore");
@@ -108,17 +105,18 @@ __syscall int sem_init(sem_t *sem, u_int value)
 }
 
 /*
- * Copy a semaphore from user space.
- * It also checks if the passed semaphore is valid.
+ * sem_copyin - copy a semaphore from user space.
+ * @usem: pointer to semaphore in user space.
+ * @ksem: pointer to semaphore in kernel space.
  *
- * @us: Pointer to semaphore in user space.
- * @ks: Pointer to semaphore in kernel space.
+ * It also checks if the passed semaphore is valid.
  */
-static int sem_copyin(sem_t *us, sem_t *ks)
+static int
+sem_copyin(sem_t *usem, sem_t *ksem)
 {
 	sem_t s;
 
-	if (umem_copyin(us, &s, sizeof(sem_t)))
+	if (umem_copyin(usem, &s, sizeof(sem_t)))
 		return EFAULT;
 	if (!sem_valid(s))
 		return EINVAL;
@@ -128,7 +126,7 @@ static int sem_copyin(sem_t *us, sem_t *ks)
 	 */
 	if (s->task != cur_task() && !task_capable(CAP_SEMAPHORE))
 		return EPERM;
-	*ks = s;
+	*ksem = s;
 	return 0;
 }
 
@@ -137,7 +135,8 @@ static int sem_copyin(sem_t *us, sem_t *ks)
  * If some thread is waiting for the specified semaphore,
  * this routine fails with EBUSY.
  */
-__syscall int sem_destroy(sem_t *sem)
+int
+sem_destroy(sem_t *sem)
 {
 	sem_t s;
 	int err;
@@ -147,63 +146,67 @@ __syscall int sem_destroy(sem_t *sem)
 		sched_unlock();
 		return err;
 	}
-	if (event_waiting(&s->event)) {
+	if (event_waiting(&s->event) || s->value <= 0) {
 		sched_unlock();
 		return EBUSY;
 	}
 	s->magic = 0;
 	kmem_free(s);
 	sched_unlock();
-	return err;
+	return 0;
 }
 
 /*
- * Lock a semaphore.
+ * sem_wait - lock a semaphore.
+ * @sem: semaphore ID
+ * @timeout: time out value in msec. 0 for no timeout.
  *
- * @sem: Semaphore ID
- * @timeout: The time out value in msec. Zero for no timeout.
- *
- * sem_wait() locks the semaphore referred by sem only if the semaphore
- * value is currently positive. The thread will sleep while the semaphore
- * value is zero. It decrements the semaphore value in return.
+ * sem_wait() locks the semaphore referred by sem only if the
+ * semaphore value is currently positive. The thread will sleep
+ * while the semaphore value is zero. It decrements the semaphore
+ * value in return.
  *
  * If waiting thread receives any exception, this routine returns
- * with EINTR in order to invoke exception handler. But, an application
- * assumes this call does NOT return with error. So, system call stub
- * routine must re-call automatically if it gets EINTR.
+ * with EINTR in order to invoke exception handler. But, an
+ * application assumes this call does NOT return with error. So,
+ * system call stub routine must re-call automatically if it gets
+ * EINTR.
  */
-__syscall int sem_wait(sem_t *sem, u_long timeout)
+int
+sem_wait(sem_t *sem, u_long timeout)
 {
 	sem_t s;
-	int err;
+	int err, rc;
 
 	sched_lock();
-	if ((err = sem_copyin(sem, &s))) {
-		sched_unlock();
-		return err;
-	}
+	if ((err = sem_copyin(sem, &s)))
+		goto out;
+
 	while (s->value <= 0) {
-		err = sched_tsleep(&s->event, timeout);
-		if (err == SLP_TIMEOUT) {
-			sched_unlock();
-			return ETIMEDOUT;
-		} else if (err == SLP_INTR) {
-			sched_unlock();
-			return EINTR;
+		rc = sched_tsleep(&s->event, timeout);
+		if (rc == SLP_TIMEOUT) {
+			err = ETIMEDOUT;
+			goto out;
+		} else if (rc == SLP_INTR) {
+			err = EINTR;
+			goto out;
 		}
+		/* Kick scheduler */
 		sched_unlock();
 		sched_lock();
 	}
 	s->value--;
+ out:
 	sched_unlock();
-	return 0;
+	return err;
 }
 
 /*
  * Try to lock a semaphore.
  * If the semaphore is already locked, it just returns EAGAIN.
  */
-__syscall int sem_trywait(sem_t *sem)
+int
+sem_trywait(sem_t *sem)
 {
 	sem_t s;
 	int err;
@@ -224,11 +227,12 @@ __syscall int sem_trywait(sem_t *sem)
 /*
  * Unlock a semaphore.
  *
- * If the semaphore value becomes non zero, then one of the threads blocked
- * waiting for the semaphore will be unblocked.
+ * If the semaphore value becomes non zero, then one of the threads
+ * blocked waiting for the semaphore will be unblocked.
  * This is non-blocking operation.
  */
-__syscall int sem_post(sem_t *sem)
+int
+sem_post(sem_t *sem)
 {
 	sem_t s;
 	int err;
@@ -238,7 +242,7 @@ __syscall int sem_post(sem_t *sem)
 		sched_unlock();
 		return err;
 	}
-	if (s->value >= SEM_MAX) {
+	if (s->value >= MAXSEMVAL) {
 		sched_unlock();
 		return ERANGE;
 	}
@@ -252,7 +256,8 @@ __syscall int sem_post(sem_t *sem)
 /*
  * Get the semaphore value.
  */
-__syscall int sem_getvalue(sem_t *sem, u_int *value)
+int
+sem_getvalue(sem_t *sem, u_int *value)
 {
 	sem_t s;
 	int err;

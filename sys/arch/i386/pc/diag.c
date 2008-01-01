@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,60 +31,38 @@
  * diag.c - diagnostic message support
  */
 
-/*
- * Piority for output device:
- *
- * 1. Bochs debug port (if it detects)
- * 2. Screen
- */
-
 #include <kernel.h>
 #include <page.h>
-#include "../i386/cpu.h"
-
-/* #define SCREEN_80x25 1 */
-#define SCREEN_80x50 1
+#include <cpu.h>
 
 #ifdef DEBUG
-
-typedef void (*print_func)(char);
-
-static print_func print_handler;	/* Pointer to print handler */
-
 #ifdef CONFIG_DIAG_SCREEN
-/*
- * Screen
- */
 
 #define VID_ATTR	0x0F00
 #define VID_PORT	0x03d4
 #define VID_RAM		0xB8000
 
-#ifdef SCREEN_80x25
-#define SCR_WIDTH	80
-#define SCR_HIGHT	25
-#else
-#define SCR_WIDTH	80
-#define SCR_HIGHT	50
-#endif
-
 /* Screen info */
 static short *vram;
 static int pos_x;
 static int pos_y;
+static int screen_x;
+static int screen_y;
 
-static void screen_scroll_up(void)
+static void
+screen_scrollup(void)
 {
 	int i;
 
-	memcpy(vram, vram + SCR_WIDTH, SCR_WIDTH * (SCR_HIGHT - 1) * 2);
-	for (i = 0; i < SCR_WIDTH; i++)
-		vram[SCR_WIDTH * (SCR_HIGHT - 1) + i] = ' ';
+	memcpy(vram, vram + screen_x, screen_x * (screen_y - 1) * 2);
+	for (i = 0; i < screen_x; i++)
+		vram[screen_x * (screen_y - 1) + i] = ' ';
 }
 
-static void screen_move_cursor(void)
+static void
+screen_update(void)
 {
-	int pos = pos_y * SCR_WIDTH + pos_x;
+	int pos = pos_y * screen_x + pos_x;
 
 	outb(0x0e, VID_PORT);
 	outb(pos >> 8, VID_PORT + 1);
@@ -93,99 +71,97 @@ static void screen_move_cursor(void)
 	outb(pos & 0xff, VID_PORT + 1);
 }
 
-static void screen_new_line(void)
+static void
+screen_newline(void)
 {
+
 	pos_x = 0;
 	pos_y++;
-	if (pos_y >= SCR_HIGHT) {
-		pos_y = SCR_HIGHT - 1;
-		screen_scroll_up();
+	if (pos_y >= screen_y) {
+		pos_y = screen_y - 1;
+		screen_scrollup();
 	}
-	screen_move_cursor();
+	screen_update();
 }
 
-static void screen_putchar(char ch)
+static void
+screen_putchar(char c)
 {
-	switch (ch) {
+
+	switch (c) {
 	case '\n':
-		screen_new_line();
+		screen_newline();
 		return;
 	case '\r':
 		pos_x = 0;
-		screen_move_cursor();
+		screen_update();
 		return;
 	case '\b':
 		if (pos_x == 0)
 			return;
 		pos_x--;
-		screen_move_cursor();
+		screen_update();
 		return;
 	}
-	vram[pos_y * SCR_WIDTH + pos_x] = ch | VID_ATTR;
+	vram[pos_y * screen_x + pos_x] = c | VID_ATTR;
 	pos_x++;
-	if (pos_x >= SCR_WIDTH) {
+	if (pos_x >= screen_x) {
 		pos_x = 0;
 		pos_y++;
-		if (pos_y >= SCR_HIGHT) {
-			pos_y = SCR_HIGHT - 1;
-			screen_scroll_up();
+		if (pos_y >= screen_y) {
+			pos_y = screen_y - 1;
+			screen_scrollup();
 		}
 	}
-	screen_move_cursor();
+	screen_update();
 }
 
-static int screen_init(void)
+static int
+screen_init(void)
 {
+
 	vram = (short *)phys_to_virt(VID_RAM);
 	pos_x = 0;
 	pos_y = 0;
+	screen_x = boot_info->video.text_x;
+	screen_y = boot_info->video.text_y;
 	return 0;
 }
 #endif /* CONFIG_DIAG_SCREEN */
 
 
 #ifdef CONFIG_DIAG_BOCHS
-/*
- * Bochs PC emulator
- */
-
-static void bochs_putchar(char buf)
+static void
+bochs_putchar(char c)
 {
-	outb(buf, 0xe9);
-}
-
-static int bochs_init(void)
-{
-	if (inb(0xe9) != 0xe9)
-		return -1;
-	return 0;
+	/*
+	 * Bochs debug port
+	 */
+	if (inb(0xe9) == 0xe9)
+		outb(c, 0xe9);
 }
 #endif /* CONFIG_DIAG_BOCHS */
 
-
-void diag_print(char *buf)
+void
+diag_print(char *buf)
 {
-	if (print_handler == NULL)
-		return;
 
-	while (*buf)
-		print_handler(*buf++);
+	while (*buf) {
+#ifdef CONFIG_DIAG_SCREEN
+		screen_putchar(*buf);
+#endif
+#ifdef CONFIG_DIAG_BOCHS
+		bochs_putchar(*buf);
+#endif
+		++buf;
+	}
 }
 #endif	/* DEBUG */
 
-void diag_init(void)
+void
+diag_init(void)
 {
-#ifdef DEBUG
-	print_handler = NULL;
-#ifdef CONFIG_DIAG_BOCHS
-	if (bochs_init() == 0) {
-		print_handler = bochs_putchar;
-		return;
-	}
-#endif
-#ifdef CONFIG_DIAG_SCREEN
+#if defined(DEBUG) && defined(CONFIG_DIAG_SCREEN)
 	screen_init();
-	print_handler = screen_putchar;
 #endif
-#endif	/* DEBUG */
 }

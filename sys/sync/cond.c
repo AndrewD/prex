@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,12 +38,13 @@
 #include <sync.h>
 
 /*
- * Create and initialize a condition variable.
+ * Create and initialize a condition variable (CV).
  *
- * If an initialized condition variable is reinitialized,
- * undefined behavior results.
+ * If an initialized condition variable is reinitialized, undefined
+ * behavior results.
  */
-__syscall int cond_init(cond_t *cond)
+int
+cond_init(cond_t *cond)
 {
 	cond_t c;
 
@@ -53,6 +54,7 @@ __syscall int cond_init(cond_t *cond)
 	event_init(&c->event, "condition");
 	c->task = cur_task();
 	c->magic = COND_MAGIC;
+
 	if (umem_copyout(&c, cond, sizeof(cond_t))) {
 		kmem_free(c);
 		return EFAULT;
@@ -61,31 +63,32 @@ __syscall int cond_init(cond_t *cond)
 }
 
 /*
- * Copy a condition variable from user space.
- * It also checks if the passed cv is valid.
+ * cond_copyin - copy a condition variable from user space.
+ * @uc: pointer to cv in user space.
+ * @kc: pointer to cv in kernel space.
  *
- * @us: Pointer to cv in user space.
- * @ks: Pointer to cv in kernel space.
+ * It also checks if the passed CV is valid.
  */
-static int cond_copyin(cond_t *uc, cond_t *kc)
+static int
+cond_copyin(cond_t *ucond, cond_t *kcond)
 {
 	cond_t c;
 
-	if (umem_copyin(uc, &c, sizeof(cond_t)))
+	if (umem_copyin(ucond, &c, sizeof(cond_t)))
 		return EFAULT;
-
 	if (!cond_valid(c))
 		return EINVAL;
-	*kc = c;
+	*kcond = c;
 	return 0;
 }
 
 /*
  * Destroy a condition variable.
- * If there are any blocked thread waiting for the specified CV, it
- * returns EBUSY.
+ * If there are any blocked thread waiting for the specified CV,
+ * it returns EBUSY.
  */
-__syscall int cond_destroy(cond_t *cond)
+int
+cond_destroy(cond_t *cond)
 {
 	cond_t c;
 	int err;
@@ -108,21 +111,22 @@ __syscall int cond_destroy(cond_t *cond)
 /*
  * Wait on a condition.
  *
- * If waiting thread receives any exception, this routine returns
- * with EINTR in order to invoke exception handler. But, an application
- * assumes this call does NOT return with error. So, the stub routine
- * in system call library must call cond_wait() again if it gets EINTR.
+ * If the thread receives any exception while waiting CV, this
+ * routine returns immediately with EINTR in order to invoke
+ * exception handler. However, an application assumes this call
+ * does NOT return with an error. So, the stub routine in a system
+ * call library must call cond_wait() again if it gets EINTR as error.
  */
-__syscall int cond_wait(cond_t *cond, mutex_t *mtx)
+int
+cond_wait(cond_t *cond, mutex_t *mtx)
 {
 	cond_t c;
-	int err, result;
+	int err, rc;
+
+	if (umem_copyin(cond, &c, sizeof(cond_t)))
+		return EFAULT;
 
 	sched_lock();
-	if (umem_copyin(cond, &c, sizeof(cond_t))) {
-		sched_unlock();
-		return EFAULT;
-	}
 	if (c == COND_INITIALIZER) {
 		if ((err = cond_init(cond))) {
 			sched_unlock();
@@ -139,11 +143,14 @@ __syscall int cond_wait(cond_t *cond, mutex_t *mtx)
 		sched_unlock();
 		return err;
 	}
-	result = sched_sleep(&c->event);
-	if (result == SLP_INTR)
+
+	rc = sched_sleep(&c->event);
+	if (rc == SLP_INTR)
 		err = EINTR;
 	sched_unlock();
-	mutex_lock(mtx);
+
+	if (err == 0)
+		err = mutex_lock(mtx);
 	return err;
 }
 
@@ -151,14 +158,14 @@ __syscall int cond_wait(cond_t *cond, mutex_t *mtx)
  * Unblock one thread that is blocked on the specified CV.
  * The thread which has highest priority will be unblocked.
  */
-__syscall int cond_signal(cond_t *cond)
+int
+cond_signal(cond_t *cond)
 {
 	cond_t c;
 	int err;
 
 	sched_lock();
-	err = cond_copyin(cond, &c);
-	if (err == 0)
+	if ((err = cond_copyin(cond, &c)) == 0)
 		sched_wakeone(&c->event);
 	sched_unlock();
 	return err;
@@ -167,14 +174,14 @@ __syscall int cond_signal(cond_t *cond)
 /*
  * Unblock all threads that are blocked on the specified CV.
  */
-__syscall int cond_broadcast(cond_t *cond)
+int
+cond_broadcast(cond_t *cond)
 {
 	cond_t c;
 	int err;
 
 	sched_lock();
-	err = cond_copyin(cond, &c);
-	if (err == 0)
+	if ((err = cond_copyin(cond, &c)) == 0)
 		sched_wakeup(&c->event);
 	sched_unlock();
 	return err;

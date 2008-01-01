@@ -1,33 +1,27 @@
-#
-# Make options to build native Prex task.
-#
-include $(PREX_SRC)/mk/own.mk
+include $(SRCDIR)/mk/own.mk
 
-INC_FLAGS = -I$(PREX_SRC)/conf \
-	-I$(PREX_SRC)/user/arch/$(PREX_ARCH) \
-	-I$(PREX_SRC)/user/include
+INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/include -I$(SRCDIR)/usr/include
 
-ASFLAGS = $(INC_FLAGS)
-CFLAGS = $(INC_FLAGS) -nostdinc
-CPPFLAGS = $(INC_FLAGS) -nostdinc
-LDFLAGS = -static
+ASFLAGS+=	$(INCLUDE)
+CFLAGS+=	$(INCLUDE) -nostdinc -D_STANDALONE
+CPPFLAGS+=	$(INCLUDE) -nostdinc -D_STANDALONE
+LDFLAGS+=	-static $(USR_LDFLAGS)
 
-LD_SCRIPT = $(PREX_SRC)/user/arch/$(PREX_ARCH)/$(PREX_PLATFORM).ld
+LD_SCRIPT=	$(SRCDIR)/usr/arch/$(ARCH)/$(ARCH)-$(PLATFORM).ld
+LIBC=		$(SRCDIR)/usr/lib/libsa.a
+CRT0=		$(SRCDIR)/usr/lib/crt0.o
+TYPE=		EXEC
 
-LIBC = $(PREX_SRC)/user/lib/libsa.a $(PREX_SRC)/user/lib/libc.a
-
-CRT0 = $(PREX_SRC)/user/lib/crt0.o
-CFLAGS += -D_PREX_SOURCE -D_PREX_NATIVE_TASK
-CPPFLAGS += -D_PREX_SOURCE -D_PREX_NATIVE_TASK
-TYPE = EXEC
+ifdef TASK
+TARGET ?= $(TASK)
+endif
 
 ifndef OBJS
 ifdef SRCS
-OBJS = $(SRCS:.c=.o)
+OBJS= $(SRCS:.c=.o)
 else
-OBJS = $(TARGET).o
+OBJS= $(TARGET).o
 endif
 endif
 
--include $(PREX_SRC)/user/arch/$(PREX_ARCH)/Makefile.$(PREX_PLATFORM)
-include $(PREX_SRC)/mk/Makefile.inc
+include $(SRCDIR)/mk/Makefile.inc

@@ -41,11 +41,11 @@ How to Build?
 Step 1: Prepare Toolchain
 
   The following packages are required for compiling Prex.
-  - GCC 3.3.1 or later
+  - GCC 2.95.3 or later
   - GNU Binutils 2.15 or later
   - GNU Make
 
-  The toolchain should be built appropriately for your target 
+  The toolchain should be built appropriately for your target
   architecture to cross-compile Prex.
 
 Step 2: Prepare Sources
@@ -74,10 +74,10 @@ Step 4: Build
   $ make
 
 
-Note) If you want to run 'make' in the subdirectory, you have to set the
-      PREX_SRC as follow.
+Note) If you want to run 'make' at the subdirectory, you have to set the
+      SRCDIR as follow.
 
-  $ export PREX_SRC=/usr/src/prex-X.X.X
+  $ export SRCDIR=/usr/src/prex-X.X.X
 
 
 Directory Structure
@@ -89,6 +89,8 @@ Prex source code is divided into the following directories:
 
  mk			Common Makefiles
 
+ include		Common include files
+
  sys			Prex microkernel
 	arch		Architecture/platform dependent code
 	include		Kernel headers
@@ -99,28 +101,31 @@ Prex source code is divided into the following directories:
 	sync		Synchronize related code
 
  boot			Boot loader
-	arch		Architecture/platform dependent code
+	arm		Architecture/platform dependent drivers
+	i386		Architecture/platform dependent drivers
 	include		Platform independent headers
 	lib		Common loader library
 	common		Common boot loader code
 
  dev			Device driver module
-	arch		Architecture/platform dependent drivers
+	arm		Architecture/platform dependent drivers
+	i386		Architecture/platform dependent drivers
 	include		Platform independent headers
 	lib		Common driver library
 	core		Driver core component
 	gen		Generic device drivers
+	power		Power management driver
 
-
- user			User mode programs
+ usr			User mode programs
 	arch		Architecture/platform dependent code
+	bin		User command binaries
 	include		Header files
 	lib		User libraries
 	server		System servers
 	bin		System utilities
 	test		Function test programs
 	sample		Sample programs
- 
+
 
 Documentation
 -------------

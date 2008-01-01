@@ -1,9 +1,10 @@
-include $(PREX_SRC)/mk/own.mk
+include $(SRCDIR)/mk/own.mk
 
-TARGET	= gen.o
-TYPE	= OBJECT
-OBJS-y	= null.o zero.o
+TARGET=	gen.o
+TYPE=	OBJECT
+OBJS-y=	null.o zero.o
 
-OBJS-$(CONFIG_RAMDISK) += ramdisk.o
+OBJS-$(CONFIG_TTY)+=		tty.o
+OBJS-$(CONFIG_RAMDISK)+=	ramdisk.o
 
-include $(PREX_SRC)/mk/dev.mk
+include $(SRCDIR)/mk/dev.mk

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors 
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,13 +30,17 @@
 /*
  * debug.c - loader debug functions
  */
-#include <bootinfo.h>
+#include <prex/bootinfo.h>
+#include <platform.h>
 #include <boot.h>
+
+#undef printk
 
 /*
  * printk - print formated string
  */
-void printk(const char *fmt, ...)
+void
+printk(const char *fmt, ...)
 {
 #ifdef DEBUG
 	static const char digits[16] = "0123456789abcdef";
@@ -80,8 +84,10 @@ void printk(const char *fmt, ...)
 /*
  * Show error and hang up.
  */
-void panic(const char *msg)
+void
+panic(const char *msg)
 {
-	printk("Error: %s\n", msg);
+
+	printk("Panic: %s\n", msg);
 	for (;;);
 }
