@@ -70,7 +70,7 @@ static int keypad_read(device_t, char *, size_t *, int);
 /*
  * Driver structure
  */
-struct driver keypad_drv = {
+struct driver keypad_drv __driver_entry = {
 	/* name */	"GBA Keypad",
 	/* order */	4,
 	/* init */	keypad_init,

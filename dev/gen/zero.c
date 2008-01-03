@@ -40,7 +40,7 @@ static int zero_init(void);
 /*
  * Driver structure
  */
-struct driver zero_drv = {
+struct driver zero_drv __driver_entry = {
 	/* name */	"Zero device",
 	/* order */	2,
 	/* init */	zero_init,

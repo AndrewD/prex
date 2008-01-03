@@ -136,7 +136,7 @@ typedef struct io_req *ioreq_t;
 /*
  * Driver structure
  */
-struct driver fdd_drv = {
+struct driver fdd_drv __driver_entry = {
 	/* name */	"Floppy Disk Controller",
 	/* order */	5,
 	/* init */	fdd_init,

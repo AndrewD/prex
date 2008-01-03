@@ -65,7 +65,7 @@ static int mouse_read(device_t, char *, size_t *, int);
 /*
  * Driver structure
  */
-struct driver mouse_drv = {
+struct driver mouse_drv __driver_entry = {
 	/* name */	"PS/2 Mouse",
 	/* order */	6,
 	/* init */	mouse_init,

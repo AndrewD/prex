@@ -62,7 +62,7 @@ static int rtc_init(void);
 /*
  * Driver structure
  */
-struct driver rtc_drv = {
+struct driver rtc_drv __driver_entry = {
 	/* name */	"Realtime Clock",
 	/* order */	4,
 	/* init */	rtc_init,

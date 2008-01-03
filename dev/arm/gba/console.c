@@ -44,7 +44,7 @@ static int console_ioctl(device_t, int, u_long);
 /*
  * Driver structure
  */
-struct driver console_drv = {
+struct driver console_drv __driver_entry = {
 	/* name */ "GBA Console",
 	/* order */ 4,
 	/* init */  console_init,

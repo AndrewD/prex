@@ -52,7 +52,7 @@ static int cpufreq_init(void);
 /*
  * Driver structure
  */
-struct driver cpufreq_drv = {
+struct driver cpufreq_drv __driver_entry = {
 	/* name */	"CPU Frequency Control",
 	/* order */	3,		/* Must larger than pm driver */
 	/* init */	cpufreq_init,

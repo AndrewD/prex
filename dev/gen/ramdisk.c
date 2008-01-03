@@ -51,7 +51,7 @@ static int ramdisk_init(void);
 /*
  * Driver structure
  */
-struct driver ramdisk_drv = {
+struct driver ramdisk_drv __driver_entry = {
 	/* name */	"RAM disk",
 	/* order */	6,
 	/* init */	ramdisk_init,

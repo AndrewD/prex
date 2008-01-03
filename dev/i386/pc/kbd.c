@@ -49,7 +49,7 @@ static int kbd_init(void);
 /*
  * Driver structure
  */
-struct driver kbd_drv = {
+struct driver kbd_drv __driver_entry = {
 	/* name */	"PC/AT Keyboard",
 	/* order */	8,
 	/* init */	kbd_init,
