@@ -75,7 +75,7 @@ struct info_thread {
 	char	sleep_event[MAXEVTNAME]; /* sleep event */
 };
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 /* Thread state */
 #define TH_RUN		0x00	/* running or ready to run */
 #define TH_SLEEP	0x01	/* sleep for events */

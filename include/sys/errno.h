@@ -37,7 +37,7 @@
 #ifndef _SYS_ERRNO_H_
 #define _SYS_ERRNO_H_
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 extern int errno;			/* global error number */
 #endif
 

@@ -29,7 +29,7 @@
 
 #ifndef _PREX_H
 #define _PREX_H
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #include <conf/config.h>
 
@@ -179,5 +179,5 @@ void panic(const char *, ...);
 #endif
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* __KERNEL__ */
 #endif /* !_PREX_H */

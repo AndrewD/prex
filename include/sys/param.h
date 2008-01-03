@@ -76,12 +76,12 @@
 #define USTACK_SIZE	CONFIG_USTACK_SIZE	/* user stack size */
 
 /* More types and definitions used throughout the kernel. */
-#ifdef KERNEL
+#ifdef __KERNEL__
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #endif
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 /* Signals. */
 #include <sys/signal.h>
 #endif
@@ -129,7 +129,7 @@
 #define powerof2(x)	((((x)-1)&(x))==0)
 
 /* Macros for min/max. */
-#ifndef KERNEL
+#ifndef __KERNEL__
 #define	MIN(a,b) (((a)<(b))?(a):(b))
 #define	MAX(a,b) (((a)>(b))?(a):(b))
 #endif

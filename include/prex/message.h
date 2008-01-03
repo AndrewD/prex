@@ -29,7 +29,7 @@
 
 #ifndef _PREX_MESSAGE_H
 #define _PREX_MESSAGE_H
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #include <sys/types.h>
 

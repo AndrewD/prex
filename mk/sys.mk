@@ -4,10 +4,10 @@ INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/sys/arch/$(ARCH)/include \
 		-I$(SRCDIR)/sys/include -I$(SRCDIR)/include
 
 ASFLAGS+=	$(INCLUDE)
-CFLAGS+=	$(INCLUDE) -nostdinc -fno-builtin -DKERNEL
-CPPFLAGS+=	$(INCLUDE) -DKERNEL
+CFLAGS+=	$(INCLUDE) -nostdinc -fno-builtin -D__KERNEL__
+CPPFLAGS+=	$(INCLUDE) -D__KERNEL__
 LDFLAGS+=	-static -nostdlib
-LINTFLAGS+=	-DKERNEL
+LINTFLAGS+=	-D__KERNEL__
 
 ifeq ($(CONFIG_KTRACE),y)
 CFLAGS+= -finstrument-functions

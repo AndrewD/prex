@@ -29,7 +29,7 @@
 
 #ifndef _PREX_SIGNAL_H
 #define _PREX_SIGNAL_H
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #include <prex/types.h>
 #include <sys/signal.h>
@@ -49,5 +49,5 @@ extern sigset_t __sig_pending;
 
 extern int __sig_flush(void);
 
-#endif	/* KERNEL */
+#endif	/* __KERNEL__ */
 #endif	/* !_PREX_POSIX_H */

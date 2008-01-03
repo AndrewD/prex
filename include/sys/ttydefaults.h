@@ -76,7 +76,7 @@
 #define CRPRNT		CREPRINT
 #define	CFLUSH		CDISCARD
 
-#ifdef KERNEL
+#ifdef __KERNEL__
 /*
  * #define TTYDEFCHARS to include an array of default control characters.
  */
@@ -86,6 +86,6 @@
 	_POSIX_VDISABLE, CINTR,	CQUIT,	CSUSP,	CDSUSP,	CSTART,	CSTOP,	CLNEXT, \
 	CDISCARD, CMIN,	CTIME,  CSTATUS, _POSIX_VDISABLE \
 }
-#endif /* KERNEL */
+#endif /* __KERNEL__ */
 
 #endif

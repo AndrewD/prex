@@ -40,7 +40,7 @@
 #include <sys/cdefs.h>
 #include <sys/termios.h>
 
-#ifdef KERNEL
+#ifdef __KERNEL__
 
 #define TTYQ_SIZE	256
 #define TTYQ_HIWAT	246
@@ -93,5 +93,5 @@ int tty_ioctl(struct tty *tp, u_long cmd, void *data);
 void tty_input(int c, struct tty *tp);
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* __KERNEL__ */
 #endif /* !_SYS_TTY_H */

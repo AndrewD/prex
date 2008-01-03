@@ -135,7 +135,7 @@ union wait {
 #define	WSTOPPED	_WSTOPPED
 #endif /* _POSIX_SOURCE */
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 #include <sys/types.h>
 #include <sys/cdefs.h>
 

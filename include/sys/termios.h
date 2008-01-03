@@ -189,7 +189,7 @@ struct termios {
 #define B19200	19200
 #define B38400	38400
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #define	TCIFLUSH	1
 #define	TCOFLUSH	2
@@ -219,7 +219,7 @@ int	cfsetspeed(struct termios *, speed_t);
 #endif /* !_POSIX_SOURCE */
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !__KERNEL__ */
 
 #ifndef _POSIX_SOURCE
 

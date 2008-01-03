@@ -103,7 +103,7 @@ struct clockinfo {
 	int	profhz;		/* profiling clock frequency */
 };
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 #include <time.h>
 
 #ifndef _POSIX_SOURCE
@@ -118,7 +118,7 @@ int	settimeofday(const struct timeval *, const struct timezone *);
 int	utimes(const char *, const struct timeval *);
 __END_DECLS
 #endif /* !POSIX */
-#endif /* !KERNEL */
+#endif /* !__KERNEL__ */
 
 
 #endif /* !_SYS_TIME_H_ */
