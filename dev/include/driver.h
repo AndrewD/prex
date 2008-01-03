@@ -66,7 +66,7 @@ struct driver {
 	int		(*init)(void);	/* Initialize routine */
 };
 
-#define __driver_entry
+#define __driver_entry __attribute__ ((section(".driver_table")))
 
 /*
  * Device I/O table

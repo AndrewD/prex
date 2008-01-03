@@ -34,9 +34,7 @@
 #include <driver.h>
 #include <machdep.h>
 
-#define MAXDRIVER	100
-
-extern struct driver *driver_table[];
+extern struct driver __driver_table, __driver_table_end;
 
 /*
  * Entry point of driver module
@@ -45,7 +43,7 @@ void
 driver_main(void)
 {
 	struct driver *drv;
-	int order, i, err;
+	int order, err;
 
 	printk("Prex driver module built: " __DATE__ "\n");
 
@@ -60,10 +58,8 @@ driver_main(void)
 	 * Smaller value will be run first.
 	 */
 	for (order = 0; order < 16; order++) {
-		for (i = 0; i < MAXDRIVER; i++) {
-			drv = driver_table[i];
-			if (drv == NULL)
-				break;
+		for (drv = &__driver_table; drv != &__driver_table_end;
+		     drv++) {
 			ASSERT(drv->order < 16);
 			if (drv->order == order) {
 				if (drv->init) {

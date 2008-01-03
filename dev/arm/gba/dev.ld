@@ -24,6 +24,12 @@ SECTIONS
 		*(.rodata.*)
 	} : text
 
+	.driver_table : {
+		__driver_table = . ;
+		*(.driver_table)
+		__driver_table_end = . ;
+	} : text
+
 	.kstrtab : {
 		*(.kstrtab)
 	} : text
