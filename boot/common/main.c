@@ -262,13 +262,14 @@ loader_main(void)
 {
 	u_int kernel_entry;
 
-	printk("Prex Boot Loader V1.00\n");
-
 	load_base = 0;
 	load_start = 0;
 	nr_img = 0;
 
-	setup_bootinfo(&boot_info);
+	setup_bootinfo(&boot_info); /* may also setup printk() */
+
+	printk("Prex Boot Loader V1.00\n");
+
 	setup_image();
 #ifdef DEBUG_BOOT
 	dump_bootinfo();
