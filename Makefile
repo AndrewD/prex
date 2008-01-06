@@ -9,6 +9,10 @@ endif
 	exit 1
 else
 export SRCDIR
+ifdef FROMDIR
+SUBDIR= $(FROMDIR)
+else
 SUBDIR=	boot dev sys usr mk
+endif
 include $(SRCDIR)/mk/subdir.mk
 endif
