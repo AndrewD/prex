@@ -98,7 +98,7 @@ ifdef MAP
 LDFLAGS+=	-Map $(MAP)
 endif
 LDFLAGS+=
-MAKEFLAGS+=	-rR --no-print-directory
+MAKEFLAGS+=	-rR
 LINTFLAGS+=	-D__lint__ $(DEFS) -nolib -weak -fcnuse -nestcomment \
 		-retvalother -fullinitblock
 
