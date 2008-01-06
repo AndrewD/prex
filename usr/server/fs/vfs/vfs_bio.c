@@ -179,17 +179,17 @@ getblk(dev_t dev, int blkno)
 
 		/* Block exists in cache */
 		if (ISSET(bp->b_flags, B_BUSY)) {
-			bio_printf("getblk: but busy...\n");
+			bio_printf("getblk: but busy...\n", );
 			BIO_UNLOCK();
 			mutex_lock(&bp->b_lock);
 			mutex_unlock(&bp->b_lock);
-			bio_printf("getblk: scan again...\n");
+			bio_printf("getblk: scan again...\n", );
 			goto start;
 		}
 		bremfree(bp);
 		SET(bp->b_flags, B_BUSY);
 	} else {
-		bio_printf("getblk: find new buf\n");
+		bio_printf("getblk: find new buf\n", );
 
 		bp = bremfree_head();
 		if (ISSET(bp->b_flags, B_DELWRI)) {
@@ -247,11 +247,11 @@ bread(dev_t dev, int blkno, struct buf **bpp)
 	bp = getblk(dev, blkno);
 
 	if (!ISSET(bp->b_flags, (B_DONE | B_DELWRI))) {
-		bio_printf("bread: i/o read\n");
+		bio_printf("bread: i/o read\n", );
 		size = BSIZE;
 		err = device_read((device_t)dev, bp->b_data, &size, blkno);
 		if (err) {
-			bio_printf("bread: i/o error\n");
+			bio_printf("bread: i/o error\n", );
 			brelse(bp);
 			return err;
 		}

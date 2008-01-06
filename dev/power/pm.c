@@ -41,9 +41,9 @@
 /* #define DEBUG_PM 1 */
 
 #ifdef DEBUG_PM
-#define pm_printf(fmt, args...)	printk("pm: " fmt, ## args)
+#define pm_printf(...)	printk("pm: " ## __VA_ARGS__)
 #else
-#define pm_printf(fmt...)	do {} while (0)
+#define pm_printf(...)	do {} while (0)
 #endif
 
 

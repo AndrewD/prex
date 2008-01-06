@@ -247,8 +247,8 @@ void	 assert(const char *file, int line, const char *exp);
 #define ASSERT(exp) do { if (!(exp)) \
 	assert(__FILE__, __LINE__, #exp); } while (0)
 #else
-#define printk(fmt...)  do {} while (0)
-#define panic(fmt...)  do { for (;;) ; } while (0)
+#define printk(...)  do {} while (0)
+#define panic(...)  do { for (;;) ; } while (0)
 #define ASSERT(exp)
 #endif
 __END_DECLS

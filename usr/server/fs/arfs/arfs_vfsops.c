@@ -85,7 +85,7 @@ arfs_mount(mount_t mp, char *dev, int flags, void *data)
 
 	/* Check if the device includes valid archive image. */
 	if (strncmp(buf, ARMAG, SARMAG)) {
-		dprintf("invalid archive image!\n");
+		dprintf("invalid archive image!\n", );
 		err = EINVAL;
 		goto out;
 	}

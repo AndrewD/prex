@@ -39,9 +39,9 @@
 /* #define DEBUG_CPUFREQ 1 */
 
 #ifdef DEBUG_CPUFREQ
-#define cf_printf(fmt, args...) printk("cpufreq: " fmt, ## args)
+#define cf_printf(fmt, ...)	printk("cpufreq: " fmt, ## __VA_ARGS__)
 #else
-#define cf_printf(fmt...)	 do {} while (0)
+#define cf_printf(fmt, ...)	do {} while (0)
 #endif
 
 static int cpufreq_open(device_t dev, int mode);

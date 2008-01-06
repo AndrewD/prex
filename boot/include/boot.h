@@ -49,15 +49,15 @@ extern u_long load_start;
 extern struct boot_info *boot_info;
 
 #ifdef DEBUG_BOOT_IMAGE
-#define elf_print(fmt, args...)	printk(fmt, ## args)
+#define elf_print(...)	printk(## __VA_ARGS__)
 #else
-#define elf_print(fmt...)	do {} while (0)
+#define elf_print(...)	do {} while (0)
 #endif
 
 #ifdef DEBUG
 extern void printk(const char *fmt, ...);
 #else
-#define printk(fmt...)	do {} while (0)
+#define printk(...)	do {} while (0)
 #endif
 
 extern int elf_load(char *img, struct module *mod);

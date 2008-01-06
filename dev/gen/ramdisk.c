@@ -36,9 +36,9 @@
 /* #define DEBUG_RAMDISK 1 */
 
 #ifdef DEBUG_RAMDISK
-#define rd_printf(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
+#define rd_printf(fmt, ...)	printk("%s: " fmt, __FUNCTION__ , ## __VA_ARGS__)
 #else
-#define rd_printf(fmt...)	do {} while (0)
+#define rd_printf(fmt, ...)	do {} while (0)
 #endif
 
 /* Block size */
@@ -81,7 +81,7 @@ ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 
 	/* Check overrun */
 	if ((size_t)blkno * BSIZE > img_size) {
-		rd_printf("Overrun!\n");
+		rd_printf("Overrun!\n", );
 		return EIO;
 	}
 	nr_read = *nbyte;

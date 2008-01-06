@@ -55,9 +55,9 @@
 /* #define DEBUG_FDD */
 
 #ifdef DEBUG_FDD
-#define fdd_printf(fmt, args...)	printk("%s: " fmt, ## args)
+#define fdd_printf(fmt, ...)	printk("%s: " fmt, ## __VA_ARGS__)
 #else
-#define fdd_printf(fmt...)		do {} while (0)
+#define fdd_printf(fmt, ...)	do {} while (0)
 #endif
 
 #define FDD_IRQ		6	/* IRQ6 */

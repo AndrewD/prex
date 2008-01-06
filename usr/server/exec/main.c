@@ -180,7 +180,7 @@ do_exec(struct exec_msg *msg)
 		/* Check next format */
 	}
 	if (ldr->name == NULL) {
-		dprintf("Unsupported file format\n");
+		dprintf("Unsupported file format\n", );
 		err = ENOEXEC;
 		goto err2;
 	}
@@ -249,7 +249,7 @@ do_exec(struct exec_msg *msg)
 	thread_resume(th);
 
 	close(fd);
-	dprintf("exec complete successfully\n");
+	dprintf("exec complete successfully\n", );
 	return 0;
  err5:
 	vm_free(new_task, stack);

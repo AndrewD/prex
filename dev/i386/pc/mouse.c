@@ -49,9 +49,9 @@
 /* #define DEBUG_MOUSE */
 
 #ifdef DEBUG_MOUSE
-#define mou_printf(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
+#define mou_printf(fmt, ...)	printk("%s: " fmt, __FUNCTION__ , ## __VA_ARGS__)
 #else
-#define mou_printf(fmt, args...)	do {} while (0)
+#define mou_printf(fmt, ...)	do {} while (0)
 #endif
 
 

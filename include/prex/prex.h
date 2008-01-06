@@ -184,7 +184,7 @@ int	sys_debug(int cmd, ...);
 #ifdef DEBUG
 void panic(const char *, ...);
 #else
-#define panic(fmt...) sys_panic(NULL);
+#define panic(...) sys_panic(NULL);
 #endif
 __END_DECLS
 

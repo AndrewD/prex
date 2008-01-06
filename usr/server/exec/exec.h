@@ -44,9 +44,9 @@
 #endif
 
 #ifdef DEBUG_EXEC
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "exec: " fmt, ## args)
+#define dprintf(fmt, ...)	syslog(LOG_DEBUG, "exec: " fmt, ## __VA_ARGS__)
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define dprintf(fmt, ...)	do {} while (0)
 #endif
 
 #define PRIO_EXEC       127

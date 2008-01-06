@@ -175,7 +175,7 @@ devfs_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 static int
 devfs_ioctl(vnode_t vp, file_t fp, int cmd, u_long arg)
 {
-	dprintf("devfs_ioctl\n");
+	dprintf("devfs_ioctl\n", );
 	return EINVAL;
 }
 

@@ -54,7 +54,7 @@
 #ifdef DEBUG
 extern void printk(const char *fmt, ...);
 #else
-#define printk(fmt...)	do {} while (0)
+#define printk(...)	do {} while (0)
 #endif
 
 /*
@@ -67,7 +67,7 @@ extern void printk(const char *fmt, ...);
 extern void panic(const char *fmt, ...) __attribute__((noreturn));
 #else
 extern void machine_reset(void) __attribute__((noreturn));
-#define panic(fmt...) machine_reset()
+#define panic(...) machine_reset()
 #endif
 
 /*

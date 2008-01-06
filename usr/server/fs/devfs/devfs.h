@@ -41,10 +41,10 @@
 #endif
 
 #ifdef DEBUG_DEVFS
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "devfs: " fmt, ## args)
+#define dprintf(fmt, ...)	syslog(LOG_DEBUG, "devfs: " fmt, ## __VA_ARGS__)
 #define ASSERT(e)		assert(e)
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define dprintf(fmt, ...)	do {} while (0)
 #define ASSERT(e)
 #endif
 

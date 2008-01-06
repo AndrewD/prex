@@ -47,9 +47,9 @@
 /* #define DEBUG_DVS 1 */
 
 #ifdef DEBUG_DVS
-#define dvs_printf(fmt, args...)	printk("dvs: " fmt, ## args)
+#define dvs_printf(fmt, ...)	printk("dvs: " fmt, ## __VA_ARGS__)
 #else
-#define dvs_printf(fmt...)		do {} while (0)
+#define dvs_printf(fmt, ...)	do {} while (0)
 #endif
 
 #define INTERVAL_MSEC		50

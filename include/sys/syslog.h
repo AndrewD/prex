@@ -180,7 +180,7 @@ int	setlogmask(int);
 void	syslog(int, const char *, ...);
 void	vsyslog(int, const char *, _BSD_VA_LIST_);
 #else
-#define syslog(fmt...)
+#define syslog(...)
 #define vsyslog(fmt,valist)
 #endif
 __END_DECLS

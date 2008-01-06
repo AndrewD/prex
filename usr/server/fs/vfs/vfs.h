@@ -52,19 +52,19 @@
 #endif
 
 #ifdef DEBUG_VFS
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "vfs: "fmt, ## args)
+#define dprintf(fmt, ...)	syslog(LOG_DEBUG, "vfs: "fmt, ## __VA_ARGS__)
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define dprintf(fmt, ...)		do {} while (0)
 #endif
 #ifdef DEBUG_VNODE
-#define vn_printf(fmt, args...)	syslog(LOG_DEBUG, fmt, ## args)
+#define vn_printf(fmt, ...)	syslog(LOG_DEBUG, fmt, ## __VA_ARGS__)
 #else
-#define vn_printf(fmt...)	do {} while (0)
+#define vn_printf(fmt, ...)	do {} while (0)
 #endif
 #ifdef DEBUG_BIO
-#define bio_printf(fmt, args...) syslog(LOG_DEBUG, fmt, ## args)
+#define bio_printf(fmt, ...) syslog(LOG_DEBUG, fmt, ## __VA_ARGS__)
 #else
-#define bio_printf(fmt...)	 do {} while (0)
+#define bio_printf(fmt, ...)	 do {} while (0)
 #endif
 
 #ifdef DEBUG

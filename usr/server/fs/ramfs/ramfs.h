@@ -39,10 +39,10 @@
 #endif
 
 #ifdef DEBUG_RAMFS
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "ramfs: " fmt, ## args)
+#define dprintf(fmt, ...)	syslog(LOG_DEBUG, "ramfs: " fmt, ## __VA_ARGS__)
 #define ASSERT(e)		assert(e)
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define dprintf(fnt, ...)	do {} while (0)
 #define ASSERT(e)
 #endif
 

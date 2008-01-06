@@ -276,7 +276,7 @@ arfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 	mount_t mp;
 	char *p;
 
-	dprintf("readdir: start\n");
+	dprintf("readdir: start\n", );
 	mutex_lock(&arfs_lock);
 
 	i = 0;

@@ -611,7 +611,7 @@ fs_fork(struct task *t, struct msg *msg)
 	file_t fp;
 	int err, i;
 
-	dprintf("fs_fork\n");
+	dprintf("fs_fork\n", );
 
 	if ((err = task_alloc((task_t)msg->data[0], &newtask)) != 0)
 		return err;
@@ -707,7 +707,7 @@ fs_register(struct task *t, struct msg *msg)
 	cap_t cap;
 	int err;
 
-	dprintf("fs_register\n");
+	dprintf("fs_register\n", );
 
 	if (task_getcap(msg->hdr.task, &cap))
 		return EINVAL;

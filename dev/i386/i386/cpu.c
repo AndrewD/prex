@@ -61,9 +61,9 @@
 /* #define DEBUG_CPU */
 
 #ifdef DEBUG_CPU
-#define cpu_printf(fmt, args...) printk("%s: " fmt , __FUNCTION__ , ## args)
+#define cpu_printf(fmt, ...) printk("%s: " fmt , __FUNCTION__ , ## __VA_ARGS__)
 #else
-#define cpu_printf(fmt, args...) do {} while (0)
+#define cpu_printf(fmt, ...) do {} while (0)
 #endif
 
 /* Status/control registers (from the IA-32 System Programming Guide). */
