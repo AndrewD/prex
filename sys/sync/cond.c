@@ -150,10 +150,12 @@ cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 	else if (rc == SLP_INTR)
 		err = EINTR;
 	sched_unlock();
+	rc = mutex_lock(mtx);
 
 	if (err == 0)
-		err = mutex_lock(mtx);
-	return err;
+		return rc;
+	else
+		return err;
 }
 
 /*
