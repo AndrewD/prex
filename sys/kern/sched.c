@@ -341,7 +341,7 @@ thread_t
 sched_wakeone(struct event *evt)
 {
 	queue_t head, q;
-	thread_t top, th = NULL;
+	thread_t top = NULL, th;
 
 	irq_lock();
 	head = &evt->sleepq;
@@ -359,12 +359,13 @@ sched_wakeone(struct event *evt)
 				top = th;
 			q = queue_next(q);
 		}
+		top->sleep_result = 0;
 		queue_remove(&top->link);
 		enqueue(&wakeq, &top->link);
 		timer_stop(&top->timeout);
 	}
 	irq_unlock();
-	return th;
+	return top;
 }
 
 /*
