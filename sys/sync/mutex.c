@@ -137,7 +137,6 @@ mutex_destroy(mutex_t *mtx)
 		kmem_free(m);
 	}
 	sched_unlock();
-	ASSERT(err == 0);
 	return err;
 }
 
@@ -289,7 +288,6 @@ mutex_unlock(mutex_t *mtx)
 	}
  out:
 	sched_unlock();
-	ASSERT(err == 0);
 	return err;
 }
 
