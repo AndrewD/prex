@@ -75,7 +75,7 @@ print_msg(char *buf, int size)
 
 	/* Find message start point */
 	for (i = 0; i < size; i++) {
-		if (buf[i] == -1)
+		if (buf[i] == (char)-1)
 			break;
 	}
 	if (i == size)
