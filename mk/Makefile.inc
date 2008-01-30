@@ -228,8 +228,8 @@ endif
 # Rules to compile kernel
 #
 ifeq ($(TYPE),KERNEL)
-$(TARGET): $(OBJS) $(LIBS) $(LD_SCRIPT)
-	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS) $(LIBGCC)
+$(TARGET): $(LD_SCRIPT) $(OBJS) $(LIBS) $(LIBGCC)
+	$(LD) $(LDFLAGS) -o $@ -T $^
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
@@ -244,8 +244,8 @@ ifeq ($(TYPE),DRIVER)
 # additional target for modular drivers
 all: $(TARGET:.o=.ko)
 
-$(TARGET:.o=.ko):  $(OBJS:.o=.mo) $(LD_SCRIPT)
-	$(LD) -r $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS:.o=.mo) $(LIBS) $(LIBGCC)
+$(TARGET:.o=.ko): $(LD_SCRIPT) $(OBJS:.o=.mo) $(LIBS) $(LIBGCC)
+	$(LD) -r $(LDFLAGS) -o $@ -T $^
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
@@ -261,8 +261,8 @@ endif
 # Rules to compile binary file
 #
 ifeq ($(TYPE),BINARY)
-$(TARGET): $(OBJS) $(LD_SCRIPT)
-	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS) $(LIBGCC)
+$(TARGET): $(LD_SCRIPT) $(OBJS) $(LIBS) $(LIBGCC)
+	$(LD) $(LDFLAGS) -o $@ -T $^
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
@@ -274,9 +274,8 @@ endif
 # Rules to compile executable file
 #
 ifeq ($(TYPE),EXEC)
-$(TARGET): $(OBJS) $(LIBS) $(LD_SCRIPT)
-	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ \
-	$(CRTI) $(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC) $(CRTN)
+$(TARGET): $(LD_SCRIPT) $(CRTI) $(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC) $(CRTN)
+	$(LD) $(LDFLAGS) -o $@ -T $^
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
