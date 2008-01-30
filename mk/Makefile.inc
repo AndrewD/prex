@@ -77,7 +77,8 @@ DEFS=		-D__$(ARCH)__ -D__$(PLATFORM)__ \
 		-D__ARCH__=$(ARCH) -D__PLATFORM__=$(PLATFORM) \
 		-U$(ARCH) -U$(PLATFORM)
 
-CFLAGS+=	-Os -ansi -fno-strict-aliasing \
+OPTIMISE?=	-Os
+CFLAGS+=	$(OPTIMISE) -ansi -fno-strict-aliasing \
 		-Wall -Wundef -Wstrict-prototypes -Wpointer-arith \
 		-std=gnu99 $(CONFIG_CFLAGS) $(DEFS)
 CPPFLAGS+=	-pedantic -Wall $(DEFS)
