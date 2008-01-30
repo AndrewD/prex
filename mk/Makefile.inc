@@ -103,6 +103,13 @@ LINTFLAGS+=	-D__lint__ $(DEFS) -nolib -weak -fcnuse -nestcomment \
 		-retvalother -fullinitblock
 
 #
+# Automatic dependencies
+#
+ifndef NO_DEPS
+DFLAGS+=	-MD -MF .$(basename $(notdir $@)).d
+endif
+
+#
 # Specify path for libgcc.a
 #
 ifndef LIBGCC_PATH
@@ -114,15 +121,32 @@ LIBGCC = $(LIBGCC_PATH)libgcc.a
 # Inference rules
 #
 %.o: %.c
-	$(CC) $(CFLAGS) $(CFLAGS_$@) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DFLAGS) $(CFLAGS_$@) -c -o $@ $<
+ifndef NO_FLAGS
+	@ ( \
+	    echo 'ifneq ($(strip $(subst $(comma),:,$(CFLAGS) $(CFLAGS_$@))),$$(strip $$(subst $$(comma),:,$$(CFLAGS) $$(CFLAGS_$@))))' ; \
+	    echo 'FILES_FLAGS_CHANGED += $@' ; \
+	    echo 'endif' \
+	) > .$(basename $(notdir $@)).flags
+endif
 
 %.o: %.s
 	$(AS) $(ASFLAGS) -o $@ $<
 
 %.o: %.S
-	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< $*.tmp
+	$(CPP) $(CPPFLAGS) $(DFLAGS) -D__ASSEMBLY__ $< $*.tmp
 	$(AS) $(ASFLAGS) -o $@ $*.tmp
 	rm -f $*.tmp
+ifndef NO_FLAGS
+	@ ( \
+	    echo 'ifneq ($(strip $(subst $(comma),:,$(CPPFLAGS))),$$(strip $$(subst $$(comma),:,$$(CPPFLAGS))))' ; \
+	    echo 'FILES_FLAGS_CHANGED += $@' ; \
+	    echo 'endif' \
+	) > .$(basename $(notdir $@)).flags
+endif
+
+# For use in expunging commas from flags, which mung our checking.
+comma = ,
 
 #
 # Target
@@ -301,21 +325,35 @@ endif
 	rm tmp.a
 endif
 
+#
+# Manage object dependencies on headers and compiler flags
+#
+ifneq (,$(strip $(OBJS) $(OBJS-y) $(OBJS-m)))
 
--include Makefile.dep
+ifndef NO_DEPS
+DEP_INCLUDES:= $(strip $(wildcard .*.d))
+
+ifneq (,$(DEP_INCLUDES))
+include $(DEP_INCLUDES)
+endif # DEP_INCLUDES
+
+endif # !NO_DEPS
+
+ifndef NO_FLAGS
+FLAG_INCLUDES:= $(strip $(wildcard .*.flags))
+
+ifneq (,$(FLAG_INCLUDES))
+FILES_FLAGS_CHANGED:=
+include $(FLAG_INCLUDES)
+
+$(FILES_FLAGS_CHANGED): dummy
+
+endif # FLAG_INCLUDES
+endif # !NO_FLAGS
+endif # OBJS
 
 C_SRCS = $(wildcard *.c) $(wildcard *.S)
 
-#
-# Depend
-#
-.PHONY: depend dep
-depend dep: $(SUBDIR)
-	rm -f Makefile.dep
-	@(for d in $(C_SRCS) _ ; do \
-	  if [ "$$d" != "_" ] ; then \
-	  $(CPP) -M $(CPPFLAGS) $$d >> Makefile.dep; fi; \
-	done);
 #
 # Lint
 #
@@ -331,9 +369,15 @@ lint:
 #
 .PHONY: clean
 clean: $(SUBDIR)
-	rm -f Makefile.dep $(TARGET) $(DISASM) $(MAP) $(SYMBOL) $(CLEANS)
+	rm -f $(TARGET) $(DISASM) $(MAP) $(SYMBOL) $(CLEANS)
 ifneq (,$(strip $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-)))
 	rm -f $(sort $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-))
+endif
+ifneq (,$(DEP_INCLUDES))
+	rm -f $(DEP_INCLUDES)
+endif
+ifneq (,$(FLAG_INCLUDES))
+	rm -f $(FLAG_INCLUDES)
 endif
 ifeq ($(TYPE),DRIVER)
 ifneq (,$(strip $(TARGET:.o=.ko) $(OBJS:.o=.mo)))
