@@ -470,6 +470,12 @@ boot_dump(void)
 	printk(" --------- --------- --------- "
 	       "--------- --------- ---------- ----------\n");
 
+	m = &boot_info->driver;
+	printk("  %8x  %8x  %8x  %8d  %8d  %8d  %s\n",
+	       m->text, m->data, m->bss,
+	       m->textsz, m->datasz, m->bsssz,
+	       m->name);
+
 	m = &boot_info->tasks[0];
 	for (i = 0; i < boot_info->nr_tasks; i++, m++) {
 		printk("  %8x  %8x  %8x  %8d  %8d  %8d  %s\n",
