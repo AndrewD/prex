@@ -259,6 +259,7 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 			/* bss */
 			sect_addr[i] = \
 				(char *)((u_long)mapped + shdr->sh_addr);
+			bzero(sect_addr[i], shdr->sh_size);
 			continue;
 		} else if (shdr->sh_type == SHT_SYMTAB ||
 			   shdr->sh_type == SHT_RELA ||
