@@ -406,6 +406,7 @@ task_bootstrap(void)
 		if (thread_create(task, &th))
 			break;
 		stack = (void *)((u_long)stack + USTACK_SIZE - sizeof(int));
+		*(u_long *)stack = 0; /* arg = 0 */
 		if (thread_load(th, (void (*)(void))m->entry, stack))
 			break;
 		thread_resume(th);

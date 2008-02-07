@@ -822,6 +822,7 @@ thread_run(void (*entry)(void))
 	task_t self;
 	thread_t th;
 	void *stack;
+	u_long *sp;
 	int err;
 
 	self = task_self();
@@ -829,8 +830,9 @@ thread_run(void (*entry)(void))
 		return err;
 	if ((err = vm_allocate(self, &stack, USTACK_SIZE, 1)) != 0)
 		return err;
-	if ((err = thread_load(th, entry,
-			       (void *)((u_long)stack + USTACK_SIZE))) != 0)
+	sp = (void *)((u_long)stack + USTACK_SIZE - sizeof(u_long));
+	*sp = 0;		/* arg */
+	if ((err = thread_load(th, entry, sp)) != 0)
 		return err;
 	if ((err = thread_setprio(th, PRIO_FS)) != 0)
 		return err;
