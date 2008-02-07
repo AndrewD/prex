@@ -35,6 +35,7 @@
 #include <prex/bootinfo.h>
 #include <sys/elf.h>
 #include <platform.h>
+#include <verbose.h>
 
 extern int nr_img;		/* number of images */
 
@@ -345,6 +346,25 @@ load_relocatable(char *img, struct module *m)
 	m->size = (size_t)(load_base - (u_long)virt_to_phys(m->text));
 	m->entry = (u_long)phys_to_virt(ehdr->e_entry + m->phys);
 	elf_print("module size=%x entry=%x\n", m->size, m->entry);
+
+	/* Show sections */
+	if (VERBOSE_ON(VB_RELOC)) {
+		shdr = shdrs + 1; /* skip NULL section */
+		if (strncmp(".text", shstrtab + shdr->sh_name, 5) != 0)
+			printk("can't find .text");
+		else {
+			printk("add-symbol-file %s %x", m->name, sect_addr[1]);
+			for (i = 2, shdr++; i < ehdr->e_shnum; i++, shdr++) {
+				if ((shdr->sh_type == SHT_PROGBITS ||
+				     shdr->sh_type == SHT_NOBITS)
+				    && sect_addr[i] != NULL)
+					printk(" -s %s %x",
+					       shstrtab + shdr->sh_name,
+					       sect_addr[i]);
+			}
+			printk("\n");
+		}
+	}
 
 	/* Process relocation */
 	for (i = 0, shdr = shdrs; i < (int)ehdr->e_shnum; i++, shdr++) {
