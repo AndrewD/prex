@@ -262,13 +262,13 @@ load_relocatable(char *img, struct module *m)
 {
 	Elf32_Ehdr *ehdr;
 	Elf32_Shdr *shdr, *shdrs;
-	u_long sect_base;
+	u_long sect_base, sect_extext;
 	char *strtab = NULL, *shstrtab;
 	int i;
 
 	ehdr = (Elf32_Ehdr *)img;
 	shdrs = (Elf32_Shdr *)((u_long)ehdr + ehdr->e_shoff);
-	m->phys = load_base;
+	m->phys = sect_extext = load_base;
 	elf_print("phys addr=%x\n", load_base);
 
 	shstrtab = img + shdrs[ehdr->e_shstrndx].sh_offset;
@@ -309,6 +309,7 @@ load_relocatable(char *img, struct module *m)
 				continue;
 			}
 			sect_base = load_base + shdr->sh_addr;
+			sect_extext = sect_base + shdr->sh_size;
 			memcpy((char *)sect_base, img + shdr->sh_offset,
 			       (size_t)shdr->sh_size);
 			elf_print("load: offset=%x size=%x\n",
@@ -318,6 +319,7 @@ load_relocatable(char *img, struct module *m)
 		} else if (shdr->sh_type == SHT_NOBITS) {
 			/* BSS, SBSS, etc. */
 			sect_base = load_base + shdr->sh_addr;
+			sect_extext = sect_base + shdr->sh_size;
 			if (m->bss == 0) {
 				m->bss = sect_base;
 				m->bsssz = (size_t)shdr->sh_size;
@@ -337,8 +339,7 @@ load_relocatable(char *img, struct module *m)
 	m->textsz = (size_t)(m->data - m->text);
 	m->datasz = (size_t)(m->bss - m->data);
 
-	load_base = m->bss + m->bsssz;
-	load_base = PAGE_ALIGN(load_base);
+	load_base = PAGE_ALIGN(sect_extext);
 
 	elf_print("module load_base=%x text=%x\n", load_base, m->text);
 	m->size = (size_t)(load_base - (u_long)virt_to_phys(m->text));
