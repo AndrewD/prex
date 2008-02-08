@@ -8,6 +8,5 @@ LD_SCRIPT=	./arch/$(ARCH)/$(PLATFORM)/kernel.ld
 
 #MAP=		prex.map
 #DISASM=	prex.lst
-#SYMBOL=	prex.sym
 
 include $(SRCDIR)/mk/sys.mk

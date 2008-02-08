@@ -10,6 +10,8 @@
 #  NDEBUG        ... 0 for debug, 1 for release (default: 0)
 #  LIBGCC_PATH   ... Full path for libgcc.a
 #  CROSS_COMPILE ... Prefix of tools for cross compile
+#  SYMBOL        ... Generate symbol files with this suffix (if defined)
+#                    set in environment or makefile (defaults to .elf for debug)
 #
 # Variables in local Makefile
 #
@@ -25,7 +27,6 @@
 #  LIBS		... Libraries
 #  MAP		... Name of map file
 #  DISASM	... Disassemble list file
-#  SYMBOL	... Symbol files
 #
 
 # Variables in conf/$(ARCH)/config.$(ARCH)-$(PLATFORM)
@@ -88,6 +89,7 @@ CFLAGS+=	-fomit-frame-pointer
 else
 CFLAGS+=	-fno-omit-frame-pointer -DDEBUG -g
 CPPFLAGS+=	-DDEBUG -g
+SYMBOL?=	.elf
 endif
 
 CFLAGS+=	-Wsign-compare
@@ -256,7 +258,7 @@ $(TARGET): $(LD_SCRIPT) $(OBJS) $(LIBS) $(LIBGCC)
 	$(LD) $(LDFLAGS) -o $@ -T $^
 	$(ASMGEN)
 ifdef SYMBOL
-	cp $@ $(SYMBOL)
+	cp $@ $@$(SYMBOL)
 endif
 	$(STRIP) -s $@
 endif
@@ -272,7 +274,7 @@ $(TARGET:.o=.ko): $(LD_SCRIPT) $(OBJS:.o=.mo) $(LIBS) $(LIBGCC)
 	$(LD) -r $(LDFLAGS) -o $@ -T $^
 	$(ASMGEN)
 ifdef SYMBOL
-	cp $@ $(SYMBOL)
+	cp $@ $@$(SYMBOL)
 endif
 	$(STRIP) --strip-debug --strip-unneeded $@
 
@@ -289,7 +291,7 @@ $(TARGET): $(LD_SCRIPT) $(OBJS) $(LIBS) $(LIBGCC)
 	$(LD) $(LDFLAGS) -o $@ -T $^
 	$(ASMGEN)
 ifdef SYMBOL
-	cp $@ $(SYMBOL)
+	cp $@ $@$(SYMBOL)
 endif
 	$(OBJCOPY) $(OBJCOPYFLAGS) $@
 endif
@@ -302,7 +304,7 @@ $(TARGET): $(LD_SCRIPT) $(CRTI) $(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC) $(CRTN
 	$(LD) $(LDFLAGS) -o $@ -T $^
 	$(ASMGEN)
 ifdef SYMBOL
-	cp $@ $(SYMBOL)
+	cp $@ $@$(SYMBOL)
 endif
 	$(STRIP) --strip-debug --strip-unneeded $@
 endif
@@ -369,7 +371,7 @@ lint:
 #
 .PHONY: clean
 clean: $(SUBDIR)
-	rm -f $(TARGET) $(DISASM) $(MAP) $(SYMBOL) $(CLEANS)
+	rm -f $(TARGET) $(DISASM) $(MAP) $(TARGET)$(SYMBOL) $(CLEANS)
 ifneq (,$(strip $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-)))
 	rm -f $(sort $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-))
 endif
@@ -380,8 +382,8 @@ ifneq (,$(FLAG_INCLUDES))
 	rm -f $(FLAG_INCLUDES)
 endif
 ifeq ($(TYPE),DRIVER)
-ifneq (,$(strip $(TARGET:.o=.ko) $(OBJS:.o=.mo)))
-	rm -f $(sort $(TARGET:.o=.ko) $(OBJS:.o=.mo))
+ifneq (,$(strip $(TARGET:.o=.ko) $(TARGET:.o=.ko)$(SYMBOL) $(OBJS:.o=.mo)))
+	rm -f $(sort $(TARGET:.o=.ko) $(TARGET:.o=.ko)$(SYMBOL) $(OBJS:.o=.mo))
 endif
 endif
 ifeq ($(TYPE),OBJECT)
