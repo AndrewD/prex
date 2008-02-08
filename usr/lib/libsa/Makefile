@@ -13,4 +13,6 @@ include $(SRCDIR)/usr/lib/libc/errno/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/stdlib/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/string/Makefile.inc
 
+CFLAGS_malloc.o += -D_REENTRANT
+
 include $(SRCDIR)/mk/lib.mk

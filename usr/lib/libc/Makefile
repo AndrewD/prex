@@ -11,4 +11,6 @@ include $(SRCDIR)/usr/lib/libc/string/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/termios/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/time/Makefile.inc
 
+CFLAGS_malloc.o += -D_REENTRANT
+
 include $(SRCDIR)/mk/lib.mk
