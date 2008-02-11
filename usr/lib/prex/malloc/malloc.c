@@ -62,10 +62,12 @@ malloc(size_t size)
 		free_list.next = &free_list;
 		free_list.size = 0;
 		free_list.vm_size = 0;
+		HDR_MAGIC_SET(&free_list);
 		scan_head = &free_list;
 	}
 	prev = scan_head;
 	for (p = prev->next;; prev = p, p = p->next) {
+		HDR_MAGIC_ASSERT(p, "malloc: corrupt free list");
 		if (p->size >= size) {	/* big enough */
 			if (p->size == size)	/* exactly */
 				prev->next = p->next;
@@ -74,10 +76,9 @@ malloc(size_t size)
 				p = (struct header *)((u_long)p + p->size);
 				p->size = size;
 				p->vm_size = 0;
+				HDR_MAGIC_SET(p);
 			}
-#ifdef CONFIG_MCHECK
-			p->magic = MALLOC_MAGIC;
-#endif
+			MALLOC_MAGIC_SET(p);
 			scan_head = prev;
 			break;
 		}
@@ -92,6 +93,7 @@ malloc(size_t size)
 #ifdef CONFIG_MCHECK
 		sys_panic("malloc: out of memory");
 #endif
+		errno = ENOMEM;
 		return NULL;
 	}
 	return (void *)(p + 1);
@@ -109,9 +111,11 @@ static struct header *more_core(size_t size)
 		return NULL;
 	p->size = size;
 	p->vm_size = size;
+	HDR_MAGIC_SET(p);
 
 	/* Insert to free list */
 	for (prev = scan_head; !(p > prev && p < prev->next); prev = prev->next) {
+		HDR_MAGIC_ASSERT(prev, "more_core: corrupt free list");
 		if (prev >= prev->next && (p > prev || p < prev->next))
 			break;
 	}
@@ -131,12 +135,11 @@ free(void *addr)
 
 	MALLOC_LOCK();
 	p = (struct header *)addr - 1;
-#ifdef CONFIG_MCHECK
-	if (p->magic != MALLOC_MAGIC)
-		sys_panic("free: invalid pointer");
-	p->magic = 0;
-#endif
+	HDR_MAGIC_ASSERT(p, "free: corrupt / invalid pointer");
+	MALLOC_MAGIC_ASSERT(p, "free: double free");
+	MALLOC_MAGIC_CLR(p);
 	for (prev = scan_head; !(p > prev && p < prev->next); prev = prev->next) {
+		HDR_MAGIC_ASSERT(prev, "free: corrupt free list");
 		if (prev >= prev->next && (p > prev || p < prev->next))
 			break;
 	}
@@ -144,6 +147,7 @@ free(void *addr)
 	    ((u_long)p + p->size == (u_long)prev->next)) {
 		p->size += prev->next->size;
 		p->next = prev->next->next;
+		HDR_MAGIC_CLR(prev->next);
 	} else {
 		p->next = prev->next;
 	}
@@ -151,6 +155,7 @@ free(void *addr)
 	    ((u_long)prev + prev->size == (u_long)p)) {
 		prev->size += p->size;
 		prev->next = p->next;
+		HDR_MAGIC_CLR(p);
 	} else {
 		prev->next = p;
 	}

@@ -34,6 +34,7 @@
 /* #define CONFIG_MCHECK	1 */
 
 #define MALLOC_MAGIC	(int)0xBAADF00D	/* "bad food" from LocalAlloc :) */
+#define HDR_MAGIC	(int)0xCAFEBEEF
 
 #ifdef _REENTRANT
 #define MALLOC_LOCK()	mutex_lock(&malloc_lock);
@@ -43,15 +44,42 @@
 #define MALLOC_UNLOCK()	do {} while (0)
 #endif
 
+#ifdef CONFIG_MCHECK
+#define HDR_MAGIC_SET(p) (p)->hdr_magic = HDR_MAGIC
+#define HDR_MAGIC_CLR(p) (p)->hdr_magic = 0
+#define HDR_MAGIC_ASSERT(p, str) do {					\
+		if ((p)->hdr_magic != HDR_MAGIC)			\
+			sys_panic(str);					\
+	} while (0)
+
+#define MALLOC_MAGIC_SET(p) (p)->malloc_magic = MALLOC_MAGIC
+#define MALLOC_MAGIC_CLR(p) (p)->malloc_magic = 0
+#define MALLOC_MAGIC_ASSERT(p, str) do {				\
+		if ((p)->malloc_magic != MALLOC_MAGIC)			\
+			sys_panic(str);					\
+	} while (0)
+#else
+#define HDR_MAGIC_SET(p)
+#define HDR_MAGIC_CLR(p)
+#define HDR_MAGIC_ASSERT(p, str)
+
+#define MALLOC_MAGIC_SET(p)
+#define MALLOC_MAGIC_CLR(p)
+#define MALLOC_MAGIC_ASSERT(p, str)
+#endif
+
 #define ALIGN_SIZE      16
 #define ALIGN_MASK      (ALIGN_SIZE - 1)
 #define ROUNDUP(size)   (((u_long)(size) + ALIGN_MASK) & ~ALIGN_MASK)
 
 struct header {
+#ifdef CONFIG_MCHECK
+	int hdr_magic;		/* set for every header */
+#endif
 	struct header *next;
 	size_t size;
 	size_t vm_size;
 #ifdef CONFIG_MCHECK
-	int magic;
+	int malloc_magic;	/* only set when allocated */
 #endif
 };

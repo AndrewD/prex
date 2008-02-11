@@ -35,23 +35,26 @@ void *
 realloc(void *addr, size_t size)
 {
 	struct header *p, *old;
-	size_t old_size;
 
 	if (addr == NULL)
 		return malloc(size);
 
-	old = (struct header *)addr - 1;
-#ifdef CONFIG_MCHECK
-	if (old->magic != MALLOC_MAGIC)
-		sys_panic("free: invalid pointer");
-#endif
-	old_size = old->size - sizeof(struct header);
-	if ((p = malloc(size)) == NULL)
+	if (size == 0) {
+		free(addr);
 		return NULL;
-	if (old_size <= size)
-		memcpy(p, addr, old_size);
-	else
-		memcpy(p, addr, size);
-	free(old);
+	}
+
+	old = (struct header *)addr - 1;
+	HDR_MAGIC_ASSERT(old, "realloc: corrupt / invalid pointer");
+	MALLOC_MAGIC_ASSERT(old, "realloc: already free");
+
+	if ((p = malloc(size)) != NULL) {
+		size_t old_size = old->size - sizeof(struct header);
+		if (old_size <= size)
+			memcpy(p, addr, old_size);
+		else
+			memcpy(p, addr, size);
+		free(addr);
+	}
 	return p;
 }
