@@ -43,6 +43,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include <verbose.h>
+
 #include "exec.h"
 
 #define SHF_VALID	(SHF_ALLOC | SHF_EXECINSTR | SHF_ALLOC | SHF_WRITE)
@@ -200,6 +202,8 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 
 	/* Read section header */
 	shdr_size = ehdr->e_shentsize * ehdr->e_shnum;
+	VERBOSE(VB_RELOC|VB_DEBUG, "shdr_size %d", shdr_size);
+
 	if ((buf = malloc(shdr_size)) == NULL)
 		return ENOMEM;
 
@@ -220,6 +224,8 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 			break;
 		}
 	}
+	VERBOSE(VB_RELOC|VB_DEBUG, "total_size %d", total_size);
+
 	if (total_size == 0) {
 		err = ENOEXEC;
 		goto out1;
@@ -263,9 +269,10 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 			continue;
 		} else if (shdr->sh_type == SHT_SYMTAB ||
 			   shdr->sh_type == SHT_RELA ||
-			   shdr->sh_type == SHT_REL)
+			   shdr->sh_type == SHT_REL ||
+			   i == ehdr->e_shstrndx)
 		{
-
+			VERBOSE(VB_RELOC|VB_TRACE, "sect %d malloc(%d)", i, shdr->sh_size);
 			if ((addr = malloc(shdr->sh_size)) == NULL) {
 				err = ENOMEM;
 				goto out2;
@@ -283,6 +290,29 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 		}
 		sect_addr[i] = addr;
 	}
+
+	/* Show sections */
+#define SHSTRTAB() (char *)sect_addr[ehdr->e_shstrndx]
+	if (VERBOSE_ON(VB_RELOC) && SHSTRTAB()) {
+		shdr = (Elf32_Shdr *)buf + 1; /* skip NULL section */
+		if (strncmp(".text", SHSTRTAB() + shdr->sh_name, 5) != 0)
+			VERBOSE(VB_RELOC, "can't find .text");
+		else {
+			__VERBOSE(VB_RELOC, "add-symbol-file %x", sect_addr[1]);
+			shdr++;
+			for (i = 2; i < ehdr->e_shnum; i++, shdr++) {
+				__CVERBOSE(VB_RELOC,
+					   (shdr->sh_type == SHT_PROGBITS ||
+					   shdr->sh_type == SHT_NOBITS)
+					   && sect_addr[i] != NULL,
+					   " -s %s %08x",
+					   SHSTRTAB() + shdr->sh_name,
+					   sect_addr[i]);
+			}
+			__VERBOSE(VB_RELOC, "\n");
+		}
+	}
+
 	/* Process relocation */
 	shdr = (Elf32_Shdr *)buf;
 	for (i = 0; i < ehdr->e_shnum; i++, shdr++) {
@@ -295,14 +325,18 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 		}
 	}
 	*entry = (void *)((u_long)mapped + ehdr->e_entry);
+	VERBOSE(VB_RELOC|VB_DEBUG, "Entry %p", *entry);
+
  out2:
 	/* Release symbol table */
 	shdr = (Elf32_Shdr *)buf;
 	for (i = 0; i < ehdr->e_shnum; i++, shdr++) {
 		if (shdr->sh_type == SHT_SYMTAB ||
 		    shdr->sh_type == SHT_RELA ||
-		    shdr->sh_type == SHT_REL) {
+		    shdr->sh_type == SHT_REL ||
+		    i == ehdr->e_shstrndx) {
 			if (sect_addr[i])
+				VERBOSE(VB_RELOC|VB_TRACE, "free %p", sect_addr[i]);
 				free(sect_addr[i]);
 		}
 	}
