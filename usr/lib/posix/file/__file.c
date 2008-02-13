@@ -64,7 +64,7 @@ __file_exit(void)
 	/* Notify to file system server */
 	if (__fs_obj != 0) {
 		m.hdr.code = FS_EXIT;
-		msg_send(__fs_obj, &m, sizeof(m));
+		msg_send(__fs_obj, &m, sizeof(m), 0);
 	}
 }
 
@@ -81,7 +81,7 @@ fslib_init(void)
 		__file_init();
 
 	m.hdr.code = FS_REGISTER;
-	msg_send(__fs_obj, &m, sizeof(m));
+	msg_send(__fs_obj, &m, sizeof(m), 0);
 }
 
 

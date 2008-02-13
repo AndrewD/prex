@@ -91,7 +91,7 @@ process_init(void)
 	struct msg m;
 
 	m.hdr.code = PS_REGISTER;
-	msg_send(proc_obj, &m, sizeof(m));
+	msg_send(proc_obj, &m, sizeof(m), 0);
 }
 
 /*
@@ -108,7 +108,7 @@ notify_server(task_t org_task, task_t new_task, void *stack)
 		m.hdr.code = FS_EXEC;
 		m.data[0] = org_task;
 		m.data[1] = new_task;
-		err = msg_send(fs_obj, &m, sizeof(m));
+		err = msg_send(fs_obj, &m, sizeof(m), 0);
 	} while (err == EINTR);
 
 	/* Notify to process server */
@@ -117,7 +117,7 @@ notify_server(task_t org_task, task_t new_task, void *stack)
 		m.data[0] = org_task;
 		m.data[1] = new_task;
 		m.data[2] = (int)stack;
-		err = msg_send(proc_obj, &m, sizeof(m));
+		err = msg_send(proc_obj, &m, sizeof(m), 0);
 	} while (err == EINTR);
 }
 
@@ -342,7 +342,7 @@ main(int argc, char *argv[])
 		/*
 		 * Wait for an incoming request.
 		 */
-		err = msg_receive(obj, &msg, sizeof(struct exec_msg));
+		err = msg_receive(obj, &msg, sizeof(struct exec_msg), 0);
 		if (err)
 			continue;
 		/*

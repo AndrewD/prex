@@ -49,7 +49,7 @@ kill(pid_t pid, int sig)
 	m.hdr.code = PS_KILL;
 	m.data[0] = pid;
 	m.data[1] = sig;
-	err = msg_send(__proc_obj, &m, sizeof(m));
+	err = msg_send(__proc_obj, &m, sizeof(m), 0);
 
 	/*
 	 * XXX: err is always EINTR, and we can not determine whether

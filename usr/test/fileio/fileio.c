@@ -92,7 +92,7 @@ test_invalid(void)
 
 	object_lookup(OBJNAME_FS, &fs_obj);
 	m.hdr.code = 0x300;
-	msg_send(fs_obj, &m, sizeof(m));
+	msg_send(fs_obj, &m, sizeof(m), 0);
 }
 
 /*

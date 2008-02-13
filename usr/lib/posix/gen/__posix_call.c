@@ -50,7 +50,7 @@ __posix_call(object_t obj, void *msg, size_t size, int restart)
 	}
 
 	do
-		err = msg_send(obj, msg, size);
+		err = msg_send(obj, msg, size, 0);
 	while (err == EINTR && restart);
 
 	if (err) {

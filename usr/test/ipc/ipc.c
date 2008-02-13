@@ -99,7 +99,7 @@ send_thread(void)
 	 * Send message to object B.
 	 */
 	printf("Send message to object B.\n");
-	msg_send(o2, &msg, sizeof(msg));
+	msg_send(o2, &msg, sizeof(msg), 0);
 	
 	printf("Send completed.\n");
 	for (;;) ;
@@ -140,7 +140,7 @@ main(int argc, char *argv[])
 	 * This must be error.
 	 */
 	o3 = 0x12345678;
-	err = msg_receive(o3, &msg, sizeof(msg));
+	err = msg_receive(o3, &msg, sizeof(msg), 0);
 	if (err == 0)
 		panic("Oops! invalid object...");
 
@@ -149,7 +149,7 @@ main(int argc, char *argv[])
 	 * because the sender thread will delete the object A.
 	 */
 	printf("Wait message from object A\n");
-	err = msg_receive(o1, &msg, sizeof(msg));
+	err = msg_receive(o1, &msg, sizeof(msg), 0);
 	if (err)
 		printf("Receive err!\n");
 	else {
@@ -161,7 +161,7 @@ main(int argc, char *argv[])
 	 * Wait message from object 'B'.
 	 */
 	printf("Wait message from object B\n");
-	err = msg_receive(o2, &msg, sizeof(msg));
+	err = msg_receive(o2, &msg, sizeof(msg), 0);
 	if (err)
 		printf("Receive err!\n");
 	else {

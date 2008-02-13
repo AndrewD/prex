@@ -163,7 +163,7 @@ process_init(void)
 	 */
 	object_lookup(OBJNAME_PROC, &proc_obj);
 	m.hdr.code = PS_SETINIT;
-	msg_send(proc_obj, &m, sizeof(m));
+	msg_send(proc_obj, &m, sizeof(m), 0);
 }
 
 /*
@@ -222,7 +222,7 @@ run_init(char *path)
 	do {
 		msg->hdr.code = EX_EXEC;
 		err = msg_send(obj, msg,
-			       sizeof(struct exec_msg) + bufsz);
+			       sizeof(struct exec_msg) + bufsz, 0);
 		/*
 		 * If exec server can execute new process properly, it
 		 * will terminate the caller task automatically. So,

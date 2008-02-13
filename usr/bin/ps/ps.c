@@ -61,7 +61,7 @@ pstat(task_t task, struct info_proc *ip)
 	do {
 		m.hdr.code = PS_PSTAT;
 		m.data[0] = task;
-		rc = msg_send(procobj, &m, sizeof(m));
+		rc = msg_send(procobj, &m, sizeof(m), 0);
 	} while (rc == EINTR);
 
 	if (rc || m.hdr.status) {

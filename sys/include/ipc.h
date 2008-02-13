@@ -61,8 +61,8 @@ extern int	 object_destroy(object_t);
 extern void	 object_init(void);
 extern void	 object_dump(void);
 
-extern int	 msg_send(object_t, void *, size_t);
-extern int	 msg_receive(object_t, void *, size_t);
+extern int	 msg_send(object_t, void *, size_t, u_long);
+extern int	 msg_receive(object_t, void *, size_t, u_long);
 extern int	 msg_reply(object_t, void *, size_t);
 extern void	 msg_cleanup(struct thread *);
 extern void	 msg_cancel(struct object *);

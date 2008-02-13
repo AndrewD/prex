@@ -109,8 +109,8 @@ int	object_create(const char *name, object_t *obj);
 int	object_destroy(object_t obj);
 int	object_lookup(const char *name, object_t *obj);
 
-int	msg_send(object_t obj, void *msg, size_t size);
-int	msg_receive(object_t obj, void *msg, size_t size);
+int	msg_send(object_t obj, void *msg, size_t size, u_long timeout);
+int	msg_receive(object_t obj, void *msg, size_t size, u_long timeout);
 int	msg_reply(object_t obj, void *msg, size_t size);
 
 int	vm_allocate(task_t task, void **addr, size_t size, int anywhere);

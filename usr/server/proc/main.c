@@ -309,7 +309,7 @@ main(int argc, char *argv[])
 		/*
 		 * Wait for an incoming request.
 		 */
-		err = msg_receive(obj, &msg, sizeof(msg));
+		err = msg_receive(obj, &msg, sizeof(msg), 0);
 		if (err)
 			continue;
 

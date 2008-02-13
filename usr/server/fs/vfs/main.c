@@ -780,7 +780,7 @@ process_init(void)
 	 * Notify to process server.
 	 */
 	m.hdr.code = PS_REGISTER;
-	msg_send(obj, &m, sizeof(m));
+	msg_send(obj, &m, sizeof(m), 0);
 }
 
 static void
@@ -904,7 +904,7 @@ fs_thread(void)
 		/*
 		 * Wait for an incoming request.
 		 */
-		if ((err = msg_receive(fs_obj, msg, MAX_FSMSG)) != 0)
+		if ((err = msg_receive(fs_obj, msg, MAX_FSMSG, 0)) != 0)
 			continue;
 
 		err = EINVAL;
