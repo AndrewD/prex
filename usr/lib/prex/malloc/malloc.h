@@ -29,6 +29,7 @@
 
 #include <prex/prex.h>
 #include <sys/param.h>
+#include <verbose.h>
 
 /* #define CONFIG_MSTAT		1 */
 /* #define CONFIG_MCHECK	1 */
@@ -48,15 +49,19 @@
 #define HDR_MAGIC_SET(p) (p)->hdr_magic = HDR_MAGIC
 #define HDR_MAGIC_CLR(p) (p)->hdr_magic = 0
 #define HDR_MAGIC_ASSERT(p, str) do {					\
-		if ((p)->hdr_magic != HDR_MAGIC)			\
+		if ((p)->hdr_magic != HDR_MAGIC) {			\
+			VERBOSE(VB_CRIT, "HDR %p", (p)+1);		\
 			sys_panic(str);					\
+		}							\
 	} while (0)
 
 #define MALLOC_MAGIC_SET(p) (p)->malloc_magic = MALLOC_MAGIC
 #define MALLOC_MAGIC_CLR(p) (p)->malloc_magic = 0
 #define MALLOC_MAGIC_ASSERT(p, str) do {				\
-		if ((p)->malloc_magic != MALLOC_MAGIC)			\
+		if ((p)->malloc_magic != MALLOC_MAGIC) {		\
+			VERBOSE(VB_CRIT, "MALLOC %p", (p)+1);		\
 			sys_panic(str);					\
+		}							\
 	} while (0)
 #else
 #define HDR_MAGIC_SET(p)

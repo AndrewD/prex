@@ -165,8 +165,10 @@ free(void *addr)
 		if (m->next == p) { /* drop from malloc list */
 			m->next = p->next;
 			break;
-		} else if (m->next == &malloc_list)
+		} else if (m->next == &malloc_list) {
+			VERBOSE(VB_CRIT, "missing %p\n", p);
 			sys_panic("free: not in malloc list");
+		}
 	}
 #endif	/* CONFIG_MCHECK */
 
