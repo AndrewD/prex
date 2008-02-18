@@ -33,8 +33,6 @@
 
 #define BUF_LEN	128		/* Local buffer size */
 
-extern int vsprintf(char *buf, const char *fmt, va_list args);
-
 static int	LogMask = 0xff;		/* mask of priorities to be logged */
 
 /*
@@ -47,7 +45,7 @@ syslog(int pri, const char *fmt, ...)
 	va_list args;
 
 	va_start(args, fmt);
-	vsprintf(buf, fmt, args);
+	vsnprintf(buf, BUF_LEN, fmt, args);
 	sys_log(buf);
 	va_end(args);
 }
