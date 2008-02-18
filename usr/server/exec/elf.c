@@ -215,14 +215,13 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 		err = EIO;
 		goto out1;
 	}
-	/* Allocate memory for text, data and bss. */
+	/* Allocate memory for text, data, bss, etc. */
 	shdr = (Elf32_Shdr *)buf;
 	total_size = 0;
 	for (i = 0; i < ehdr->e_shnum; i++, shdr++) {
-		if (shdr->sh_type == SHT_NOBITS) { /* bss? */
+		if (shdr->sh_type == SHT_NOBITS ||
+		    shdr->sh_type == SHT_PROGBITS)
 			total_size = shdr->sh_addr + shdr->sh_size;
-			break;
-		}
 	}
 	VERBOSE(VB_RELOC|VB_DEBUG, "total_size %d", total_size);
 
