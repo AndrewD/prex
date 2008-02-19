@@ -55,11 +55,16 @@ execve(char *path, char *argv[], char *envp[])
 	size_t bufsz;
 	char *dest, *src;
 
-	if ((err = object_lookup(OBJNAME_EXEC, &exec_obj)) != 0)
-		return ENOSYS;
+	if ((err = object_lookup(OBJNAME_EXEC, &exec_obj)) != 0) {
+		errno = ENOSYS;
+		return -1;
+	}
 
-	if (path == NULL)
-		return EFAULT;
+	if (path == NULL) {
+		errno = EFAULT;
+		return -1;
+	}
+
 /*
     if (strlen(path) >= PATH_MAX)
         return ENAMETOOLONG;
@@ -82,8 +87,10 @@ execve(char *path, char *argv[], char *envp[])
 			envc++;
 		}
 	}
-	if (bufsz >= ARG_MAX)
-		return E2BIG;
+	if (bufsz >= ARG_MAX) {
+		errno = E2BIG;
+		return -1;
+	}
 
 	dest = msg.buf;
 	for (i = 0; i < argc; i++) {

@@ -67,7 +67,8 @@ main(int argc, char *argv[])
 		dup(0);				/* stdout */
 		dup(0);				/* stderr */
 
-		exit(execve(PROGNAME, 0, 0));
+		execve(PROGNAME, 0, 0);
+		_exit(errno);
 	}
 	/*
 	 * parent
