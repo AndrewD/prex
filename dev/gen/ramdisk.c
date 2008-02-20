@@ -44,6 +44,8 @@
 /* Block size */
 #define BSIZE		512
 
+static int ramdisk_open(device_t dev, int mode);
+static int ramdisk_close(device_t dev);
 static int ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno);
 static int ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno);
 static int ramdisk_init(void);
@@ -58,18 +60,45 @@ struct driver ramdisk_drv __driver_entry = {
 };
 
 static struct devio ramdisk_io = {
-	/* open */	NULL,
-	/* close */	NULL,
-	/* read */	ramdisk_read,
-	/* write */	ramdisk_write,
-	/* ioctl */	NULL,
-	/* event */	NULL,
+	.open = ramdisk_open,
+	.close = ramdisk_close,
+	.read = ramdisk_read,
+	.write = ramdisk_write,
 };
 
 static device_t ramdisk_dev;	/* Device object */
 
 static char *img_start;
 static size_t img_size;
+static int open;
+
+static int
+ramdisk_open(device_t dev, int mode)
+{
+	if (img_size == 0)
+		return EIO;
+
+	open++;
+	return 0;
+}
+
+static int
+ramdisk_close(device_t dev)
+{
+	if (open <= 0)
+		return EBADF;
+
+	if (--open == 0) {	/* free memory when ramdisk closed */
+		char *end = (void *)PAGE_ALIGN(img_start + img_size);
+		char *addr = (void *)PAGE_TRUNC(img_start);
+		size_t size = end - addr;
+		printk("freeing RAM disk at 0x%p (%dK bytes)\n",
+		       img_start, img_size/1024);
+		page_free(addr, size);
+		img_size = 0;
+	}
+	return 0;
+}
 
 static int
 ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
