@@ -124,6 +124,10 @@ relocate_section_rela(Elf32_Sym *sym_table, Elf32_Rela *rela,
 				return -1;
 		} else if (ELF32_ST_BIND(sym->st_info) == STB_WEAK)
 			dprintf("undefined weak symbol for rela[%d]\n", i);
+		else {
+			sys_log("exec: undefined symbol\n");
+			return -1;
+		}
 		rela++;
 	}
 	return 0;
@@ -146,6 +150,10 @@ relocate_section_rel(Elf32_Sym *sym_table, Elf32_Rel *rel,
 				return -1;
 		} else if (ELF32_ST_BIND(sym->st_info) == STB_WEAK)
 			dprintf("undefined weak symbol for rel[%d]\n", i);
+		else {
+			sys_log("exec: undefined symbol\n");
+			return -1;
+		}
 		rel++;
 	}
 	return 0;
