@@ -240,6 +240,41 @@ thread_load(thread_t th, void (*entry)(void), void *stack)
 	return 0;
 }
 
+/*
+ * Set thread name.
+ *
+ * The naming service is separated from thread_create() so
+ * the thread name can be changed at any time.
+ */
+int
+thread_name(thread_t th, const char *name)
+{
+	size_t len;
+	int err = 0;
+
+	sched_lock();
+	if (!thread_valid(th))
+		err = ESRCH;
+	else if (!task_access(th->task))
+		err = EPERM;
+	else {
+		if (cur_task() == &kern_task)
+			strlcpy(th->name, name, MAXTHNAME);
+		else {
+			if (umem_strnlen(name, MAXTHNAME, &len))
+				err = EFAULT;
+			else if (len >= MAXTHNAME) {
+				umem_copyin(name, th->name, MAXTHNAME - 1);
+				th->name[MAXTHNAME - 1] = '\0';
+				err = ENAMETOOLONG;
+			} else
+				err = umem_copyin(name, th->name, len + 1);
+		}
+	}
+	sched_unlock();
+	return err;
+}
+
 thread_t
 thread_self(void)
 {
@@ -403,6 +438,7 @@ thread_schedparam(thread_t th, int op, int *param)
 void
 thread_idle(void)
 {
+	thread_name(cur_thread, "idle");
 
 	for (;;) {
 		machine_idle();
@@ -485,6 +521,7 @@ thread_info(struct info_thread *info)
 	info->id = th;
 	info->task = th->task;
 	strlcpy(info->task_name, task->name, MAXTASKNAME);
+	strlcpy(info->th_name, th->name, MAXTHNAME);
 	strlcpy(info->sleep_event,
 		th->sleep_event ? th->sleep_event->name : "-", 12);
 

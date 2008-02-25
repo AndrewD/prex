@@ -134,6 +134,7 @@ thread_t thread_self(void);
 void	thread_yield(void);
 int	thread_suspend(thread_t th);
 int	thread_resume(thread_t th);
+int	thread_name(thread_t th, const char *name);
 int	thread_getprio(thread_t th, int *prio);
 int	thread_setprio(thread_t th, int	prio);
 int	thread_getpolicy(thread_t th, int *policy);

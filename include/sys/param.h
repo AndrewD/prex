@@ -66,6 +66,7 @@
 #define MAXHOSTNAMELEN	32		/* max hostname size */
 
 #define MAXTASKNAME	12		/* max task name */
+#define MAXTHNAME	12		/* max thread name */
 #define MAXDEVNAME	12		/* max device name */
 #define MAXOBJNAME	16		/* max object name */
 #define MAXEVTNAME	12		/* max event name */

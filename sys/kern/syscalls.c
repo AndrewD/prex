@@ -107,5 +107,6 @@ const sysfn_t syscall_table[] = {
 	/* 57 */ SYSENT(sys_info),
 	/* 58 */ SYSENT(sys_time),
 	/* 59 */ SYSENT(sys_debug),
+	/* 60 */ SYSENT(thread_name),
 };
 const int nr_syscalls = (int)(sizeof(syscall_table) / (sizeof(sysfn_t)));

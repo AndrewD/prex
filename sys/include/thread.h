@@ -42,6 +42,7 @@ struct mutex;
  */
 struct thread {
 	int		magic;		/* magic number */
+	char		name[MAXTHNAME]; /* thread name */
 	task_t		task;		/* pointer to owner task */
 	struct list 	task_link;	/* link for threads in same task */
 	struct queue 	link;		/* linkage on scheduling queue */
@@ -120,6 +121,7 @@ extern thread_t	 thread_self(void);
 extern void	 thread_yield(void);
 extern int	 thread_suspend(thread_t);
 extern int	 thread_resume(thread_t);
+extern int	 thread_name(thread_t, const char *);
 extern int	 thread_schedparam(thread_t, int, int *);
 extern void	 thread_idle(void);
 extern int	 thread_info(struct info_thread *);

@@ -71,6 +71,7 @@ struct info_thread {
 	u_int	total_ticks;	/* total running ticks */
 	thread_t id;		/* thread id */
 	task_t	task;		/* task id */
+	char	th_name[MAXTHNAME];	/* thread name */
 	char	task_name[MAXTASKNAME];	/* task name */
 	char	sleep_event[MAXEVTNAME]; /* sleep event */
 };

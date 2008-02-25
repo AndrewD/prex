@@ -104,6 +104,7 @@ vfork(void)
 			errno = err;
 			return -1;
 		}
+		thread_name(th, "vfork");
 		/*
 		 * Notify to file system server
 		 */

@@ -216,6 +216,7 @@ do_exec(struct exec_msg *msg)
 	if ((err = thread_create(new_task, &th)) != 0)
 		goto err4;
 
+	thread_name(th, "main");
 	/*
 	 * Allocate stack and build arguments on it.
 	 */

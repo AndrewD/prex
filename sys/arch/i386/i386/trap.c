@@ -170,10 +170,14 @@ trap_dump(struct cpu_regs *r)
 
 	if (r->cs == KERNEL_CS)
 		printk(" >> Oops! it's kernel mode now!!!\n");
-	else
+	else {
 		printk(" >> task:%s (id:%x)\n",
-		       cur_task()->name ? cur_task()->name : "no name",
+		       cur_task()->name[0] ? cur_task()->name : "no name",
 		       cur_task());
+		printk(" >> thread:%s (id:%x)\n",
+		       cur_thread->name[0] ? cur_thread->name : "no name",
+		       cur_thread);
+	}
 
 	if (r->cs == KERNEL_CS) {
 		printk("Stack trace:\n");
