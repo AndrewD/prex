@@ -196,7 +196,7 @@ do_exec(struct exec_msg *msg)
 	 * Create new task
 	 */
 	if ((err = task_create(old_task, VM_NEW, &new_task)) != 0)
-		goto err2;
+		goto err3;
 
 	if (msg->path[0] != '\0') {
 		name = strrchr(msg->path, '/');
@@ -214,24 +214,24 @@ do_exec(struct exec_msg *msg)
 	task_setcap(new_task, &cap);
 
 	if ((err = thread_create(new_task, &th)) != 0)
-		goto err3;
+		goto err4;
 
 	/*
 	 * Allocate stack and build arguments on it.
 	 */
 	err = vm_allocate(new_task, &stack, USTACK_SIZE, 1);
 	if (err)
-		goto err4;
-	if ((err = build_args(new_task, stack, msg, &sp)) != 0)
 		goto err5;
+	if ((err = build_args(new_task, stack, msg, &sp)) != 0)
+		goto err6;
 
 	/*
 	 * Load file image.
 	 */
 	if ((err = ldr->load(header, new_task, fd, (void **)&entry)) != 0)
-		goto err5;
+		goto err6;
 	if ((err = thread_load(th, entry, sp)) != 0)
-		goto err5;
+		goto err6;
 
 	/*
 	 * Notify to servers.
@@ -251,12 +251,14 @@ do_exec(struct exec_msg *msg)
 	close(fd);
 	dprintf("exec complete successfully\n", );
 	return 0;
- err5:
+ err6:
 	vm_free(new_task, stack);
- err4:
+ err5:
 	thread_terminate(th);
- err3:
+ err4:
 	task_terminate(new_task);
+ err3:
+	task_resume(old_task);
  err2:
 	close(fd);
  err1:
