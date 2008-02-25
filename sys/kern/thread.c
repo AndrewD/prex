@@ -133,7 +133,8 @@ thread_create(task_t task, thread_t *thp)
 	th->suspend_count = task->suspend_count + 1;
 	memcpy(th->kstack, cur_thread->kstack, KSTACK_SIZE);
 	context_init(&th->context, (u_long)th->kstack + KSTACK_SIZE);
-	list_insert(&task->threads, &th->task_link);
+	/* add new threads to end of list (master thread at head) */
+	list_insert(list_last(&task->threads), &th->task_link);
 	sched_start(th);
  out:
 	sched_unlock();
