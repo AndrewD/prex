@@ -78,6 +78,7 @@ vsprintf(char *buf, const char *fmt, va_list args)
 	long num;
 
 	for (p = buf; *fmt; fmt++) {
+		ASSERT((p - buf) < MSGBUFSZ);
 		if (*fmt != '%') {
 			*p++ = *fmt;
 			continue;
