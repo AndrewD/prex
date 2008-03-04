@@ -185,6 +185,13 @@ free(void *addr)
 		prev->size += p->size;
 		prev->next = p->next;
 		HDR_MAGIC_CLR(p);
+		if (prev->size == prev->vm_size) {
+			/* need to reset pointers to dealloc this pool */
+			p = prev;
+			for (prev = scan_head; ; prev = prev->next)
+				if (prev->next == p)
+					break;
+		}
 	} else {
 		prev->next = p;
 	}
