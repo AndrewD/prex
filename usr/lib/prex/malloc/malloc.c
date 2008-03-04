@@ -212,6 +212,9 @@ mstat(void)
 
 	syslog(LOG_INFO, "mstat: task=%x\n", task_self());
 
+	if (scan_head == NULL)
+		return;
+
 	size_t free_total = 0;
 	for (p = free_list.next; p != &free_list; p = p->next) {
 		HDR_MAGIC_ASSERT(p, "mstat: free_list corrupt");
