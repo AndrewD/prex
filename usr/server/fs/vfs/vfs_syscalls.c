@@ -222,8 +222,7 @@ sys_lseek(file_t fp, off_t off, int type, off_t *origin)
 	case SEEK_SET:
 		if (off < 0)
 			off = 0;
-		if (off > (off_t)vp->v_size)
-			off = vp->v_size;
+		/* off > vp->v_size is valid: sparse file */
 		break;
 	case SEEK_CUR:
 		if (fp->f_offset + off > (off_t)vp->v_size)

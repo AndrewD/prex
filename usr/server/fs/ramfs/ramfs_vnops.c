@@ -369,6 +369,9 @@ ramfs_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 				memcpy(new_buf, node->buf, vp->v_size);
 				vm_free(task, node->buf);
 			}
+			if (vp->v_size < (size_t)file_pos) /* sparse file */
+				memset((char *)new_buf + vp->v_size, 0,
+				       file_pos - vp->v_size);
 			node->buf = new_buf;
 			node->bufsize = new_size;
 		}
