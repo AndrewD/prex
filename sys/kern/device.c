@@ -89,6 +89,7 @@ device_release(device_t dev)
 
 	sched_lock();
 	if (--dev->ref_count == 0) {
+		dev->magic = 0;
 		list_remove(&dev->link);
 		kmem_free(dev);
 	}
