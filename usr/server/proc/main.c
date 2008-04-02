@@ -93,6 +93,7 @@ static const struct msg_map procmsg_map[] = {
 	{PS_PSTAT,	proc_pstat},
 	{PS_REGISTER,	proc_register},
 	{PS_SETINIT,	proc_setinit},
+	{PS_GETTASK,	proc_gettask},
 	{0,		0},
 };
 

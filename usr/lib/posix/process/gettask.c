@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,25 +27,23 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SRV_PROC_H
-#define _SRV_PROC_H
+#include <prex/posix.h>
+#include <server/proc.h>
+#include <server/stdmsg.h>
 
-/*
- * Messages for process object
- */
-#define	PS_GETPID	0x00000100
-#define	PS_GETPPID	0x00000101
-#define	PS_GETPGID	0x00000102
-#define	PS_SETPGID	0x00000103
-#define	PS_FORK		0x00000104
-#define	PS_EXIT		0x00000105
-#define	PS_STOP		0x00000106
-#define	PS_WAITPID	0x00000107
-#define	PS_KILL		0x00000108
-#define	PS_EXEC		0x00000109
-#define	PS_PSTAT	0x0000010A
-#define	PS_SETINIT	0x0000010B
-#define	PS_REGISTER	0x0000010C
-#define	PS_GETTASK	0x0000010D
+#include <stddef.h>
+#include <unistd.h>
+#include <errno.h>
 
-#endif /* !_SRV_PROC_H */
+task_t
+gettask(pid_t pid)
+{
+	struct msg m;
+
+	m.hdr.code = PS_GETTASK;
+	m.data[0] = pid ? pid : getpid();
+	if (__posix_call(__proc_obj, &m, sizeof(m), 1))
+		return -1;
+
+	return m.data[0];
+}

@@ -123,6 +123,7 @@ mode_t	 getmode(const void *, mode_t);
 int	 getpagesize(void);
 char	*getpass(const char *);
 pid_t	 getpgid(pid_t);
+task_t	 gettask(pid_t);
 char	*getusershell(void);
 char	*getwd(char *);			/* obsoleted by getcwd() */
 int	 initgroups(const char *, int);

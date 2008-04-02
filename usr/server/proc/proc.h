@@ -125,5 +125,6 @@ extern int proc_exit(struct msg *);
 extern int proc_stop(struct msg *);
 extern int proc_waitpid(struct msg *);
 extern int proc_kill(struct msg *);
+extern int proc_gettask(struct msg *);
 
 #endif /* !_PROC_H */
