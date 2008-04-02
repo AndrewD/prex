@@ -42,9 +42,8 @@ getpgid(pid_t pid)
 
 	m.hdr.code = PS_GETPGID;
 	m.data[0] = pid ? pid : getpid();
-	__posix_call(__proc_obj, &m, sizeof(m), 1);
-
-	/* XXX: getpigid() does not return error */
+	if (__posix_call(__proc_obj, &m, sizeof(m), 1))
+		return -1;
 
 	return m.data[0];
 }
