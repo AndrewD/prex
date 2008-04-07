@@ -92,10 +92,15 @@ ramdisk_close(device_t dev)
 		char *end = (void *)PAGE_ALIGN(img_start + img_size);
 		char *addr = (void *)PAGE_TRUNC(img_start);
 		size_t size = end - addr;
-		printk("freeing RAM disk at 0x%p (%dK bytes)\n",
-		       img_start, img_size/1024);
-		page_free(addr, size);
-		img_size = 0;
+
+		struct boot_info *boot_info;
+		machine_bootinfo(&boot_info);
+		if (addr >= (char *)boot_info->main_mem.start) {
+			printk("freeing RAM disk at 0x%p (%dK bytes)\n",
+			       img_start, img_size/1024);
+			page_free(addr, size);
+			img_size = 0;
+		}
 	}
 	return 0;
 }

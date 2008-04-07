@@ -329,7 +329,7 @@ page_init(void)
 	 */
 	for (i = 0; i < NRESMEM; i++) {
 		mem = &boot_info->reserved[i];
-		if (mem->size != 0)
+		if (mem->size != 0 && mem->start >= boot_info->main_mem.start)
 			page_reserve((void *)mem->start, mem->size);
 	}
 	total_bytes = boot_info->main_mem.size - used_bytes;
