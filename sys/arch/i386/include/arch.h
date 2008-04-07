@@ -137,8 +137,8 @@ extern void *mmu_extract(pgd_t, void *, size_t);
 /*
  * User Memory access
  */
-extern int umem_copyin(void *, void *, size_t);
-extern int umem_copyout(void *, void *, size_t);
+extern int umem_copyin(const void *, void *, size_t);
+extern int umem_copyout(const void *, void *, size_t);
 extern int umem_strnlen(const char *, size_t, size_t *);
 
 #define breakpoint()	__asm__ __volatile__("int $3"::)

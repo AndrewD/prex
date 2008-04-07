@@ -196,8 +196,8 @@ device_t device_create(const struct devio *io, const char *name, int flags);
 int	 device_destroy(device_t dev);
 int	 device_broadcast(int event, int force);
 
-int	 umem_copyin(void *uaddr, void *kaddr, size_t len);
-int	 umem_copyout(void *kaddr, void *uaddr, size_t len);
+int	 umem_copyin(const void *uaddr, void *kaddr, size_t len);
+int	 umem_copyout(const void *kaddr, void *uaddr, size_t len);
 int	 umem_strnlen(const char *uaddr, size_t maxlen, size_t *len);
 
 void	*kmem_alloc(size_t size);

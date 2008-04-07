@@ -37,7 +37,7 @@
 #ifndef CONFIG_MMU
 
 int
-umem_copyin(void *uaddr, void *kaddr, size_t len)
+umem_copyin(const void *uaddr, void *kaddr, size_t len)
 {
 	if (user_area(uaddr) && user_area((u_long)uaddr + len)) {
 		memcpy(kaddr, uaddr, len);
@@ -47,7 +47,7 @@ umem_copyin(void *uaddr, void *kaddr, size_t len)
 }
 
 int
-umem_copyout(void *kaddr, void *uaddr, size_t len)
+umem_copyout(const void *kaddr, void *uaddr, size_t len)
 {
 	if (user_area(uaddr) && user_area((u_long)uaddr + len)) {
 		memcpy(uaddr, kaddr, len);
