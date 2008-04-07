@@ -189,7 +189,7 @@ setup_image(void)
 		if (!strncmp((char *)&((struct ar_hdr *)hdr)->ar_name,
 			    "ramdisk.a", 9)) {
 			setup_ramdisk((struct ar_hdr *)hdr);
-			continue;
+			break;	/* ramdisk is last */
 		}
 #endif /* CONFIG_RAMDISK */
 		/* Load task */
