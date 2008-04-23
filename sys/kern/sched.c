@@ -526,6 +526,7 @@ sched_lock(void)
 {
 
 	cur_thread->lock_count++;
+	THREAD_CHECK();
 }
 
 /*
@@ -544,6 +545,7 @@ sched_unlock(void)
 	int s;
 
 	ASSERT(cur_thread->lock_count > 0);
+	THREAD_CHECK();
 
 	interrupt_save(&s);
 	interrupt_disable();

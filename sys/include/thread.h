@@ -129,4 +129,11 @@ extern thread_t	 kernel_thread(int, void (*)(u_long), u_long);
 extern void	 thread_dump(void);
 extern void	 thread_init(void);
 
+#if defined (DEBUG) && defined(CONFIG_THREAD_CHECK)
+extern void thread_check(void);
+#define THREAD_CHECK() thread_check()
+#else
+#define THREAD_CHECK()
+#endif
+
 #endif /* !_THREAD_H */

@@ -530,7 +530,30 @@ thread_info(struct info_thread *info)
 	return 0;
 }
 
-#if defined(DEBUG) && defined(CONFIG_KDUMP)
+#if defined(DEBUG)
+#if defined(CONFIG_THREAD_CHECK)
+void
+thread_check(void)
+{
+	list_t task_link;
+	thread_t th;
+	task_t task;
+
+	if (!thread_valid(&idle_thread)) /* early in boot */
+		return;
+
+	task_link = &kern_task.link;
+	do {
+		task = list_entry(task_link, struct task, link);
+		ASSERT(task_valid(task));
+		list_for_each_entry(th, &task->threads, task_link)
+			ASSERT(thread_valid(th));
+		task_link = list_next(task_link);
+	} while (task_link != &kern_task.link);
+}
+#endif	/* CONFIG_THREAD_CHECK */
+
+#if defined(CONFIG_KDUMP)
 void
 thread_dump(void)
 {
@@ -566,7 +589,8 @@ thread_dump(void)
 		i = list_next(i);
 	} while (i != &kern_task.link);
 }
-#endif
+#endif	/* CONFIG_KDUMP */
+#endif	/* DEBUG */
 
 /*
  * The first thread in system is created here by hand. This thread

@@ -175,9 +175,6 @@ task_terminate(task_t task)
 		return EPERM;
 	}
 
-	/* Invalidate the task. */
-	task->magic = 0;
-
 	/*
 	 * Terminate all threads except a current thread.
 	 */
@@ -202,9 +199,10 @@ task_terminate(task_t task)
 		object_destroy(obj);
 	}
 	/*
-	 * Release all other task related resources.
+	 * Invalidate task and release all other task related resources.
 	 */
 	vm_terminate(task->map);
+	task->magic = 0;	/* after last operation on task */
 	list_remove(&task->link);
 	kmem_free(task);
 
