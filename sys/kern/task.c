@@ -37,7 +37,6 @@
 #include <thread.h>
 #include <ipc.h>
 #include <vm.h>
-#include <page.h>
 #include <task.h>
 
 /*

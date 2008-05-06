@@ -37,6 +37,7 @@
 #include <task.h>
 #include <irq.h>
 #include <page.h>
+#include <kpage.h>
 #include <kmem.h>
 #include <vm.h>
 #include <device.h>
@@ -142,6 +143,7 @@ sys_info(int type, void *buf)
 
 	case INFO_MEMORY:
 		page_info(&imem.total, &imem.free);
+		kpage_info(&imem.kpage_total, &imem.kpage_free);
 		kmem_info(&imem.kernel);
 		err = umem_copyout(&imem, buf, sizeof(imem));
 		break;

@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2008, Andrew Dennison
+ * Adapted from page.h:
+ * Copyright (c) 2005, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,92 +29,33 @@
  * SUCH DAMAGE.
  */
 
-/*
- * main.c - kernel main routine
- */
+#ifndef _KPAGE_H
+#define _KPAGE_H
 
-#include <kernel.h>
-#include <task.h>
-#include <thread.h>
-#include <timer.h>
+#ifdef CONFIG_KMEM_PROTECT
+
+#ifndef __ppc__
+#warning only implemented on ppc
+#endif	/* __ppc__ */
+
+extern void	*kpage_alloc(size_t);
+extern void	 kpage_free(void *, size_t);
+extern void	 kpage_info(size_t *, size_t *);
+extern void	 kpage_dump(void);
+extern void	 kpage_init(void);
+
+#else  /* !CONFIG_KMEM_PROTECT */
+
 #include <page.h>
-#include <kpage.h>
-#include <kmem.h>
-#include <vm.h>
-#include <sched.h>
-#include <exception.h>
-#include <irq.h>
-#include <ipc.h>
-#include <device.h>
-#include <sync.h>
-#include <version.h>
+#define kpage_alloc(sz) page_alloc(sz)
+#define kpage_free(p, sz) page_free(p, sz)
+#define kpage_info(p_total, p_free) do {	\
+		*(p_total) = 0;			\
+		*(p_free) = 0;			\
+	} while (0)
+#define kpage_dump()
+#define kpage_init()
 
-/*
- * Initialization code.
- * This is called from kernel_start() routine that
- * is implemented in the architecture dependent layer.
- * We assumes that the following machine state are
- * already set before this routine.
- *	- Kernel BSS section is filled with 0.
- *	- Kernel stack is configured.
- *	- All interrupts are disabled.
- *	- Minimum page table is set. (MMU only)
- */
-void
-kernel_main(void)
-{
+#endif	/* !CONFIG_KMEM_PROTECT */
 
-	/*
-	 * Do machine-dependent
-	 * initialization.
-	 */
-	diag_init();
-	printk(BANNAR);
-	sched_lock();
-	machine_init();
-
-	/*
-	 * Initialize memory managers.
-	 */
-	kpage_init();
-	page_init();
-	mmu_init();
-	kmem_init();
-	vm_init();
-
-	/*
-	 * Initialize kernel core.
-	 */
-	task_init();
-	thread_init();
-	sched_init();
-	exception_init();
-	timer_init();
-
-	/*
-	 * Initialize IPC related stuff.
-	 */
-	object_init();
-	msg_init();
-
-	/*
-	 * Enable interrupt and
-	 * initialize devices.
-	 */
-	irq_init();
-	clock_init();
-	device_init();
-
-	/*
-	 * Set up boot tasks and
-	 * start scheduler.
-	 */
-	task_bootstrap();
-	sched_unlock();
-
-	/*
-	 * Enter idle loop.
-	 */
-	thread_idle();
-	/* NOTREACHED */
-}
+#endif /* !_KPAGE_H */

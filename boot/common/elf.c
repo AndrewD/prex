@@ -412,6 +412,20 @@ elf_load(char *img, struct module *m)
 		/*  Second image => Driver */
 		elf_print("driver base=%x\n", load_base);
 	}
+#ifdef CONFIG_KMEM_PROTECT
+	else if (nr_img == 2) {
+		/*  padding so kernel consumes a 256kiB TLB. Use for
+		    kmem dynamic pages */
+		u_int task_base = boot_info->kernel.phys + 0x40000;
+		if (load_base > task_base) {
+			printk("kernel too big\n");
+			return -1;
+		}
+		elf_print("padding %x => %x\n", load_base, task_base);
+		load_base = task_base;
+		elf_print("task base=%x\n", load_base);
+	}
+#endif	/* CONFIG_KMEM_PROTECT */
 	else {
 		/* Other images => Boot tasks */
 		elf_print("task base=%x\n", load_base);

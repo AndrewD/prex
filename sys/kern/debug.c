@@ -37,6 +37,7 @@
 #include <thread.h>
 #include <device.h>
 #include <page.h>
+#include <kpage.h>
 #include <kmem.h>
 #include <vm.h>
 #include <irq.h>
@@ -238,6 +239,7 @@ debug_dump(int item)
 		device_dump();
 		break;
 	case DUMP_VM:
+		kpage_dump();
 		page_dump();
 		kmem_dump();
 		vm_dump();

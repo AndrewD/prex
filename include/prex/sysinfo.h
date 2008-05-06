@@ -55,6 +55,8 @@ struct info_kernel {
 struct info_memory {
 	size_t	total;		/* total memory size in bytes */
 	size_t	free;		/* current free memory size in bytes */
+	size_t	kpage_total;	/* total memory size in bytes */
+	size_t	kpage_free;	/* current free memory size in bytes */
 	size_t	kernel;		/* memory size used by kernel in bytes */
 };
 
