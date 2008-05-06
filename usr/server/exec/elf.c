@@ -266,6 +266,7 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 			}
 			addr = (char *)((u_long)mapped + shdr->sh_addr);
 			if (shdr->sh_size == 0) {
+				sect_addr[i] = addr;
 				continue;
 			}
 		} else if (shdr->sh_type == SHT_NOBITS) {
