@@ -73,7 +73,20 @@ struct thread {
 	struct context 	context;	/* machine specific context */
 };
 
-#define thread_valid(th) (kern_area(th) && ((th)->magic == THREAD_MAGIC))
+#ifdef CONFIG_KSTACK_CHECK
+
+#define KSTACK_CHECK_INIT(th) *(u32*)(th)->kstack = THREAD_MAGIC
+#define KSTACK_CHECK(th) (*(u32*)(th)->kstack == THREAD_MAGIC)
+
+#else  /* !CONFIG_KSTACK_CHECK */
+
+#define KSTACK_CHECK_INIT(th)
+#define KSTACK_CHECK(th) 1
+
+#endif	/* !CONFIG_KSTACK_CHECK */
+
+#define thread_valid(th)						\
+	(kern_area(th) && ((th)->magic == THREAD_MAGIC) && KSTACK_CHECK(th))
 
 /*
  * Thread state
@@ -123,7 +136,8 @@ extern int	 thread_suspend(thread_t);
 extern int	 thread_resume(thread_t);
 extern int	 thread_name(thread_t, const char *);
 extern int	 thread_schedparam(thread_t, int, int *);
-extern void	 thread_idle(void);
+
+extern void	 thread_idle(void) __attribute__((noreturn));
 extern int	 thread_info(struct info_thread *);
 extern thread_t	 kernel_thread(int, void (*)(u_long), u_long);
 extern void	 thread_dump(void);

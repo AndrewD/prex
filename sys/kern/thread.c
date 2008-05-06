@@ -63,6 +63,7 @@ thread_alloc(void)
 		return NULL;
 	}
 	th->kstack = stack;
+	KSTACK_CHECK_INIT(th);
 	th->magic = THREAD_MAGIC;
 	list_init(&th->mutexes);
 	return th;
@@ -470,7 +471,6 @@ kernel_thread(int prio, void (*entry)(u_long), u_long arg)
 		return NULL;
 
 	th->task = &kern_task;
-	memset(th->kstack, 0, KSTACK_SIZE);
 	context_init(&th->context, (u_long)th->kstack + KSTACK_SIZE);
 	context_set(&th->context, CTX_KENTRY, (u_long)entry);
 	context_set(&th->context, CTX_KARG, arg);
@@ -538,18 +538,25 @@ thread_check(void)
 	list_t task_link;
 	thread_t th;
 	task_t task;
+	static volatile int checking;
 
-	if (!thread_valid(&idle_thread)) /* early in boot */
+	if (checking)
 		return;
+	checking = 1;
 
-	task_link = &kern_task.link;
-	do {
-		task = list_entry(task_link, struct task, link);
-		ASSERT(task_valid(task));
-		list_for_each_entry(th, &task->threads, task_link)
-			ASSERT(thread_valid(th));
-		task_link = list_next(task_link);
-	} while (task_link != &kern_task.link);
+	if (likely(idle_thread.magic == THREAD_MAGIC)) { /* not early in boot */
+		task_link = &kern_task.link;
+		do {
+			task = list_entry(task_link, struct task, link);
+			ASSERT(task->magic == TASK_MAGIC);
+			list_for_each_entry(th, &task->threads, task_link) {
+				ASSERT(th->magic == THREAD_MAGIC);
+				ASSERT(KSTACK_CHECK(th));
+			}
+			task_link = list_next(task_link);
+		} while (task_link != &kern_task.link);
+	}
+	checking = 0;
 }
 #endif	/* CONFIG_THREAD_CHECK */
 
@@ -599,13 +606,17 @@ thread_dump(void)
 void
 thread_init(void)
 {
+#ifndef CONFIG_THREAD_CHECK /* stub for i386 and arm */
 	void *stack;
 
 	if ((stack = kmem_alloc(KSTACK_SIZE)) == NULL)
 		panic("thread_init");
+#define BOOTSTACK_BASE stack
+#define BOOTSTACK_TOP (u_long)stack + KSTACK_SIZE
+#endif
 
-	memset(stack, 0, KSTACK_SIZE);
-	idle_thread.kstack = stack;
+	idle_thread.kstack = (void *)BOOTSTACK_BASE;
+	KSTACK_CHECK_INIT(&idle_thread);
 	idle_thread.magic = THREAD_MAGIC;
 	idle_thread.task = &kern_task;
 	idle_thread.state = TH_RUN;
@@ -614,6 +625,6 @@ thread_init(void)
 	idle_thread.base_prio = PRIO_IDLE;
 	idle_thread.lock_count = 1;
 
-	context_init(&idle_thread.context, (u_long)stack + KSTACK_SIZE);
+	context_init(&idle_thread.context, BOOTSTACK_TOP);
 	list_insert(&kern_task.threads, &idle_thread.task_link);
 }
