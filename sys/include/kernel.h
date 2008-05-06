@@ -99,4 +99,8 @@ struct kernel_symbol
 		= { .value = (u_long)&__v, .name = __kstrtab_##__n }
 #define EXPORT_SYMBOL(sym) __EXPORT_SYMBOL(sym, sym)
 
+/* useful macros to provide information to optimiser */
+#define likely(x) __builtin_expect((!!(x)),1)
+#define unlikely(x) __builtin_expect((!!(x)),0)
+
 #endif /* !_KERNEL_H */
