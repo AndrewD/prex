@@ -471,16 +471,6 @@ nosys(void)
 #endif
 
 /*
- * Check the capability of the current task.
- */
-static int
-task__capable(cap_t cap)
-{
-
-	return task_capable(cap);
-}
-
-/*
  * Return boot information
  */
 void
@@ -489,40 +479,6 @@ machine_bootinfo(struct boot_info **info)
 	ASSERT(info != NULL);
 
 	*info = boot_info;
-}
-
-static void
-machine__reset(void)
-{
-
-	machine_reset();
-}
-
-static void
-machine__idle(void)
-{
-
-	machine_idle();
-}
-
-/*
- *  Address transtion (physical -> virtual)
- */
-static void *
-phys__to_virt(void *phys)
-{
-
-	return phys_to_virt(phys);
-}
-
-/*
- *  Address transtion (virtual -> physical)
- */
-static void *
-virt__to_phys(void *virt)
-{
-
-	return virt_to_phys(virt);
 }
 
 /*
@@ -580,11 +536,85 @@ device_init(void)
 	drv_entry();
 }
 
+/*
+ * wrappers to expose macros as functions to drivers
+ */
+
+#if defined(machine_idle)
+static inline void dev_machine_idle(void)
+{
+	machine_idle();
+}
 #undef machine_idle
+extern void machine_idle(void)
+{
+	dev_machine_idle();
+}
+#endif	/* machine_idle */
+
+#if defined(machine_reset)
+static inline void dev_machine_reset(void)
+{
+	machine_reset();
+}
 #undef machine_reset
+extern void machine_reset(void)
+{
+	dev_machine_reset();
+}
+#endif	/* machine_reset */
+
+#if defined(phys_to_virt)
+static void *dev_phys_to_virt(void *phys)
+{
+	return phys_to_virt(phys);
+}
 #undef phys_to_virt
+extern void *phys_to_virt(void *phys)
+{
+	return dev_phys_to_virt(phys);
+}
+#endif	/* phys_to_virt */
+
+#if defined(virt_to_phys)
+static void *dev_virt_to_phys(void *virt)
+{
+	return virt_to_phys(virt);
+}
 #undef virt_to_phys
+extern void *virt_to_phys(void *virt)
+{
+	return dev_virt_to_phys(virt);
+}
+#endif
+
+static inline int dev_task_capable(cap_t cap)
+{
+	return task_capable(cap);
+}
 #undef task_capable
+extern int task_capable(cap_t cap)
+{
+	return dev_task_capable(cap);
+}
+
+#ifndef DEBUG
+#undef printk
+extern void printk(const char *fmt, ...)
+{
+}
+
+#undef panic
+extern void panic(const char *fmt, ...)
+{
+	dev_machine_reset();
+}
+
+#undef assert
+extern void assert(const char *file, int line, const char *exp)
+{
+}
+#endif	/* !DEUBG */
 
 /* export the functions used by drivers */
 EXPORT_SYMBOL(device_create);
@@ -614,24 +644,18 @@ EXPORT_SYMBOL(sched_tsleep);
 EXPORT_SYMBOL(sched_wakeup);
 EXPORT_SYMBOL(sched_dpc);
 EXPORT_SYMBOL(sched_yield);
-__EXPORT_SYMBOL(task_capable, task__capable);
+EXPORT_SYMBOL(task_capable);
 EXPORT_SYMBOL(exception_post);
 EXPORT_SYMBOL(machine_bootinfo);
-__EXPORT_SYMBOL(machine_reset, machine__reset);
-__EXPORT_SYMBOL(machine_idle, machine__idle);
-__EXPORT_SYMBOL(phys_to_virt, phys__to_virt);
-__EXPORT_SYMBOL(virt_to_phys, virt__to_phys);
+EXPORT_SYMBOL(machine_reset);
+EXPORT_SYMBOL(machine_idle);
+EXPORT_SYMBOL(phys_to_virt);
+EXPORT_SYMBOL(virt_to_phys);
 EXPORT_SYMBOL(debug_attach);
 EXPORT_SYMBOL(debug_dump);
-#ifdef DEBUG
 EXPORT_SYMBOL(printk);
 EXPORT_SYMBOL(panic);
 EXPORT_SYMBOL(assert);
-#else
-__EXPORT_SYMBOL(printk, nosys);
-__EXPORT_SYMBOL(panic, machine__reset);
-__EXPORT_SYMBOL(assert, nosys);
-#endif
 
 /* export library functions */
 EXPORT_SYMBOL(enqueue);         /* queue.c */
