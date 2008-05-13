@@ -86,5 +86,6 @@ struct header {
 	size_t vm_size;
 #ifdef CONFIG_MCHECK
 	int malloc_magic;	/* only set when allocated */
+	void* retaddr_p;	/* return address of call to malloc */
 #endif
 };

@@ -90,6 +90,9 @@ malloc(size_t size)
 				HDR_MAGIC_SET(p);
 			}
 			MALLOC_MAGIC_SET(p);
+#ifdef CONFIG_MCHECK
+			p->retaddr_p = __builtin_return_address(0);
+#endif	/* CONFIG_MCHECK */
 			scan_head = prev;
 			break;
 		}
@@ -228,8 +231,8 @@ mstat(void)
 	size_t malloc_total = 0;
 	for (p = malloc_list.next; p != &malloc_list; p = p->next) {
 		HDR_MAGIC_ASSERT(p, "mstat: malloc_list corrupt");
-		syslog(LOG_INFO, "mstat: malloc addr=%x size=%d\n",
-		       p+1, p->size);
+		syslog(LOG_INFO, "mstat: malloc addr=%x size=%d retaddr=%p\n",
+		       p+1, p->size, p->retaddr_p);
 		malloc_total += p->size;
 	}
 	syslog(LOG_INFO, "mstat: malloc total=%d\n", malloc_total);
