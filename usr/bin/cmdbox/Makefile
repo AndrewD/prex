@@ -15,6 +15,7 @@ SRCS-$(CONFIG_CMD_HOSTNAME)+=	../hostname/hostname.c
 SRCS-$(CONFIG_CMD_KILL)+=	../kill/kill.c
 SRCS-$(CONFIG_CMD_LS)+=		../ls/ls.c
 SRCS-$(CONFIG_CMD_MKDIR)+=	../mkdir/mkdir.c
+SRCS-$(CONFIG_CMD_MKFIFO)+=	../mkfifo/mkfifo.c
 SRCS-$(CONFIG_CMD_MOUNT)+=	../mount/mount.c
 SRCS-$(CONFIG_CMD_MV)+=		../mv/mv.c
 SRCS-$(CONFIG_CMD_NICE)+=	../nice/nice.c

@@ -51,7 +51,7 @@
 #define devfs_vget	((vfsop_vget_t)vfs_nullop)
 #define devfs_statfs	((vfsop_statfs_t)vfs_nullop)
 
-static int devfs_open(vnode_t, mode_t);
+static int devfs_open(vnode_t, int, mode_t);
 static int devfs_close(vnode_t, file_t);
 static int devfs_read(vnode_t, file_t, void *, size_t, size_t *);
 static int devfs_write(vnode_t, file_t, void *, size_t, size_t *);
@@ -65,6 +65,7 @@ static int devfs_lookup(vnode_t, char *, vnode_t);
 #define devfs_rename	((vnop_rename_t)vop_einval)
 #define devfs_mkdir	((vnop_mkdir_t)vop_einval)
 #define devfs_rmdir	((vnop_rmdir_t)vop_einval)
+#define devfs_mkfifo	((vnop_mkfifo_t)vop_einval)
 #define devfs_getattr	((vnop_getattr_t)vop_nullop)
 #define devfs_setattr	((vnop_setattr_t)vop_nullop)
 #define devfs_inactive	((vnop_inactive_t)vop_nullop)
@@ -102,6 +103,7 @@ struct vnops devfs_vnops = {
 	devfs_rename,		/* remame */
 	devfs_mkdir,		/* mkdir */
 	devfs_rmdir,		/* rmdir */
+	devfs_mkfifo,		/* mkfifo */
 	devfs_getattr,		/* getattr */
 	devfs_setattr,		/* setattr */
 	devfs_inactive,		/* inactive */
@@ -109,7 +111,7 @@ struct vnops devfs_vnops = {
 };
 
 static int
-devfs_open(vnode_t vp, mode_t mode)
+devfs_open(vnode_t vp, int flags, mode_t mode)
 {
 	char *path;
 	device_t dev;

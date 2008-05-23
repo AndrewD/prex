@@ -21,6 +21,6 @@ SUBDIR+=	errno malloc stderr
 #
 # Test for servers
 #
-SUBDIR+=	fileio vfork args debug signal
+SUBDIR+=	fileio vfork args debug signal fifo2
 
 include $(SRCDIR)/mk/subdir.mk

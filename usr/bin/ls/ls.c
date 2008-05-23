@@ -136,6 +136,8 @@ print_entry(char *name, struct stat *sp)
 			putchar('d');
 		else if (S_ISLNK(sp->st_mode))
 			putchar('|');
+		else if (S_ISFIFO(sp->st_mode))
+			putchar('p');
 		else
 			putchar('-');
 

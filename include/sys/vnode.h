@@ -70,6 +70,7 @@ struct vnode {
 	mode_t		v_mode;		/* file mode */
 	size_t		v_size;		/* file size */
 	mutex_t		v_lock;		/* lock for this vnode */
+	cond_t		v_cond;		/* condition variable for this vnode */
 	int		v_nrlocks;	/* lock count (for debug) */
 	int		v_blkno;	/* block number */
 	char		*v_path;	/* pointer to path in fs */
@@ -99,7 +100,7 @@ struct vattr {
  * vnode operations
  */
 struct vnops {
-	int (*open)	(vnode_t vp, mode_t mode);
+	int (*open)	(vnode_t vp, int flags, mode_t mode);
 	int (*close)	(vnode_t vp, file_t fp);
 	int (*read)	(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result);
 	int (*write)	(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result);
@@ -113,13 +114,14 @@ struct vnops {
 	int (*rename)	(vnode_t dvp1, vnode_t vp1, char *name1, vnode_t dvp2, vnode_t vp2, char *name2);
 	int (*mkdir)	(vnode_t dvp, char *name, mode_t mode);
 	int (*rmdir)	(vnode_t dvp, vnode_t vp, char *name);
+	int (*mkfifo)	(vnode_t dvp, char *name, mode_t mode);
 	int (*getattr)	(vnode_t vp, struct vattr *vap);
 	int (*setattr)	(vnode_t vp, struct vattr *vap);
 	int (*inactive)	(vnode_t vp);
 	int (*truncate)	(vnode_t vp);
 };
 
-typedef	int (*vnop_open_t)	(vnode_t, mode_t);
+typedef	int (*vnop_open_t)	(vnode_t, int, mode_t);
 typedef	int (*vnop_close_t)	(vnode_t, file_t);
 typedef	int (*vnop_read_t)	(vnode_t, file_t, void *, size_t, size_t *);
 typedef	int (*vnop_write_t)	(vnode_t, file_t, void *, size_t, size_t *);
@@ -133,6 +135,7 @@ typedef	int (*vnop_remove_t)	(vnode_t, vnode_t, char *);
 typedef	int (*vnop_rename_t)	(vnode_t, vnode_t, char *, vnode_t, vnode_t, char *);
 typedef	int (*vnop_mkdir_t)	(vnode_t, char *, mode_t);
 typedef	int (*vnop_rmdir_t)	(vnode_t, vnode_t, char *);
+typedef	int (*vnop_mkfifo_t)	(vnode_t, char *, mode_t);
 typedef	int (*vnop_getattr_t)	(vnode_t, struct vattr *);
 typedef	int (*vnop_setattr_t)	(vnode_t, struct vattr *);
 typedef	int (*vnop_inactive_t)	(vnode_t);
@@ -141,7 +144,7 @@ typedef	int (*vnop_truncate_t)	(vnode_t);
 /*
  * vnode interface
  */
-#define VOP_OPEN(VP, M)		   ((VP)->v_op->open)(VP, M)
+#define VOP_OPEN(VP, F, M)	   ((VP)->v_op->open)(VP, F, M)
 #define VOP_CLOSE(VP, FP)	   ((VP)->v_op->close)(VP, FP)
 #define VOP_READ(VP, FP, B, S, C)  ((VP)->v_op->read)(VP, FP, B, S, C)
 #define VOP_WRITE(VP, FP, B, S, C) ((VP)->v_op->write)(VP, FP, B, S, C)
@@ -156,6 +159,7 @@ typedef	int (*vnop_truncate_t)	(vnode_t);
 			   ((DVP1)->v_op->rename)(DVP1, VP1, N1, DVP2, VP2, N2)
 #define VOP_MKDIR(DVP, N, M)	   ((DVP)->v_op->mkdir)(DVP, N, M)
 #define VOP_RMDIR(DVP, VP, N)	   ((DVP)->v_op->rmdir)(DVP, VP, N)
+#define VOP_MKFIFO(DVP, N, M)	   ((DVP)->v_op->mkfifo)(DVP, N, M)
 #define VOP_GETATTR(VP, VAP)	   ((VP)->v_op->getattr)(VP, VAP)
 #define VOP_SETATTR(VP, VAP)	   ((VP)->v_op->setattr)(VP, VAP)
 #define VOP_INACTIVE(VP)	   ((VP)->v_op->inactive)(VP)

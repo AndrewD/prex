@@ -157,6 +157,7 @@ extern int sys_seekdir(file_t fl, long loc);
 extern int sys_telldir(file_t fl, long *loc);
 extern int sys_mkdir(char *path, mode_t mode);
 extern int sys_rmdir(char *path);
+extern int sys_mkfifo(char *path, mode_t mode);
 extern int sys_mknod(char *path, mode_t mode);
 extern int sys_rename(char *src, char *dest);
 extern int sys_unlink(char *path);

@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2006-2007, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2008, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,53 +27,50 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _RAMFS_H
-#define _RAMFS_H
+#include <sys/mount.h>
 
-#include <prex/prex.h>
-#include <sys/types.h>
-#include <sys/syslog.h>
+#include <unistd.h>
+#include <err.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 
-#ifdef DEBUG
-/* #define DEBUG_RAMFS 1 */
+#ifdef CMDBOX
+#define main(argc, argv)	mkfifo_main(argc, argv)
 #endif
 
-#ifdef DEBUG_RAMFS
-#define dprintf(fmt, ...)	syslog(LOG_DEBUG, "ramfs: " fmt, ## __VA_ARGS__)
-#define ASSERT(e)		assert(e)
-#else
-#define dprintf(fnt, ...)	do {} while (0)
-#define ASSERT(e)
-#endif
+static void	usage(void);
 
-#if CONFIG_FS_THREADS > 1
-#define malloc(s)		malloc_r(s)
-#define free(p)			free_r(p)
-#else
-#define mutex_init(m)		do {} while (0)
-#define mutex_destroy(m)	do {} while (0)
-#define mutex_lock(m)		do {} while (0)
-#define mutex_unlock(m)		do {} while (0)
-#define mutex_trylock(m)	do {} while (0)
-#endif
+int
+main(int argc, char *argv[])
+{
+	int ch, exitval;
 
-/*
- * File/directory node for RAMFS
- */
-struct ramfs_node {
-	struct	ramfs_node *next;   /* next node in the same directory */
-	struct	ramfs_node *child;  /* first child node */
-	int	type;		/* file or directory */
-	char	*name;		/* name (null-terminated) */
-	size_t	namelen;	/* length of name not including terminator */
-	size_t	size;		/* file size */
-	char	*buf;		/* buffer to the file data */
-	size_t	bufsize;	/* allocated buffer size */
-	int	read_fds;	/* fifo: number of fd open for reading */
-	int	write_fds;	/* fifo: number of fd open for writing */
-};
+	while ((ch = getopt(argc, argv, "")) != EOF)
+		switch(ch) {
+		case '?':
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
 
-extern struct ramfs_node *ramfs_allocate_node(char *name, int type);
-extern void ramfs_free_node(struct ramfs_node *node);
+	if (argv[0] == NULL)
+		usage();
 
-#endif /* !_RAMFS_H */
+	for (exitval = 0; *argv != NULL; ++argv) {
+		if (mkfifo(*argv, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+			warn("%s", *argv);
+			exitval = 1;
+		}
+	}
+	exit(exitval);
+	/* NOTREACHED */
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: mkfifo [-m mode] file ...\n");
+	exit (1);
+}

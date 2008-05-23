@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2006-2007, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2008, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,53 +27,23 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _RAMFS_H
-#define _RAMFS_H
-
 #include <prex/prex.h>
-#include <sys/types.h>
-#include <sys/syslog.h>
+#include <prex/posix.h>
+#include <server/fs.h>
 
-#ifdef DEBUG
-/* #define DEBUG_RAMFS 1 */
-#endif
+#include <limits.h>
+#include <string.h>
+#include <stdarg.h>
+#include <errno.h>
 
-#ifdef DEBUG_RAMFS
-#define dprintf(fmt, ...)	syslog(LOG_DEBUG, "ramfs: " fmt, ## __VA_ARGS__)
-#define ASSERT(e)		assert(e)
-#else
-#define dprintf(fnt, ...)	do {} while (0)
-#define ASSERT(e)
-#endif
+int
+mkfifo(const char *path, mode_t mode)
+{
+	struct open_msg m;
 
-#if CONFIG_FS_THREADS > 1
-#define malloc(s)		malloc_r(s)
-#define free(p)			free_r(p)
-#else
-#define mutex_init(m)		do {} while (0)
-#define mutex_destroy(m)	do {} while (0)
-#define mutex_lock(m)		do {} while (0)
-#define mutex_unlock(m)		do {} while (0)
-#define mutex_trylock(m)	do {} while (0)
-#endif
-
-/*
- * File/directory node for RAMFS
- */
-struct ramfs_node {
-	struct	ramfs_node *next;   /* next node in the same directory */
-	struct	ramfs_node *child;  /* first child node */
-	int	type;		/* file or directory */
-	char	*name;		/* name (null-terminated) */
-	size_t	namelen;	/* length of name not including terminator */
-	size_t	size;		/* file size */
-	char	*buf;		/* buffer to the file data */
-	size_t	bufsize;	/* allocated buffer size */
-	int	read_fds;	/* fifo: number of fd open for reading */
-	int	write_fds;	/* fifo: number of fd open for writing */
-};
-
-extern struct ramfs_node *ramfs_allocate_node(char *name, int type);
-extern void ramfs_free_node(struct ramfs_node *node);
-
-#endif /* !_RAMFS_H */
+	m.hdr.code = FS_MKFIFO;
+	m.flags = 0;
+	m.mode = mode;
+	strlcpy(m.path, (char *)path, PATH_MAX);
+	return __posix_call(__fs_obj, &m, sizeof(m), 1);
+}

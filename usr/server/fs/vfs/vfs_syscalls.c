@@ -51,6 +51,8 @@
 
 #include "vfs.h"
 
+int blocking_count;
+
 int
 sys_open(char *path, int flags, mode_t mode, file_t *file)
 {
@@ -128,7 +130,7 @@ sys_open(char *path, int flags, mode_t mode, file_t *file)
 		return ENOMEM;
 	}
 	/* Request to file system */
-	if ((err = VOP_OPEN(vp, mode)) != 0) {
+	if ((err = VOP_OPEN(vp, flags, mode)) != 0) {
 		free(fp);
 		vput(vp);
 		return err;
@@ -554,6 +556,49 @@ sys_rmdir(char *path)
 }
 
 int
+sys_mkfifo(char *path, mode_t mode)
+{
+	char *name;
+	vnode_t vp, dvp;
+	int err;
+
+	dprintf("sys_mkfifo: path=%s mode=%d\n", path, mode);
+
+	if ((err = namei(path, &vp)) == 0) {
+		/* File already exists */
+		vput(vp);
+		return EEXIST;
+	}
+	/* Notice: vp is invalid here! */
+
+	if ((err = lookup(path, &dvp, &name)) != 0) {
+		/* Directory already exists */
+		return err;
+	}
+	if (dvp->v_mount->m_flags & MNT_RDONLY) {
+		err = EROFS;
+		goto out;
+	}
+	/* fifos can block: need at least one thread per blocking
+	   handle plus one or the filesystem layer can deadlock. */
+	/* REVISIT: could detect this when an attempt is made to open
+	   too many blocking handles and create another fs thread? */
+	if (++blocking_count >= CONFIG_FS_THREADS) {
+		blocking_count--;
+		err = EDEADLK;
+		goto out;
+	}
+
+	mode &= ~S_IFMT;
+	mode |= S_IFIFO;
+
+	err = VOP_MKFIFO(dvp, name, mode);
+ out:
+	vput(dvp);
+	return err;
+}
+
+int
 sys_mknod(char *path, mode_t mode)
 {
 	char *name;
@@ -572,6 +617,8 @@ sys_mknod(char *path, mode_t mode)
 
 	if (S_ISDIR(mode))
 		err = VOP_MKDIR(dvp, name, mode);
+	else if (S_ISFIFO(mode))
+		err = VOP_MKFIFO(dvp, name, mode);
 	else
 		err = VOP_CREATE(dvp, name, mode);
 
@@ -694,6 +741,9 @@ sys_unlink(char *path)
 	}
 	if ((err = lookup(path, &dvp, &name)) != 0)
 		goto out;
+
+	if (vp->v_type == VFIFO)
+		blocking_count--;
 
 	err = VOP_REMOVE(dvp, vp, name);
 

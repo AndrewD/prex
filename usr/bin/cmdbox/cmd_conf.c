@@ -42,6 +42,7 @@ extern int hostname_main(int argc, char *argv[]);
 extern int kill_main(int argc, char *argv[]);
 extern int ls_main(int argc, char *argv[]);
 extern int mkdir_main(int argc, char *argv[]);
+extern int mkfifo_main(int argc, char *argv[]);
 extern int mount_main(int argc, char *argv[]);
 extern int mv_main(int argc, char *argv[]);
 extern int nice_main(int argc, char *argv[]);
@@ -96,6 +97,9 @@ const struct cmd_entry builtin_cmds[] = {
 #endif
 #ifdef CONFIG_CMD_MKDIR
 	{ "mkdir"    ,mkdir_main      },
+#endif
+#ifdef CONFIG_CMD_MKFIFO
+	{ "mkfifo"   ,mkfifo_main     },
 #endif
 #ifdef CONFIG_CMD_MOUNT
 	{ "mount"    ,mount_main      },
