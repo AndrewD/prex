@@ -139,7 +139,12 @@ cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 			return EINVAL;
 		}
 	}
-	if ((err = mutex_unlock(mtx))) {
+	if ((err = mutex_unlock_count(mtx))) {
+		if (err < 0) {
+			/* mutex was recursively locked - would deadlock */
+			mutex_lock(mtx);
+			err = EDEADLK;
+		}
 		sched_unlock();
 		return err;
 	}

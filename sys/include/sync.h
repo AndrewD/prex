@@ -84,6 +84,7 @@ extern int	 mutex_destroy(mutex_t *);
 extern int	 mutex_lock(mutex_t *);
 extern int	 mutex_trylock(mutex_t *);
 extern int	 mutex_unlock(mutex_t *);
+extern int	 mutex_unlock_count(mutex_t *);
 extern void	 mutex_cleanup(thread_t);
 extern void	 mutex_setprio(thread_t, int);
 

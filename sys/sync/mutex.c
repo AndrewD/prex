@@ -263,6 +263,13 @@ mutex_trylock(mutex_t *mtx)
 int
 mutex_unlock(mutex_t *mtx)
 {
+	int rc = mutex_unlock_count(mtx);
+	return (rc < 0) ? 0 : rc;
+}
+
+int
+mutex_unlock_count(mutex_t *mtx)
+{
 	mutex_t m;
 	int err;
 
@@ -273,7 +280,9 @@ mutex_unlock(mutex_t *mtx)
 		err = EPERM;
 		goto out;
 	}
-	if (--m->lock_count == 0) {
+
+	err = -(--m->lock_count); /* return -ve lock count for debug */
+	if (err == 0) {
 		list_remove(&m->link);
 		prio_uninherit(cur_thread);
 		/*
