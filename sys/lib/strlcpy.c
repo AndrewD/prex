@@ -28,18 +28,21 @@
  */
 
 #include <sys/types.h>
+#include <debug.h>
 
 /* Safer version of strncpy */
 size_t
 strlcpy(char *dest, const char *src, size_t count)
 {
-	const char *p = src;
+	const char *p = dest;
 
-	while (count-- && (*dest++ = *src++) != '\0');
+	ASSERT(count != 0);
 
-	if (count == 0) {
-		*dest = '\0';
-		while (*src++);
-	}
-	return (size_t)(src - p - 1); /* count does not include NULL */
+	while (--count && (*dest = *src++) != '\0')
+		dest++;
+
+	if (count == 0)
+		*dest = '\0';	/* ensure null terminated */
+
+	return (size_t)(dest - p); /* count does not include NULL */
 }
