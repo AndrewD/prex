@@ -149,18 +149,22 @@ cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 		return err;
 	}
 
+again:
 	rc = sched_tsleep(&c->event, timeout);
-	if (rc == SLP_TIMEOUT)
+	if (rc == SLP_TIMEOUT) {
+		rc = mutex_trylock(mtx);
+		if (rc == EBUSY) /* someone else is holding the mutex */
+			goto again;
+		sched_unlock();
 		err = ETIMEDOUT;
-	else if (rc == SLP_INTR)
-		err = EINTR;
-	sched_unlock();
-	rc = mutex_lock(mtx);
+	} else {
+		if (rc == SLP_INTR)
+			err = EINTR;
+		sched_unlock();
+		rc = mutex_lock(mtx);
+	}
 
-	if (err == 0)
-		return rc;
-	else
-		return err;
+	return (rc) ? rc : err;
 }
 
 /*
