@@ -59,14 +59,27 @@ sys_log(const char *str)
 {
 #ifdef DEBUG
 	char buf[MSGBUFSZ];
-	size_t len;
+	char *p;
+	size_t len, max;
+	static int eol;
 
-	if (umem_strnlen(str, MSGBUFSZ, &len))
+	if (eol && cur_thread->name[0] != '\0') {
+		len = strlcpy(buf, cur_thread->name, MAXTHNAME);
+		p = &buf[len];
+		*p++ = ':';
+	} else
+		p = buf;
+
+	max = &buf[MSGBUFSZ] - p;
+	if (umem_strnlen(str, max, &len))
 		return EFAULT;
-	if (len >= MSGBUFSZ)
+	if (len >= max)
 		return EINVAL;
-	if (umem_copyin((void *)str, buf, len + 1))
+
+	if (umem_copyin((void *)str, p, len + 1))
 		return EFAULT;
+
+	eol = (p[len-1] == '\n');
 	printk(buf);
 	return 0;
 #else

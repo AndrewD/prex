@@ -30,7 +30,7 @@
 #ifndef _DEBUG_H
 #define _DEBUG_H
 
-#define MSGBUFSZ	128	/* Size of one kernel message */
+#define MSGBUFSZ	128 + MAXTHNAME	/* Size of one kernel message */
 
 /*
  * BREAKPOINT()
