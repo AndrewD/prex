@@ -247,14 +247,13 @@ sys_lseek(file_t fp, off_t off, int type, off_t *origin)
 		return EINVAL;
 	}
 	/* Request to check the file offset */
-	if (VOP_SEEK(vp, fp, fp->f_offset, off) != 0) {
-		vn_unlock(vp);
-		return EINVAL;
+	int err = VOP_SEEK(vp, fp, fp->f_offset, off);
+	if (err == 0) {
+		*origin = off;
+		fp->f_offset = off;
 	}
-	*origin = off;
-	fp->f_offset = off;
 	vn_unlock(vp);
-	return 0;
+	return err;
 }
 
 int
