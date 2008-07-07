@@ -145,7 +145,7 @@ copy(char *from, char *to, int dirflag)
 	fstat(fold, &stbuf);
 	mode = stbuf.st_mode;
 
-	if ((fnew = creat(to, mode)) == -1) {
+	if ((fnew = open(to, O_WRONLY|O_CREAT|O_TRUNC|O_APPEND, mode)) == -1) {
 		warn("%s", to);
 		close(fold);
 		return (1);
