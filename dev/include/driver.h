@@ -44,12 +44,14 @@
 #include <prex/bootinfo.h>
 #include <queue.h>
 #include <drvlib.h>
+#include <verbose.h>
 
 /*
  * Kernel types
  */
 typedef unsigned long	device_t;
 typedef unsigned long	task_t;
+typedef unsigned long	thread_t;
 
 #define NULL_DEVICE	((device_t)0)
 #define NULL_TASK	((task_t)0)
@@ -223,9 +225,17 @@ void	 sched_lock(void);
 void	 sched_unlock(void);
 int	 sched_tsleep(struct event *evt, u_long timeout);
 void	 sched_wakeup(struct event *evt);
+thread_t sched_wakeone(struct event *evt);
+
 void	 sched_dpc(struct dpc *dpc, void (*func)(void *), void *arg);
 void	 sched_yield(void);
 #define	 sched_sleep(event)  sched_tsleep((event), 0)
+
+#ifdef cur_thread
+#define thread_self cur_thread
+#else
+thread_t thread_self(void);
+#endif
 
 int	 exception_post(task_t task, int exc);
 int	 task_capable(int cap);
@@ -312,5 +322,73 @@ struct kernel_symbol
 		}							\
 		(__rem < 0) ? -ETIMEDOUT : __max - __rem;		\
 	})
+
+/*
+ * simple device driver locking mechanism
+ */
+#define DEVLOCK_DBG(s) __VERBOSE(VB_TRACE, "(%d %04x %04x)" s, m->free, \
+				 (uint16_t)m->owner, (uint16_t)thread_self());
+
+struct devlock {
+	struct event	event;
+	int		free;
+	thread_t	owner;		/* owner thread of this lock */
+};
+
+#define DEVLOCK_INIT(m, dev)					\
+	{							\
+		.event = EVENT_INIT((m)->event, dev),		\
+		.free = 1					\
+	}
+
+/*
+ * leaves the scheduler locked as there is no
+ * priority inheritance in these light-weight locks
+ */
+static inline int devlock_lock(struct devlock *m)
+{
+
+	sched_lock();
+	if (--m->free < 0) {
+		DEVLOCK_DBG("S ");
+		ASSERT(m->owner != thread_self()); /* deadlock */
+
+		int rc = sched_sleep(&m->event);
+		switch(rc) {
+		case 0:
+			/* m->owner set by devlock_unlock() */
+			DEVLOCK_DBG("L\n");
+			break;
+
+		case SLP_INTR:
+			m->free++;
+			sched_unlock();
+			return DERR(EINTR);
+
+		default:
+			ASSERT(0); /* only expect SLP_INTR */
+		}
+	} else			/* was free */
+		m->owner = thread_self();
+
+	/* do not unlock scheduler */
+	return 0;
+}
+
+static inline void devlock_unlock(struct devlock *m)
+{
+
+	/* scheduler still locked from devlock_lock() */
+
+	if (++m->free <= 0) {
+		m->owner = sched_wakeone(&m->event);
+		DEVLOCK_DBG("W ");
+	} else {
+		ASSERT(m->free == 1); /* must be unlocked */
+		/* no need to NULL m->owner when unlocked */
+	}
+
+	sched_unlock();
+}
 
 #endif /* !_DRIVER_H */
