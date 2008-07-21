@@ -177,8 +177,16 @@ devfs_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 static int
 devfs_ioctl(vnode_t vp, file_t fp, int cmd, u_long arg)
 {
-	dprintf("devfs_ioctl\n", );
-	return EINVAL;
+	int err;
+	/*
+	 * REVISIT: may cause problems with mmu based systems if arg
+	 * is a pointer - driver needs to know which task the pointer
+	 * is for
+	 */
+	err = device_ioctl((device_t)vp->v_data, cmd, arg);
+
+	dprintf("devfs_ioctl: err=%d\n", err);
+	return err;
 }
 
 static int
