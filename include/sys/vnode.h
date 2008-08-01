@@ -109,7 +109,7 @@ struct vnops {
 	int (*fsync)	(vnode_t vp, file_t fp);
 	int (*readdir)	(vnode_t vp, file_t fp, struct dirent *dirent);
 	int (*lookup)	(vnode_t dvp, char *name, vnode_t vp);
-	int (*create)	(vnode_t dvp, char *name, mode_t mode);
+	int (*create)	(vnode_t dvp, char *name, int flags, mode_t mode);
 	int (*remove)	(vnode_t dvp, vnode_t vp, char *name);
 	int (*rename)	(vnode_t dvp1, vnode_t vp1, char *name1, vnode_t dvp2, vnode_t vp2, char *name2);
 	int (*mkdir)	(vnode_t dvp, char *name, mode_t mode);
@@ -130,7 +130,7 @@ typedef	int (*vnop_ioctl_t)	(vnode_t, file_t, int, u_long);
 typedef	int (*vnop_fsync_t)	(vnode_t, file_t);
 typedef	int (*vnop_readdir_t)	(vnode_t, file_t, struct dirent *);
 typedef	int (*vnop_lookup_t)	(vnode_t, char *, vnode_t);
-typedef	int (*vnop_create_t)	(vnode_t, char *, mode_t);
+typedef	int (*vnop_create_t)	(vnode_t, char *, int, mode_t);
 typedef	int (*vnop_remove_t)	(vnode_t, vnode_t, char *);
 typedef	int (*vnop_rename_t)	(vnode_t, vnode_t, char *, vnode_t, vnode_t, char *);
 typedef	int (*vnop_mkdir_t)	(vnode_t, char *, mode_t);
@@ -153,7 +153,7 @@ typedef	int (*vnop_truncate_t)	(vnode_t);
 #define VOP_FSYNC(VP, FP)	   ((VP)->v_op->fsync)(VP, FP)
 #define VOP_READDIR(VP, FP, DIR)   ((VP)->v_op->readdir)(VP, FP, DIR)
 #define VOP_LOOKUP(DVP, N, VP)	   ((DVP)->v_op->lookup)(DVP, N, VP)
-#define VOP_CREATE(DVP, N, M)	   ((DVP)->v_op->create)(DVP, N, M)
+#define VOP_CREATE(DVP, N, F, M)   ((DVP)->v_op->create)(DVP, N, F, M)
 #define VOP_REMOVE(DVP, VP, N)	   ((DVP)->v_op->remove)(DVP, VP, N)
 #define VOP_RENAME(DVP1, VP1, N1, DVP2, VP2, N2) \
 			   ((DVP1)->v_op->rename)(DVP1, VP1, N1, DVP2, VP2, N2)

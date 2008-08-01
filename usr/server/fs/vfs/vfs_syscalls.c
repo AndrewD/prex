@@ -76,7 +76,7 @@ sys_open(char *path, int flags, mode_t mode, file_t *file)
 			}
 			mode &= ~S_IFMT;
 			mode |= S_IFREG;
-			err = VOP_CREATE(dvp, filename, mode);
+			err = VOP_CREATE(dvp, filename, flags, mode);
 			vput(dvp);
 			if (err)
 				return err;
@@ -614,12 +614,13 @@ sys_mknod(char *path, mode_t mode)
 	if ((err = lookup(path, &dvp, &name)) != 0)
 		return err;
 
+	const int flags = 0;
 	if (S_ISDIR(mode))
 		err = VOP_MKDIR(dvp, name, mode);
 	else if (S_ISFIFO(mode))
 		err = VOP_MKFIFO(dvp, name, mode);
 	else
-		err = VOP_CREATE(dvp, name, mode);
+		err = VOP_CREATE(dvp, name, flags, mode);
 
 	vput(dvp);
 	return err;

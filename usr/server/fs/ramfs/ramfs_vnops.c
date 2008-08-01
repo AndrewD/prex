@@ -52,7 +52,7 @@ static int ramfs_seek(vnode_t, file_t, off_t, off_t);
 #define ramfs_fsync	((vnop_fsync_t)vop_nullop)
 static int ramfs_readdir(vnode_t, file_t, struct dirent *);
 static int ramfs_lookup(vnode_t, char *, vnode_t);
-static int ramfs_create(vnode_t, char *, mode_t);
+static int ramfs_create(vnode_t, char *, int, mode_t);
 static int ramfs_remove(vnode_t, vnode_t, char *);
 static int ramfs_rename(vnode_t, vnode_t, char *, vnode_t, vnode_t, char *);
 static int ramfs_mkdir(vnode_t, char *, mode_t);
@@ -372,7 +372,7 @@ ramfs_truncate(vnode_t vp)
  * Create empty file.
  */
 static int
-ramfs_create(vnode_t dvp, char *name, mode_t mode)
+ramfs_create(vnode_t dvp, char *name, int flags, mode_t mode)
 {
 	struct ramfs_node *node;
 
