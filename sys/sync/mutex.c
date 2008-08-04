@@ -220,9 +220,9 @@ mutex_lock(mutex_t *mtx)
 			}
 		}
 		m->lock_count = 1;
+		m->owner = cur_thread;
+		list_insert(&cur_thread->mutexes, &m->link);
 	}
-	m->owner = cur_thread;
-	list_insert(&cur_thread->mutexes, &m->link);
  out:
 	sched_unlock();
 	return err;
@@ -314,7 +314,6 @@ mutex_cleanup(thread_t th)
 {
 	list_t head;
 	mutex_t m;
-	thread_t owner;
 
 	/*
 	 * Purge all mutexes held by the thread.
@@ -327,17 +326,11 @@ mutex_cleanup(thread_t th)
 		m = list_entry(list_first(head), struct mutex, link);
 		m->lock_count = 0;
 		list_remove(&m->link);
-		/*
-		 * Change the mutex owner if other thread
-		 * is waiting for it.
-		 */
-		owner = sched_wakeone(&m->event);
-		if (owner) {
-			owner->wait_mutex = NULL;
-			m->lock_count = 1;
-			list_insert(&owner->mutexes, &m->link);
-		}
-		m->owner = owner;
+		m->owner = sched_wakeone(&m->event);
+		if (m->owner)
+			m->owner->wait_mutex = NULL;
+
+		m->prio = m->owner ? m->owner->prio : MIN_PRIO;
 	}
 }
 
