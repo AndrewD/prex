@@ -42,6 +42,6 @@
 #define MACHINE	__s(__ARCH__) "-" __s(__PLATFORM__)
 
 #define BANNAR	"Prex version" VERSION " for " MACHINE \
-		" ("__DATE__ " " __TIME__ ")"
+		" ("__DATE__ " " __TIME__ ")\n"
 
 #endif /* !_VERSION_H */
