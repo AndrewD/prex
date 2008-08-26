@@ -107,8 +107,9 @@ LINTFLAGS+=	-D__lint__ $(DEFS) -nolib -weak -fcnuse -nestcomment \
 #
 # Automatic dependencies
 #
+# need -MT for CPP 4.1.2 - it strips the path from the target
 ifndef NO_DEPS
-DFLAGS+=	-MD -MF .$(basename $(notdir $@)).d
+DFLAGS+=	-MD -MT $@ -MP -MF .$(*F).d
 endif
 
 #
