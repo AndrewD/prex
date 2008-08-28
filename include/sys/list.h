@@ -80,7 +80,7 @@ list_remove(list_t node)
 
 static inline void prefetch(const void *x) {;}
 
-/* iterate over a list - safe even if a node is added/removed. */
+/* iterate over a list of a given type */
 /* NOTE: typeof() is a gcc extension */
 #define list_for_each_entry(ptr, head, member)				\
 	for (prefetch((head)->next),                                    \
@@ -89,5 +89,19 @@ static inline void prefetch(const void *x) {;}
 	     &ptr->member != (head); 					\
 	     ptr = list_entry(ptr->member.next, typeof(*ptr), member),	\
 		     prefetch(ptr->member.next))
+
+/*
+ * iterate over list of given type - safe against removal of list entry
+ * ptr:    the type * to use as a loop counter.
+ * tmp:    temporary storage, same as ptr
+ * head:   the head for your list.
+ * member: the name of the list_struct within the struct.
+ */
+#define list_for_each_entry_safe(ptr, tmp, head, member)		\
+	for (ptr = list_entry((head)->next, typeof(*ptr), member),	\
+		     tmp = list_entry(ptr->member.next, typeof(*ptr), member); \
+	     &ptr->member != (head); 					\
+	     ptr = tmp,							\
+		     tmp = list_entry(tmp->member.next, typeof(*tmp), member))
 
 #endif /* !_SYS_LIST_H */
