@@ -79,6 +79,7 @@
 #include <thread.h>
 #include <task.h>
 #include <sync.h>
+#include <verbose.h>
 
 /* max mutex count to inherit priority */
 #define MAXINHERIT	10
@@ -100,7 +101,7 @@ mutex_init(mutex_t *mtx)
 	mutex_t m;
 
 	if ((m = kmem_alloc(sizeof(struct mutex))) == NULL)
-		return ENOMEM;
+		return DERR(ENOMEM);
 
 	event_init(&m->event, "mutex");
 	m->task = cur_task();
@@ -110,7 +111,7 @@ mutex_init(mutex_t *mtx)
 
 	if (umem_copyout(&m, mtx, sizeof(mutex_t))) {
 		kmem_free(m);
-		return EFAULT;
+		return DERR(EFAULT);
 	}
 	return 0;
 }
@@ -127,11 +128,11 @@ mutex_destroy(mutex_t *mtx)
 
 	sched_lock();
 	if (umem_copyin(mtx, &m, sizeof(mutex_t))) {
-		err = EFAULT;
+		err = DERR(EFAULT);
 	} else if (!mutex_valid(m)) {
-		err = EINVAL;
+		err = DERR(EINVAL);
 	} else if (m->owner || event_waiting(&m->event)) {
-		err = EBUSY;
+		err = DERR(EBUSY);
 	} else {
 		m->magic = 0;
 		kmem_free(m);
@@ -153,7 +154,7 @@ mutex_copyin(mutex_t *umtx, mutex_t *kmtx)
 	int err;
 
 	if (umem_copyin(umtx, &m, sizeof(mutex_t)))
-		return EFAULT;
+		return DERR(EFAULT);
 
 	if (m == MUTEX_INITIALIZER) {
 		/*
@@ -164,7 +165,7 @@ mutex_copyin(mutex_t *umtx, mutex_t *kmtx)
 		umem_copyin(umtx, &m, sizeof(mutex_t));
 	} else {
 		if (!mutex_valid(m))
-			return EINVAL;
+			return DERR(EINVAL);
 	}
 	*kmtx = m;
 	return 0;
@@ -277,7 +278,7 @@ mutex_unlock_count(mutex_t *mtx)
 	if ((err = mutex_copyin(mtx, &m)))
 		goto out;
 	if (m->owner != cur_thread || m->lock_count <= 0) {
-		err = EPERM;
+		err = DERR(EPERM);
 		goto out;
 	}
 

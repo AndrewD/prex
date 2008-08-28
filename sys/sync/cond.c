@@ -36,6 +36,7 @@
 #include <kmem.h>
 #include <thread.h>
 #include <sync.h>
+#include <verbose.h>
 
 /*
  * Create and initialize a condition variable (CV).
@@ -49,7 +50,7 @@ cond_init(cond_t *cond)
 	cond_t c;
 
 	if ((c = kmem_alloc(sizeof(struct cond))) == NULL)
-		return ENOMEM;
+		return DERR(ENOMEM);
 
 	event_init(&c->event, "condition");
 	c->task = cur_task();
@@ -57,7 +58,7 @@ cond_init(cond_t *cond)
 
 	if (umem_copyout(&c, cond, sizeof(cond_t))) {
 		kmem_free(c);
-		return EFAULT;
+		return DERR(EFAULT);
 	}
 	return 0;
 }
@@ -75,9 +76,9 @@ cond_copyin(cond_t *ucond, cond_t *kcond)
 	cond_t c;
 
 	if (umem_copyin(ucond, &c, sizeof(cond_t)))
-		return EFAULT;
+		return DERR(EFAULT);
 	if (!cond_valid(c))
-		return EINVAL;
+		return DERR(EINVAL);
 	*kcond = c;
 	return 0;
 }
@@ -100,7 +101,7 @@ cond_destroy(cond_t *cond)
 	}
 	if (event_waiting(&c->event)) {
 		sched_unlock();
-		return EBUSY;
+		return DERR(EBUSY);
 	}
 	c->magic = 0;
 	kmem_free(c);
@@ -124,7 +125,7 @@ cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 	int err, rc;
 
 	if (umem_copyin(cond, &c, sizeof(cond_t)))
-		return EFAULT;
+		return DERR(EFAULT);
 
 	sched_lock();
 	if (c == COND_INITIALIZER) {
@@ -136,14 +137,14 @@ cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 	} else {
 		if (!cond_valid(c)) {
 			sched_unlock();
-			return EINVAL;
+			return DERR(EINVAL);
 		}
 	}
 	if ((err = mutex_unlock_count(mtx))) {
 		if (err < 0) {
 			/* mutex was recursively locked - would deadlock */
 			mutex_lock(mtx);
-			err = EDEADLK;
+			err = DERR(EDEADLK);
 		}
 		sched_unlock();
 		return err;
