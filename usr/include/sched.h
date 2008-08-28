@@ -1,0 +1,59 @@
+/*-
+ * Copyright (c) 2008-2009, Andrew Dennison
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the author nor the names of any co-contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#ifndef _SCHED_H
+#define _SCHED_H
+
+#include <time.h>		/* posix requirement */
+
+struct sched_param {
+	int    sched_priority;	/* process execution scheduling priority */
+};
+
+/* duplicated from prex/prex.h */
+#define SCHED_FIFO	0	/* First In First Out */
+#define SCHED_RR	1	/* Round Robin */
+#define SCHED_OTHER	2	/* Other */
+
+/* The following are declared as functions and may also be declared as
+   macros. Function prototypes must be provided for use with an ISO C
+   compiler. */
+
+#if 0
+int    sched_get_priority_max(int);
+int    sched_get_priority_min(int);
+int    sched_getparam(pid_t, struct sched_param *);
+int    sched_getscheduler(pid_t);
+int    sched_rr_get_interval(pid_t, struct timespec *);
+int    sched_setparam(pid_t, const struct sched_param *);
+int    sched_setscheduler(pid_t, int, const struct sched_param *);
+int    sched_yield(void);
+#endif
+
+#endif	/* _SCHED_H */

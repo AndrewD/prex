@@ -41,6 +41,7 @@
 #include <machine/ansi.h>
 #include <machine/types.h>
 #include <prex/types.h>
+#include <prex/pthreadtypes.h>
 
 typedef	unsigned char	u_char;
 typedef	unsigned short	u_short;
