@@ -92,7 +92,7 @@ kpage_alloc(size_t size)
 		blk = blk->next;
 		if (blk == &page_head) {
 			sched_unlock();
-			printk("page_alloc: out of memory\n");
+			printk("kpage_alloc: out of memory\n");
 			return NULL;	/* Not found. */
 		}
 	} while (blk->size < size);
