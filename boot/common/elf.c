@@ -414,9 +414,8 @@ elf_load(char *img, struct module *m)
 	}
 #ifdef CONFIG_KMEM_PROTECT
 	else if (nr_img == 2) {
-		/*  padding so kernel consumes a 256kiB TLB. Use for
-		    kmem dynamic pages */
-		u_int task_base = boot_info->kernel.phys + 0x40000;
+		/*  pad to CONFIG_KMEM_SIZE - for kpage allocator */
+		u_int task_base = boot_info->kernel.phys + CONFIG_KMEM_SIZE;
 		if (load_base > task_base) {
 			printk("kernel too big\n");
 			return -1;
