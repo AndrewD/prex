@@ -104,12 +104,30 @@ MAKEFLAGS+=	-rR
 LINTFLAGS+=	-D__lint__ $(DEFS) -nolib -weak -fcnuse -nestcomment \
 		-retvalother -fullinitblock
 
+BRELDIR = $(BUILDDIR)$(RELDIR)
+
+#
+# Prepend $(BRELDIR) to all outputs
+#
+BOBJS += $(addprefix $(BRELDIR)/, $(OBJS))
+BOBJS- += $(addprefix $(BRELDIR)/, $(OBJS-))
+BOBJS-y += $(addprefix $(BRELDIR)/, $(OBJS-y))
+BOBJS-m += $(addprefix $(BRELDIR)/, $(OBJS-m))
+BTARGET += $(addprefix $(BRELDIR)/, $(TARGET))
+BLIBS += $(addprefix $(BRELDIR)/, $(LIBS))
+
+SD1 = $(sort $(OBJS) $(OBJS-y) $(OBJS-m) $(LIBS))
+SD2 = $(filter-out ..%, $(SD1))
+SD3 = $(addsuffix %, $(dir $(SD2)))
+SD4 = $(filter $(SD3), $(SD2))
+BSUBDEPS += $(addprefix $(BRELDIR)/, $(SD4))
+
 #
 # Automatic dependencies
 #
 # need -MT for CPP 4.1.2 - it strips the path from the target
 ifndef NO_DEPS
-DFLAGS+=	-MD -MT $@ -MP -MF .$(*F).d
+DFLAGS+=	-MD -MT $@ -MP -MF $(BRELDIR)/.$(*F).d
 endif
 
 #
@@ -120,50 +138,54 @@ LIBGCC_PATH := $(dir $(shell $(CC) $(CFLAGS) -print-libgcc-file-name))
 endif
 LIBGCC = $(LIBGCC_PATH)libgcc.a
 
-#
-# Inference rules
-#
-%.o: %.c
-	$(CC) $(CFLAGS) $(DFLAGS) $(CFLAGS_$@) -c -o $@ $<
-ifndef NO_FLAGS
-	@ ( \
-	    echo 'ifneq ($(strip $(subst $(comma),:,$(CFLAGS) $(CFLAGS_$@))),$$(strip $$(subst $$(comma),:,$$(CFLAGS) $$(CFLAGS_$@))))' ; \
-	    echo 'FILES_FLAGS_CHANGED += $@' ; \
-	    echo 'endif' \
-	) > .$(basename $(notdir $@)).flags
-endif
-
-%.o: %.s
-	$(AS) $(ASFLAGS) -o $@ $<
-
-%.o: %.S
-	$(CPP) $(CPPFLAGS) $(DFLAGS) -D__ASSEMBLY__ $< $*.tmp
-	$(AS) $(ASFLAGS) -o $@ $*.tmp
-	rm -f $*.tmp
-ifndef NO_FLAGS
-	@ ( \
-	    echo 'ifneq ($(strip $(subst $(comma),:,$(CPPFLAGS))),$$(strip $$(subst $$(comma),:,$$(CPPFLAGS))))' ; \
-	    echo 'FILES_FLAGS_CHANGED += $@' ; \
-	    echo 'endif' \
-	) > .$(basename $(notdir $@)).flags
-endif
-
 # For use in expunging commas from flags, which mung our checking.
 comma = ,
 
 #
 # Target
 #
-all: $(SUBDIR) $(TARGET)
+all: $(SUBDIR) $(BTARGET)
+
+# dependencies for parallel make
+$(BTARGET): $(SUBDIR)
+$(BSUBDEPS): $(SUBDIR)
+
+#
+# Inference rules
+#
+$(BRELDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(DFLAGS) $(CFLAGS_$(notdir $@)) -c -o $@ $<
+ifndef NO_FLAGS
+	@ ( \
+	    echo 'ifneq ($(strip $(subst $(comma),:,$(CFLAGS) $(CFLAGS_$(notdir $@)))),$$(strip $$(subst $$(comma),:,$$(CFLAGS) $$(CFLAGS_$(notdir $@)))))' ; \
+	    echo 'FILES_FLAGS_CHANGED += $@' ; \
+	    echo 'endif' \
+	) > $(BRELDIR)/.$(basename $(notdir $@)).flags
+endif
+
+$(BRELDIR)/%.o: %.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+$(BRELDIR)/%.o: %.S
+	$(CPP) $(CPPFLAGS) $(DFLAGS) -D__ASSEMBLY__ $< $(BRELDIR)/$*.tmp
+	$(AS) $(ASFLAGS) -o $@ $(BRELDIR)/$*.tmp
+	rm -f $(BRELDIR)/$*.tmp
+ifndef NO_FLAGS
+	@ ( \
+	    echo 'ifneq ($(strip $(subst $(comma),:,$(CPPFLAGS))),$$(strip $$(subst $$(comma),:,$$(CPPFLAGS))))' ; \
+	    echo 'FILES_FLAGS_CHANGED += $@' ; \
+	    echo 'endif' \
+	) > $(BRELDIR)/.$(basename $(notdir $@)).flags
+endif
 
 #
 # Check configuration
 #
 ifeq (0, ${MAKELEVEL})
 # add dependency on config.h
-$(SUBDIR):$(SRCDIR)/conf/config.h
+$(SUBDIR):$(BUILDDIR)/conf/config.h
 
-$(SRCDIR)/conf/config.h: dummy
+$(BUILDDIR)/conf/config.h: dummy
 	@if [ ! -f $@ ]; then \
 		echo 'You must run `configure` before make.' ;\
 		exit 1 ;\
@@ -175,7 +197,8 @@ endif
 #
 .PHONY: $(SUBDIR)
 $(SUBDIR):
-	$(MAKE) -C $@ $(MAKECMDGOALS)
+	mkdir -p $(BUILDDIR)$(RELDIR)/$@
+	RELDIR=$(RELDIR)/$@ $(MAKE) -C $@ $(MAKECMDGOALS)
 
 #
 # Rules to link a set of .o files into one .o file
@@ -185,52 +208,53 @@ ifeq (,$(findstring __DRIVER__,$(CFLAGS)))
 #
 # normal objects
 #
-# OBJS   unconditionally linked objects
-# OBJS-y conditionally linked based on a CONFIG_* variable
-# OBJS-  disabled objects - associated CONFIG_* variable undefined
+# BOBJS   unconditionally linked objects
+# BOBJS-y conditionally linked based on a CONFIG_* variable
+# BOBJS-  disabled objects - associated CONFIG_* variable undefined
 
-ifneq (,$(strip $(OBJS) $(OBJS-y)))
-$(TARGET): $(OBJS) $(OBJS-y) $(LIBS)
-	$(LD) $(LDFLAGS) -r -o $@ $^
+ifneq (,$(strip $(BOBJS) $(BOBJS-y)))
+$(BTARGET): $(BOBJS) $(BOBJS-y) $(BLIBS)
+	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS) $(BOBJS-y)) $(BLIBS)
 else # ensure an object file always exists
-$(TARGET): dummy
+$(BTARGET): dummy
 	echo | $(AS) -o $@ -
 endif
 
-ifneq (,$(strip $(OBJS-m)))
-$(error $(OBJS-m) must not be OBJ-m, this is only for drivers)
+ifneq (,$(strip $(BOBJS-m)))
+$(error $(BOBJS-m) must not be OBJ-m, this is only for drivers)
 endif
 
 else
 #
 # driver objects
 #
-# OBJS-y link objects for static drivers (typically set via CONFIG_*)
-# OBJS-m link objects for modular drivers
-# OBJS-  disabled objects
-# OBJS   is no longer used for drivers
-ifneq (,$(strip $(OBJS)))
-$(error $(OBJS) must not be OBJS, this is _not_ for drivers)
+# BOBJS-y link objects for static drivers (typically set via CONFIG_*)
+# BOBJS-m link objects for modular drivers
+# BOBJS-  disabled objects
+# BOBJS   is no longer used for drivers
+ifneq (,$(strip $(BOBJS)))
+$(error $(BOBJS) must not be BOBJS, this is _not_ for drivers)
 endif
 
 # additional target for modular drivers
-all: $(TARGET:.o=.mo)
+all: $(BTARGET:.o=.mo)
+$(BTARGET:.o=.mo): $(SUBDIR)
 
 # static driver objects
-ifneq (,$(strip $(OBJS-y)))
-$(TARGET): $(OBJS-y)
-	$(LD) $(LDFLAGS) -r -o $@ $^
+ifneq (,$(strip $(BOBJS-y)))
+$(BTARGET): $(BOBJS-y)
+	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS-y))
 else # ensure an object file always exists
-$(TARGET): dummy
+$(BTARGET): dummy
 	echo | $(AS) -o $@ -
 endif
 
 # modular driver objects
-ifneq (,$(strip $(OBJS-m)))
-$(TARGET:.o=.mo): $(OBJS-m)
-	$(LD) $(LDFLAGS) -r -o $@ $^
+ifneq (,$(strip $(BOBJS-m)))
+$(BTARGET:.o=.mo): $(BOBJS-m)
+	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS-m))
 else
-$(TARGET:.o=.mo): dummy
+$(BTARGET:.o=.mo): dummy
 	echo | $(AS) -o $@ -
 endif
 
@@ -241,13 +265,13 @@ endif # type opject
 # Rules to compile library
 #
 ifeq ($(TYPE),LIBRARY)
-$(TARGET): $(OBJS) ar-target
+$(BTARGET): $(BOBJS) ar-target
 
 .PHONY: ar-target
-ar-target: $(OBJS)
-	$(AR) rucs $(TARGET) $?
+ar-target: $(BOBJS)
+	$(AR) rucs $(BTARGET) $?
 ifeq ($(NDEBUG),1)
-	$(STRIP) -x -R .comment -R .note $(TARGET)
+	$(STRIP) -x -R .comment -R .note $(BTARGET)
 endif
 endif
 
@@ -255,8 +279,8 @@ endif
 # Rules to compile kernel
 #
 ifeq ($(TYPE),KERNEL)
-$(TARGET): $(LD_SCRIPT) $(OBJS) $(LIBS) $(LIBGCC)
-	$(LD) $(LDFLAGS) -o $@ -T $^
+$(BTARGET): $(LD_SCRIPT) $(BOBJS) $(BLIBS) $(LIBGCC)
+	$(LD) $(LDFLAGS) -o $@ -T $(LD_SCRIPT) $(BOBJS) $(BLIBS) $(LIBGCC)
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $@$(SYMBOL)
@@ -269,10 +293,12 @@ endif
 #
 ifeq ($(TYPE),DRIVER)
 # additional target for modular drivers
-all: $(TARGET:.o=.ko)
+all: $(BTARGET:.o=.ko)
+$(BOBJS:.o=.mo): $(SUBDIR)
+$(BTARGET:.o=.ko): $(SUBDIR)
 
-$(TARGET:.o=.ko): $(LD_SCRIPT) $(OBJS:.o=.mo) $(LIBS) $(LIBGCC)
-	$(LD) -r $(LDFLAGS) -o $@ -T $^
+$(BTARGET:.o=.ko): $(LD_SCRIPT) $(BOBJS:.o=.mo) $(BLIBS) $(LIBGCC)
+	$(LD) -r $(LDFLAGS) -o $@ -T $(LD_SCRIPT) $(BOBJS:.o=.mo) $(BLIBS) $(LIBGCC)
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $@$(SYMBOL)
@@ -280,16 +306,16 @@ endif
 	$(STRIP) --strip-debug --strip-unneeded $@
 
 # staticly linked drivers
-$(TARGET): $(OBJS)
-	$(LD) $(LDFLAGS) -r -o $@ $^
+$(BTARGET): $(BOBJS)
+	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS))
 endif
 
 #
 # Rules to compile binary file
 #
 ifeq ($(TYPE),BINARY)
-$(TARGET): $(LD_SCRIPT) $(OBJS) $(LIBS) $(LIBGCC)
-	$(LD) $(LDFLAGS) -o $@ -T $^
+$(BTARGET): $(LD_SCRIPT) $(BOBJS) $(BLIBS) $(LIBGCC)
+	$(LD) $(LDFLAGS) -o $@ -T $(LD_SCRIPT) $(BOBJS) $(BLIBS) $(LIBGCC)
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $@$(SYMBOL)
@@ -301,8 +327,8 @@ endif
 # Rules to compile executable file
 #
 ifeq ($(TYPE),EXEC)
-$(TARGET): $(LD_SCRIPT) $(CRTI) $(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC) $(CRTN)
-	$(LD) $(LDFLAGS) -o $@ -T $^
+$(BTARGET): $(LD_SCRIPT) $(CRTI) $(CRT0) $(BOBJS) $(BLIBS) $(LIBC) $(LIBGCC) $(CRTN)
+	$(LD) $(LDFLAGS) -o $@ -T $(LD_SCRIPT) $(CRTI) $(CRT0) $(BOBJS) $(BLIBS) $(LIBC) $(LIBGCC) $(CRTN)
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $@$(SYMBOL)
@@ -314,27 +340,27 @@ endif
 # Rules to create OS image
 #
 ifeq ($(TYPE),OS_IMAGE)
-$(TARGET): dummy
+$(BTARGET): dummy
 ifdef BOOTFILES
-	$(AR) rcS ramdisk.a $(BOOTFILES)
-	$(AR) t ramdisk.a
-	$(AR) rcS tmp.a $(KERNEL) $(DRIVER) $(BOOTTASKS) ramdisk.a
-	rm ramdisk.a
+	$(AR) rcS $(BRELDIR)/ramdisk.a $(BOOTFILES)
+	$(AR) t $(BRELDIR)/ramdisk.a
+	$(AR) rcS $(BRELDIR)/tmp.a $(KERNEL) $(DRIVER) $(BOOTTASKS) $(BRELDIR)/ramdisk.a
+	rm $(BRELDIR)/ramdisk.a
 else
-	$(AR) rcS tmp.a $(KERNEL) $(DRIVER) $(BOOTTASKS)
+	$(AR) rcS $(BRELDIR)/tmp.a $(KERNEL) $(DRIVER) $(BOOTTASKS)
 endif
-	$(AR) t tmp.a
-	cat $(LOADER) tmp.a > $@
-	rm tmp.a
+	$(AR) t $(BRELDIR)/tmp.a
+	cat $(LOADER) $(BRELDIR)/tmp.a > $@
+	rm $(BRELDIR)/tmp.a
 endif
 
 #
 # Manage object dependencies on headers and compiler flags
 #
-ifneq (,$(strip $(OBJS) $(OBJS-y) $(OBJS-m)))
+ifneq (,$(strip $(BOBJS) $(BOBJS-y) $(BOBJS-m) $(BTARGET)))
 
 ifndef NO_DEPS
-DEP_INCLUDES:= $(strip $(wildcard .*.d))
+DEP_INCLUDES:= $(strip $(wildcard $(BRELDIR)/.*.d))
 
 ifneq (,$(DEP_INCLUDES))
 include $(DEP_INCLUDES)
@@ -343,7 +369,7 @@ endif # DEP_INCLUDES
 endif # !NO_DEPS
 
 ifndef NO_FLAGS
-FLAG_INCLUDES:= $(strip $(wildcard .*.flags))
+FLAG_INCLUDES:= $(strip $(wildcard $(BRELDIR)/.*.flags))
 
 ifneq (,$(FLAG_INCLUDES))
 FILES_FLAGS_CHANGED:=
@@ -353,7 +379,7 @@ $(FILES_FLAGS_CHANGED): dummy
 
 endif # FLAG_INCLUDES
 endif # !NO_FLAGS
-endif # OBJS
+endif # BOBJS
 
 C_SRCS = $(wildcard *.c) $(wildcard *.S)
 
@@ -372,9 +398,9 @@ lint:
 #
 .PHONY: clean
 clean: $(SUBDIR)
-	rm -f $(TARGET) $(DISASM) $(MAP) $(TARGET)$(SYMBOL) $(CLEANS)
-ifneq (,$(strip $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-)))
-	rm -f $(sort $(OBJS) $(OBJS-y) $(OBJS-m) $(OBJS-))
+	rm -f $(BTARGET) $(DISASM) $(MAP) $(BTARGET)$(SYMBOL) $(CLEANS)
+ifneq (,$(strip $(BOBJS) $(BOBJS-y) $(BOBJS-m) $(BOBJS-)))
+	rm -f $(sort $(BOBJS) $(BOBJS-y) $(BOBJS-m) $(BOBJS-))
 endif
 ifneq (,$(DEP_INCLUDES))
 	rm -f $(DEP_INCLUDES)
@@ -383,13 +409,13 @@ ifneq (,$(FLAG_INCLUDES))
 	rm -f $(FLAG_INCLUDES)
 endif
 ifeq ($(TYPE),DRIVER)
-ifneq (,$(strip $(TARGET:.o=.ko) $(TARGET:.o=.ko)$(SYMBOL) $(OBJS:.o=.mo)))
-	rm -f $(sort $(TARGET:.o=.ko) $(TARGET:.o=.ko)$(SYMBOL) $(OBJS:.o=.mo))
+ifneq (,$(strip $(BTARGET:.o=.ko) $(BTARGET:.o=.ko)$(SYMBOL) $(BOBJS:.o=.mo)))
+	rm -f $(sort $(BTARGET:.o=.ko) $(BTARGET:.o=.ko)$(SYMBOL) $(BOBJS:.o=.mo))
 endif
 endif
 ifeq ($(TYPE),OBJECT)
 ifneq (,$(findstring __DRIVER__,$(CFLAGS)))
-	rm -f $(TARGET:.o=.mo)
+	rm -f $(BTARGET:.o=.mo)
 endif
 endif
 

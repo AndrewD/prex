@@ -1,4 +1,4 @@
-INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/usr/include -I$(SRCDIR)/include
+INCLUDE=	-I$(BUILDDIR) -I$(SRCDIR) -I$(SRCDIR)/usr/include -I$(SRCDIR)/include
 
 ASFLAGS+=	$(INCLUDE)
 CFLAGS+=	$(INCLUDE) -nostdinc

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# sanity
+if [ "x$1" == x ]; then
+	echo no base directory specified
+	exit 1
+fi
+
+# create folders
+base=$1
+shift
+
+# configure arm targets
+targets="arm-gba"
+BUILDDIR=$base/arm-gba ./configure --target=arm-gba \
+    --cross-compile=arm-elf- $* || exit 1
+
+# configure i386 targets
+targets="$targets i386-pc i386-nommu"
+BUILDDIR=$base/i386-pc ./configure --target=i386-pc \
+    --cross-compile=i386-elf- $* || exit 1
+BUILDDIR=$base/i386-nommu ./configure --target=i386-nommu \
+    --cross-compile=i386-elf- $* || exit 1

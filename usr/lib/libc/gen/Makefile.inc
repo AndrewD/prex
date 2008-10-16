@@ -1,7 +1,7 @@
-VPATH:=	$(SRCDIR)/usr/lib/libc/gen:$(VPATH)
+VPATH:=	$(SRCDIR)/usr/lib/libc/gen:$(SRCDIR)/usr/arch/$(ARCH):$(VPATH)
 
 SRCS+=	__libc_init.c assert.c \
-	$(SRCDIR)/usr/arch/$(ARCH)/setjmp.c \
+	setjmp.c \
 	execl.c execlp.c execle.c execv.c execvp.c \
 	isatty.c time.c basename.c dirname.c \
 	gethostname.c sethostname.c \

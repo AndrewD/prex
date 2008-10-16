@@ -1,4 +1,3 @@
-#! /bin/sh
 #
 # Prex configuration script
 #
@@ -40,14 +39,21 @@ setdefaults()
 	target=""
 	cross=""
 	srcdir=`pwd`
+
+	if [ "x$BUILDDIR" = x ]; then
+		BUILDDIR=`pwd`
+	else
+		mkdir -p $BUILDDIR/conf ||
+			quit "can not create $BUILDDIR/conf"
+	fi
 }
 
 checkpath()
 {
 	CONFIG_IN=$srcdir/conf/$arch/config.$arch-$platform
 	CMDBOX_IN=$srcdir/conf/etc/cmdbox.conf
-	CONFIG_MK=$srcdir/conf/config.mk
-	CONFIG_H=$srcdir/conf/config.h
+	CONFIG_MK=$BUILDDIR/conf/config.mk
+	CONFIG_H=$BUILDDIR/conf/config.h
 
 	[ -f $CONFIG_IN ] ||
 		quit "can not find $CONFIG_IN"

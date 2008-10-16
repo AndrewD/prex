@@ -1,4 +1,4 @@
-LIB=	$(SRCDIR)/usr/lib/libc.a
+LIB=	../libc.a
 
 include $(SRCDIR)/usr/lib/prex/Makefile.inc
 include $(SRCDIR)/usr/lib/posix/Makefile.inc

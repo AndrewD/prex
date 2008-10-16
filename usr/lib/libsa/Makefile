@@ -1,4 +1,4 @@
-LIB=	$(SRCDIR)/usr/lib/libsa.a
+LIB=	../libsa.a
 
 SRCS=	__libc_init.c _exit.c _stdio.c getchar.c \
 	putchar.c puts.c printf.c \

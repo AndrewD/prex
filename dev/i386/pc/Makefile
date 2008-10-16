@@ -1,9 +1,10 @@
 TARGET=		dev.o
 TYPE=		OBJECT
-OBJS-m=		dma.o machdep.o ../i386/delay.o
+VPATH := ../i386:$(VPATH)
+OBJS-m=		dma.o machdep.o delay.o
 
 ifdef CONFIG_CPUFREQ
-OBJS-$(CONFIG_PM)+=		../i386/cpu.o
+OBJS-$(CONFIG_PM)+=		cpu.o
 endif
 OBJS-$(CONFIG_KEYBOARD)+=	kbd.o
 OBJS-$(CONFIG_CONSOLE)+=	console.o

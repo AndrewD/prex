@@ -1,4 +1,4 @@
-LIB=	$(SRCDIR)/usr/lib/libpthread.a
+LIB=	../libpthread.a
 
 include $(SRCDIR)/usr/lib/posix/pthread/Makefile.inc
 

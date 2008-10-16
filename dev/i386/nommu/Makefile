@@ -1,14 +1,15 @@
 TARGET=		dev.o
 TYPE=		OBJECT
-OBJS-m=		../pc/dma.o ../pc/machdep.o ../i386/delay.o
+VPATH := ../pc:../i386:$(VPATH)
+OBJS-m=		dma.o machdep.o delay.o
 
 ifdef CONFIG_CPUFREQ
-OBJS-$(CONFIG_PM)+=		../i386/cpu.o
+OBJS-$(CONFIG_PM)+=		cpu.o
 endif
-OBJS-$(CONFIG_KEYBOARD)+=	../pc/kbd.o
-OBJS-$(CONFIG_CONSOLE)+=	../pc/console.o
-OBJS-$(CONFIG_FDD)+=		../pc/fdd.o
-OBJS-$(CONFIG_MOUSE)+=		../pc/mouse.o
-OBJS-$(CONFIG_RTC)+=		../pc/rtc.o
+OBJS-$(CONFIG_KEYBOARD)+=	kbd.o
+OBJS-$(CONFIG_CONSOLE)+=	console.o
+OBJS-$(CONFIG_FDD)+=		fdd.o
+OBJS-$(CONFIG_MOUSE)+=		mouse.o
+OBJS-$(CONFIG_RTC)+=		rtc.o
 
 include $(SRCDIR)/mk/dev.mk

@@ -1,6 +1,6 @@
-VPATH:=	$(SRCDIR)/usr/lib/prex/syscalls:$(VPATH)
+VPATH:=	$(SRCDIR)/usr/lib/prex/syscalls:$(SRCDIR)/usr/arch/$(ARCH):$(VPATH)
 
-OBJS+=	$(SRCDIR)/usr/arch/$(ARCH)/_systrap.o \
+OBJS+=	_systrap.o \
 	object_create.o object_destroy.o object_lookup.o \
 	msg_send.o msg_receive.o msg_reply.o \
 	vm_allocate.o vm_free.o vm_attribute.o vm_map.o \

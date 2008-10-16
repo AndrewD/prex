@@ -1,4 +1,5 @@
-INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/sys/arch/$(ARCH)/include \
+INCLUDE=	-I$(BUILDDIR) -I$(SRCDIR) -I$(BUILDDIR)/sys/arch/$(ARCH)/include \
+		-I$(SRCDIR)/sys/arch/$(ARCH)/include \
 		-I$(SRCDIR)/sys/include -I$(SRCDIR)/include
 
 ASFLAGS+=	$(INCLUDE)
