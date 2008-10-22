@@ -116,7 +116,7 @@ endif
 # Specify path for libgcc.a
 #
 ifndef LIBGCC_PATH
-LIBGCC_PATH := $(dir $(shell $(CC) $(GLOBAL_CFLAGS) -print-libgcc-file-name))
+LIBGCC_PATH := $(dir $(shell $(CC) $(CFLAGS) -print-libgcc-file-name))
 endif
 LIBGCC = $(LIBGCC_PATH)libgcc.a
 
