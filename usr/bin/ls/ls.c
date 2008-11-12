@@ -233,7 +233,7 @@ do_ls(char *path)
 				strlcat(buf, entry->d_name, sizeof(buf));
 			}
 			if (stat(buf, &st) == -1)
-				break;
+				continue;
 			print_entry(entry->d_name, &st);
 			nr_file++;
 		}
