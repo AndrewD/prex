@@ -40,12 +40,14 @@ int
 main(int argc, char *argv[])
 {
 	device_t pm_dev;
+	int state;
 
 	timer_sleep(2000, 0);
 
 	if (device_open("pm", 0, &pm_dev) != 0)
 		exit(1);
-	device_ioctl(pm_dev, PMIOC_SET_POWER, POWER_REBOOT);
+	state = POWER_REBOOT;
+	device_ioctl(pm_dev, PMIOC_SET_POWER, &state);
 	device_close(pm_dev);
 	exit(1);
 }

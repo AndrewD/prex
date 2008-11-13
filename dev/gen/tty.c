@@ -34,6 +34,8 @@
  *	@(#)tty.c	8.13 (Berkeley) 1/9/95
  */
 
+/* Modified for Prex by Kohsuke Ohtani. */
+
 /*
  * tty.c - TTY device
  */
@@ -41,8 +43,16 @@
 #include <driver.h>
 #include <sys/signal.h>
 #include <sys/tty.h>
-#include <sys/ttycom.h>
 #include <sys/termios.h>
+#include <pm.h>
+
+/* #define DEBUG_TTY 1 */
+
+#ifdef DEBUG_TTY
+#define DPRINTF(a) printf a
+#else
+#define DPRINTF(a)
+#endif
 
 #define	FREAD		0x0001
 #define	FWRITE		0x0002
@@ -74,8 +84,8 @@ static cc_t	ttydefchars[NCCS] = TTYDEFCHARS;
  */
 #define ttyq_next(i)	(((i) + 1) & (TTYQ_SIZE - 1))
 #define ttyq_prev(i)	(((i) - 1) & (TTYQ_SIZE - 1))
-#define ttyq_full(q)	((q)->count >= TTYQ_SIZE)
-#define ttyq_empty(q)	((q)->count == 0)
+#define ttyq_full(q)	((q)->tq_count >= TTYQ_SIZE)
+#define ttyq_empty(q)	((q)->tq_count == 0)
 
 /*
  * Get a character from a queue.
@@ -85,12 +95,14 @@ ttyq_getc(struct tty_queue *tq)
 {
 	int c;
 
-	if (ttyq_empty(tq))
-		return -1;
 	irq_lock();
-	c = tq->buf[tq->head];
-	tq->head = ttyq_next(tq->head);
-	tq->count--;
+	if (ttyq_empty(tq)) {
+		irq_unlock();
+		return -1;
+	}
+	c = tq->tq_buf[tq->tq_head];
+	tq->tq_head = ttyq_next(tq->tq_head);
+	tq->tq_count--;
 	irq_unlock();
 	return c;
 }
@@ -102,12 +114,14 @@ void
 ttyq_putc(int c, struct tty_queue *tq)
 {
 
-	if (ttyq_full(tq))
-		return;
 	irq_lock();
-	tq->buf[tq->tail] = c;
-	tq->tail = ttyq_next(tq->tail);
-	tq->count++;
+	if (ttyq_full(tq)) {
+		irq_unlock();
+		return;
+	}
+	tq->tq_buf[tq->tq_tail] = c;
+	tq->tq_tail = ttyq_next(tq->tq_tail);
+	tq->tq_count++;
 	irq_unlock();
 }
 
@@ -122,9 +136,9 @@ ttyq_unputc(struct tty_queue *tq)
 	if (ttyq_empty(tq))
 		return -1;
 	irq_lock();
-	tq->tail = ttyq_prev(tq->tail);
-	c = tq->buf[tq->tail];
-	tq->count--;
+	tq->tq_tail = ttyq_prev(tq->tq_tail);
+	c = tq->tq_buf[tq->tq_tail];
+	tq->tq_count--;
 	irq_unlock();
 	return c;
 }
@@ -180,25 +194,34 @@ tty_echo(int c, struct tty *tp)
 /*
  * Start output.
  */
-void
+static void
 tty_start(struct tty *tp)
 {
 
-	if (tp->t_state & TS_TTSTOP)
+	DPRINTF(("tty_start\n"));
+
+	if (tp->t_state & (TS_TTSTOP|TS_BUSY))
 		return;
-	if (tp->t_output != NULL)
-		(*tp->t_output)(tp);
+	if (tp->t_oproc)
+		(*tp->t_oproc)(tp);
 }
 
 /*
  * Flush tty read and/or write queues, notifying anyone waiting.
  */
-void
+static void
 tty_flush(struct tty *tp, int rw)
 {
 
-	if (rw & FREAD)
-		sched_wakeup(&tp->t_input_event);
+	DPRINTF(("tty_flush rw=%d\n", rw));
+
+	if (rw & FREAD) {
+		while (ttyq_getc(&tp->t_canq) != -1)
+			;
+		while (ttyq_getc(&tp->t_rawq) != -1)
+			;
+		sched_wakeup(&tp->t_input);
+	}
 	if (rw & FWRITE) {
 		tp->t_state &= ~TS_TTSTOP;
 		tty_start(tp);
@@ -206,9 +229,45 @@ tty_flush(struct tty *tp, int rw)
 }
 
 /*
+ * Output is completed.
+ */
+void
+tty_done(struct tty *tp)
+{
+
+	if (tp->t_outq.tq_count == 0)
+		tp->t_state &= ~TS_BUSY;
+	if (tp->t_state & TS_ASLEEP) {
+		tp->t_state &= ~TS_ASLEEP;
+		sched_wakeup(&tp->t_output);
+	}
+}
+
+/*
+ * Wait for output to drain.
+ */
+static void
+tty_wait(struct tty *tp)
+{
+
+	/*	DPRINTF(("tty_wait\n")); */
+
+	if ((tp->t_outq.tq_count > 0) && tp->t_oproc) {
+		tp->t_state |= TS_BUSY;
+		while (1) {
+			(*tp->t_oproc)(tp);
+			if ((tp->t_state & TS_BUSY) == 0)
+				break;
+			tp->t_state |= TS_ASLEEP;
+			sched_sleep(&tp->t_output);
+		}
+	}
+}
+
+/*
  * Process input of a single character received on a tty.
  * echo if required.
- * This will be called with interrupt level.
+ * This may be called with interrupt level.
  */
 void
 tty_input(int c, struct tty *tp)
@@ -217,6 +276,10 @@ tty_input(int c, struct tty *tp)
 	tcflag_t iflag, lflag;
 	int sig = -1;
 
+#ifdef CONFIG_PM
+	/* Reload power management timer */
+	pm_active();
+#endif
 	lflag = tp->t_lflag;
 	iflag = tp->t_iflag;
 	cc = tp->t_cc;
@@ -295,10 +358,10 @@ tty_input(int c, struct tty *tp)
 	if (lflag & ICANON) {
 		if (c == '\n' || c == cc[VEOF] || c == cc[VEOL]) {
 			tty_catq(&tp->t_rawq, &tp->t_canq);
-			sched_wakeup(&tp->t_input_event);
+			sched_wakeup(&tp->t_input);
 		}
 	} else
-		sched_wakeup(&tp->t_input_event);
+		sched_wakeup(&tp->t_input);
 
 	if (lflag & ECHO)
 		tty_echo(c, tp);
@@ -372,10 +435,10 @@ tty_output(int c, struct tty *tp)
 }
 
 /*
- * Read
+ * Process a read call on a tty device.
  */
 int
-tty_read(struct tty *tp, char *buf, size_t *nbytes)
+tty_read(struct tty *tp, char *buf, size_t *nbyte)
 {
 	unsigned char *cc;
 	struct tty_queue *qp;
@@ -389,40 +452,50 @@ tty_read(struct tty *tp, char *buf, size_t *nbytes)
 
 	/* If there is no input, wait it */
 	while (ttyq_empty(qp)) {
-		rc = sched_sleep(&tp->t_input_event);
+		rc = sched_sleep(&tp->t_input);
 		if (rc == SLP_INTR)
 			return EINTR;
 	}
-	while (count < *nbytes) {
+	while (count < *nbyte) {
 		if ((c = ttyq_getc(qp)) == -1)
 			break;
-		count++;
 		if (c == cc[VEOF] && (lflag & ICANON))
 			break;
-		*buf = c;
+		count++;
+		if (umem_copyout(&c, buf, 1))
+			return EFAULT;
 		if ((lflag & ICANON) && (c == '\n' || c == cc[VEOL]))
 			break;
 		buf++;
 	}
-	*nbytes = count;
+	*nbyte = count;
 	return 0;
 }
 
 /*
- * Write
+ * Process a write call on a tty device.
  */
 int
 tty_write(struct tty *tp, char *buf, size_t *nbyte)
 {
 	size_t remain, count = 0;
+	int c;
+
+	DPRINTF(("tty_write\n"));
 
 	remain = *nbyte;
 	while (remain > 0) {
-		if (tp->t_outq.count >= TTYQ_HIWAT) {
+		if (tp->t_outq.tq_count > TTYQ_HIWAT) {
 			tty_start(tp);
+			if (tp->t_outq.tq_count <= TTYQ_HIWAT)
+				continue;
+			tp->t_state |= TS_ASLEEP;
+			sched_sleep(&tp->t_output);
 			continue;
 		}
-		tty_output(*buf, tp);
+		if (umem_copyin(buf, &c, 1))
+			return EFAULT;
+		tty_output(c, tp);
 		buf++;
 		remain--;
 		count++;
@@ -439,6 +512,7 @@ int
 tty_ioctl(struct tty *tp, u_long cmd, void *data)
 {
 	int flags;
+	struct tty_queue *qp;
 
 	switch (cmd) {
 	case TIOCGETA:
@@ -448,8 +522,10 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data)
 		break;
 	case TIOCSETAW:
 	case TIOCSETAF:
-		tty_flush(tp, flags);
-		/* fallthrouth */
+		tty_wait(tp);
+		if (cmd == TIOCSETAF)
+			tty_flush(tp, FREAD);
+		/* FALLTHROUGH */
 	case TIOCSETA:
 		if (umem_copyin(data, &tp->t_termios,
 				 sizeof(struct termios)))
@@ -498,6 +574,15 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data)
 		if (umem_copyin(data, &sig_task, sizeof(task_t)))
 			return EFAULT;
 		break;
+	case TIOCINQ:
+		qp = (tp->t_lflag & ICANON) ? &tp->t_canq : &tp->t_rawq;
+		if (umem_copyout(&qp->tq_count, data, sizeof(int)))
+			return EFAULT;
+		break;
+	case TIOCOUTQ:
+		if (umem_copyout(&tp->t_outq.tq_count, data, sizeof(int)))
+			return EFAULT;
+		break;
 	}
 	return 0;
 }
@@ -506,29 +591,31 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data)
  * Register tty device.
  */
 int
-tty_register(struct devio *io, struct tty *tp, void (*output)(struct tty*))
+tty_attach(struct devio *io, struct tty *tp)
 {
 
 	/* We support only one tty device */
-	if (tty_dev != NULL_DEVICE)
+	if (tty_dev != DEVICE_NULL)
 		return -1;
 
 	/* Create TTY device as an alias of the registered device. */
 	tty_dev = device_create(io, "tty", DF_CHR);
-	if (tty_dev == NULL_DEVICE)
+	if (tty_dev == DEVICE_NULL)
 		return -1;
 
 	/* Initialize tty */
 	memset(tp, 0, sizeof(struct tty));
 	memcpy(&tp->t_termios.c_cc, ttydefchars, sizeof(ttydefchars));
-	event_init(&tp->t_input_event, "TTY input");
+
+	event_init(&tp->t_input, "TTY input");
+	event_init(&tp->t_output, "TTY output");
+
 	tp->t_iflag = TTYDEF_IFLAG;
 	tp->t_oflag = TTYDEF_OFLAG;
 	tp->t_cflag = TTYDEF_CFLAG;
 	tp->t_lflag = TTYDEF_LFLAG;
 	tp->t_ispeed = TTYDEF_SPEED;
 	tp->t_ospeed = TTYDEF_SPEED;
-	tp->t_output = output;
 	return 0;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,10 +30,10 @@
 /*
  * Process server:
  *
- * A process server is responsible to handle process ID, group ID,
- * signal and fork()/exec() state. Since Prex microkernel does not
- * have the concept about process or process group, the process
- * server will map each Prex task to POSIX process.
+ * A process server is responsible to handle process ID, group
+ * ID, signal and fork()/exec() state. Since Prex microkernel
+ * does not have the concept about process or process group, the
+ * process server will map each Prex task to POSIX process.
  *
  * Prex does not support uid (user ID) and gid (group ID) because
  * it runs only in a single user mode. The value of uid and gid is
@@ -41,10 +41,11 @@
  * library stubs, and it is out of scope in this server.
  *
  * Important Notice:
- * This server is made as a single thread program to reduce many locks
- * and to keep the code clean. So, we should not block in the kernel
- * for any service. If some service must wait an event, it should wait
- * within the library stub in the client application.
+ * This server is made as a single thread program to reduce many
+ * locks and to keep the code clean. So, we should not block in
+ * the kernel for any service. If some service must wait an
+ * event, it should wait within the library stub in the client
+ * application.
  */
 
 #include <prex/prex.h>
@@ -56,17 +57,17 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "proc.h"
 
 /* forward declarations */
-static int proc_version(struct msg *msg);
-static int proc_debug(struct msg *msg);
-static int proc_shutdown(struct msg *msg);
-static int proc_exec(struct msg *msg);
-static int proc_pstat(struct msg *msg);
-static int proc_register(struct msg *msg);
-static int proc_setinit(struct msg *msg);
+static int proc_debug(struct msg *);
+static int proc_shutdown(struct msg *);
+static int proc_exec(struct msg *);
+static int proc_pstat(struct msg *);
+static int proc_register(struct msg *);
+static int proc_setinit(struct msg *);
 
 /*
  * Message mapping
@@ -77,13 +78,14 @@ struct msg_map {
 };
 
 static const struct msg_map procmsg_map[] = {
-	{STD_VERSION,	proc_version},
 	{STD_DEBUG,	proc_debug},
 	{STD_SHUTDOWN,	proc_shutdown},
 	{PS_GETPID,	proc_getpid},
 	{PS_GETPPID,	proc_getppid},
 	{PS_GETPGID,	proc_getpgid},
 	{PS_SETPGID,	proc_setpgid},
+	{PS_GETSID,	proc_getsid},
+	{PS_SETSID,	proc_setsid},
 	{PS_FORK,	proc_fork},
 	{PS_EXIT,	proc_exit},
 	{PS_STOP,	proc_stop},
@@ -93,59 +95,63 @@ static const struct msg_map procmsg_map[] = {
 	{PS_PSTAT,	proc_pstat},
 	{PS_REGISTER,	proc_register},
 	{PS_SETINIT,	proc_setinit},
-	{0,		0},
+	{0,		NULL},
 };
 
 static struct proc proc0;	/* process data of this server (pid=0) */
-static struct pgrp pgrp0;	/* process group for process server */
+static struct pgrp pgrp0;	/* process group for first process */
+static struct session session0;	/* session for first process */
 
 struct proc initproc;		/* process slot for init process (pid=1) */
 struct proc *curproc;		/* current (caller) process */
 struct list allproc;		/* list of all processes */
 
+/*
+ * Create a new process.
+ */
 static void
 newproc(struct proc *p, pid_t pid, task_t task)
 {
 
-	p->parent = &proc0;
-	p->pgrp = &pgrp0;
-	p->stat = SRUN;
-	p->exit_code = 0;
-	p->wait_vfork = 0;
-	p->pid = pid;
-	p->task = task;
-	list_init(&p->children);
-	list_insert(&allproc, &p->link);
+	p->p_parent = &proc0;
+	p->p_pgrp = &pgrp0;
+	p->p_stat = SRUN;
+	p->p_exitcode = 0;
+	p->p_vforked = 0;
+	p->p_pid = pid;
+	p->p_task = task;
+	list_init(&p->p_children);
+	list_insert(&allproc, &p->p_link);
 	proc_add(p);
-	list_insert(&proc0.children, &p->sibling);
-	list_insert(&pgrp0.members, &p->pgrp_link);
+	list_insert(&proc0.p_children, &p->p_sibling);
+	list_insert(&pgrp0.pg_members, &p->p_pgrp_link);
 }
 
 /*
  * exec() - Update pid to track the mapping with task id.
- *
- * The almost all work is done by a exec server for exec() emulation.
- * So, there is not so many jobs here...
+ * The almost all work is done by a exec server for exec()
+ * emulation. So, there is not so many jobs here...
  */
 static int
 proc_exec(struct msg *msg)
 {
-	task_t org_task, new_task;
+	task_t orgtask, newtask;
 	struct proc *p, *parent;
 
-	dprintf("proc_exec: proc=%x\n", curproc);
-	org_task = msg->data[0];
-	new_task = msg->data[1];
-	if ((p = task_to_proc(org_task)) == NULL)
+	DPRINTF(("proc_exec: pid=%x\n", curproc->p_pid));
+
+	orgtask = (task_t)msg->data[0];
+	newtask = (task_t)msg->data[1];
+	if ((p = task_to_proc(orgtask)) == NULL)
 		return EINVAL;
 
 	proc_remove(p);
-	p->task = new_task;
+	p->p_task = newtask;
 	proc_add(p);
-	p->stack_base = (void *)msg->data[2];
+	p->p_stackbase = (void *)msg->data[2];
 
-	parent = p->parent;
-	if (parent != NULL && parent->wait_vfork)
+	parent = p->p_parent;
+	if (parent != NULL && parent->p_vforked)
 		vfork_end(parent);
 	return 0;
 }
@@ -159,17 +165,18 @@ proc_pstat(struct msg *msg)
 	task_t task;
 	struct proc *p;
 
-	dprintf("proc_pstat: task=%x\n", msg->data[0]);
-	task = msg->data[0];
+	DPRINTF(("proc_pstat: task=%x\n", msg->data[0]));
+
+	task = (task_t)msg->data[0];
 	if ((p = task_to_proc(task)) == NULL)
 		return EINVAL;
 
-	msg->data[0] = (int)p->pid;
-	msg->data[2] = (int)p->stat;
-	if (p->parent == NULL)
+	msg->data[0] = (int)p->p_pid;
+	msg->data[2] = (int)p->p_stat;
+	if (p->p_parent == NULL)
 		msg->data[1] = (int)0;
 	else
-		msg->data[1] = (int)p->parent->pid;
+		msg->data[1] = (int)p->p_parent->p_pid;
 	return 0;
 }
 
@@ -181,8 +188,10 @@ proc_setinit(struct msg *msg)
 {
 	struct proc *p;
 
+	DPRINTF(("proc_setinit\n"));
+
 	p = &initproc;
-	if (p->stat == SRUN)
+	if (p->p_stat == SRUN)
 		return EPERM;
 
 	newproc(p, 1, msg->hdr.task);
@@ -198,20 +207,17 @@ proc_register(struct msg *msg)
 	struct proc *p;
 	pid_t pid;
 
+	DPRINTF(("proc_register\n"));
 	if ((p = malloc(sizeof(struct proc))) == NULL)
 		return ENOMEM;
+	memset(p, 0, sizeof(struct proc));
 
-	if ((pid = pid_assign()) == 0)
+	if ((pid = pid_assign()) == 0) {
+		free(p);
 		return EAGAIN;	/* Too many processes */
-
+	}
 	newproc(p, pid, msg->hdr.task);
-	return 0;
-}
-
-static int
-proc_version(struct msg *msg)
-{
-
+	DPRINTF(("proc_register-comp\n"));
 	return 0;
 }
 
@@ -228,19 +234,22 @@ proc_debug(struct msg *msg)
 #ifdef DEBUG_PROC
 	struct proc *p;
 	list_t n;
-	char stat[][5] = { "RUN ", "ZOMB", "STOP" };
+	char stat[][5] = { "    ", "RUN ", "ZOMB", "STOP" };
 
-	printf("<Process Server>\n");
-	printf("Dump process\n");
-	printf(" pid    ppid   stat task\n");
-	printf(" ------ ------ ---- --------\n");
+	dprintf("<Process Server>\n");
+	dprintf("Dump process\n");
+	dprintf(" pid    ppid   pgid   sid    stat task\n");
+	dprintf(" ------ ------ ------ ------ ---- --------\n");
+
 	for (n = list_first(&allproc); n != &allproc;
 	     n = list_next(n)) {
-		p = list_entry(n, struct proc, link);
-		printf(" %6d %6d %s %08x\n",
-		       p->pid, p->parent->pid, stat[p->stat], p->task);
+		p = list_entry(n, struct proc, p_link);
+		dprintf(" %6d %6d %6d %6d %s %08x\n", p->p_pid,
+			p->p_parent->p_pid, p->p_pgrp->pg_pgid,
+			p->p_pgrp->pg_session->s_leader->p_pid,
+			stat[p->p_stat], p->p_task);
 	}
-	printf("\n");
+	dprintf("\n");
 #endif
 	return 0;
 }
@@ -250,27 +259,35 @@ init(void)
 {
 	struct proc *p;
 
+	p = &proc0;
+	curproc = p;
+
 	tty_init();
 	table_init();
+	list_init(&allproc);
 
 	/*
-	 * Setup a process for ourselves.
-	 * pid=0 is always reserved by process server.
+	 * Create process 0 (the process server)
 	 */
-	p = &proc0;
-	p->parent = 0;
-	p->pgrp = &pgrp0;
-	p->stat = SRUN;
-	p->exit_code = 0;
-	p->wait_vfork = 0;
-	p->pid = 0;
-	p->task = task_self();
-	list_init(&p->children);
-	list_init(&allproc);
-	list_init(&pgrp0.members);
-	proc_add(p);
+	pgrp0.pg_pgid = 0;
+	list_init(&pgrp0.pg_members);
 	pgrp_add(&pgrp0);
-	list_insert(&pgrp0.members, &p->pgrp_link);
+
+	pgrp0.pg_session = &session0;
+	session0.s_refcnt = 1;
+	session0.s_leader = p;
+	session0.s_ttyhold = 0;
+
+	p->p_pgrp = &pgrp0;
+	p->p_parent = 0;
+	p->p_stat = SRUN;
+	p->p_exitcode = 0;
+	p->p_vforked = 0;
+	p->p_pid = 0;
+	p->p_task = task_self();
+	list_init(&p->p_children);
+	proc_add(p);
+	list_insert(&pgrp0.pg_members, &p->p_pgrp_link);
 }
 
 /*
@@ -322,11 +339,11 @@ main(int argc, char *argv[])
 				curproc = task_to_proc(msg.hdr.task);
 
 				/* Update the capability of caller task. */
-				if (curproc && task_getcap(msg.hdr.task,
-							   &curproc->cap))
+				if (curproc &&
+				    task_getcap(msg.hdr.task, &curproc->p_cap))
 					break;
 
-				err = map->func(&msg);
+				err = (*map->func)(&msg);
 				break;
 			}
 			map++;
@@ -338,7 +355,8 @@ main(int argc, char *argv[])
 		msg_reply(obj, &msg, sizeof(msg));
 #ifdef DEBUG_PROC
 		if (err)
-			dprintf("msg code=%x error=%d\n", map->code, err);
+			DPRINTF(("proc: msg code=%x error=%d\n", map->code,
+				 err));
 #endif
 	}
 	return 0;

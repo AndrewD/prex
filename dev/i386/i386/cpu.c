@@ -56,14 +56,14 @@
 
 #include <driver.h>
 #include <sys/ioctl.h>
-#include <cpu.h>
+#include <cpufunc.h>
 
-/* #define DEBUG_CPU */
+/* #define DEBUG_CPU 1 */
 
-#ifdef DEBUG_CPU
-#define cpu_printf(fmt, args...) printk("%s: " fmt , __FUNCTION__ , ## args)
+#ifdef DEBUG
+#define DPRINTF(a) printf a
 #else
-#define cpu_printf(fmt, args...) do {} while (0)
+#define DPRINTF(a)
 #endif
 
 /* Status/control registers (from the IA-32 System Programming Guide). */
@@ -74,7 +74,7 @@
 #define MSR_MISC_ENABLE		0x1a0
 #define MSR_SS_ENABLE		(1<<16)
 
-static int cpu_ioctl(device_t dev, int cmd, u_long arg);
+static int cpu_ioctl(device_t dev, u_long cmd, void *arg);
 static int cpu_init(void);
 
 /*
@@ -368,7 +368,7 @@ static const struct est_cpu est_cpus[] = {
 
 
 #define MSRVALUE(mhz, mv)	((((mhz) / 100) << 8) | (((mv) - 700) / 16))
-#define MSR2MHZ(msr)		((((int) (msr) >> 8) & 0xff) * 100)
+#define MSR2MHZ(msr)		((((u_int) (msr) >> 8) & 0xff) * 100)
 #define MSR2MV(msr)		(((int) (msr) & 0xff) * 16 + 700)
 
 static const struct fqlist *est_fqlist;
@@ -405,13 +405,14 @@ cpu_setperf(int level)
 
 	cpu_stat.speed = est_fqlist->table[i].mhz;
 	cpu_stat.power = est_fqlist->table[i].mv;
-	cpu_printf("setperf: %dMHz %dmV\n", cpu_stat.speed, cpu_stat.power);
-
+#ifdef DEBUG_CPU
+	DPRINTF(("setperf: %dMHz %dmV\n", cpu_stat.speed, cpu_stat.power));
+#endif
 #ifdef CONFIG_DVS_EMULATION
 	if (bochs)
 		return 0;
 #endif
-	rdmsr(MSR_PERF_CTL, msr_lo, msr_hi);
+	rdmsr(MSR_PERF_CTL, &msr_lo, &msr_hi);
 	msr_lo = (msr_lo & ~0xffff) |
 		MSRVALUE(est_fqlist->table[i].mhz, est_fqlist->table[i].mv);
 	wrmsr(MSR_PERF_CTL, msr_lo, msr_hi);
@@ -457,14 +458,14 @@ cpu_initperf(void)
 		cpu = &est_cpus[0];
 		est_fqlist = &cpu->list[7];
 	} else
-		rdmsr(MSR_PERF_STATUS, msr_lo, msr_hi);
+		rdmsr(MSR_PERF_STATUS, &msr_lo, &msr_hi);
 #else
-	rdmsr(MSR_PERF_STATUS, msr_lo, msr_hi);
+	rdmsr(MSR_PERF_STATUS, &msr_lo, &msr_hi);
 #endif
 
 	mhz = MSR2MHZ(msr_lo);
 	mv = MSR2MV(msr_lo);
-	printk("Enhanced SpeedStep %d MHz (%d mV)\n", mhz, mv);
+	DPRINTF(("Enhanced SpeedStep %d MHz (%d mV)\n", mhz, mv));
 
 #ifdef CONFIG_DVS_EMULATION
 	if (!bochs) {
@@ -490,7 +491,7 @@ cpu_initperf(void)
 		}
 	}
 	if (est_fqlist == NULL) {
-		printk("Unknown EST cpu, no changes possible\n");
+		DPRINTF(("Unknown EST cpu, no changes possible\n"));
 		cpu_info.clock_ctrl = 0;
 		return -1;
 	}
@@ -502,7 +503,7 @@ cpu_initperf(void)
 		if (est_fqlist->table[i].mhz == mhz)
 			break;
 	if (i < 0) {
-		printk(" (not in table)\n");
+		DPRINTF((" (not in table)\n"));
 		cpu_info.clock_ctrl = 0;
 		return -1;
 	}
@@ -520,24 +521,26 @@ cpu_initperf(void)
 	/*
 	 * OK, tell the user the available frequencies.
 	 */
-	printk("Speeds: ");
+#ifdef DEBUG
+	printf("Speeds: ");
 	for (i = 0; i < est_fqlist->n; i++)
-		printk("%d%s", est_fqlist->table[i].mhz,
-		    i < est_fqlist->n - 1 ? ", " : " MHz\n");
+		printf("%d%s", est_fqlist->table[i].mhz,
+		       i < est_fqlist->n - 1 ? ", " : " MHz\n");
+#endif
 	return 0;
 }
 
 static int
-cpu_ioctl(device_t dev, int cmd, u_long arg)
+cpu_ioctl(device_t dev, u_long cmd, void *arg)
 {
 
 	switch (cmd) {
 	case CPUIOC_GET_INFO:
-		if (umem_copyout(&cpu_info, (void *)arg, sizeof(cpu_info)))
+		if (umem_copyout(&cpu_info, arg, sizeof(cpu_info)))
 			return EFAULT;
 		break;
 	case CPUIOC_GET_STAT:
-		if (umem_copyout(&cpu_stat, (void *)arg, sizeof(cpu_stat)))
+		if (umem_copyout(&cpu_stat, arg, sizeof(cpu_stat)))
 			return EFAULT;
 		break;
 	default:
@@ -571,10 +574,11 @@ cpu_init(void)
 		bochs = 1;
 		cpu_info.id = 0x6d6;
 		cpu_info.clock_ctrl = 1;
-		printk("CPU ID: %08x\n", cpu_info.id);
 		strncpy(cpu_info.name,
 			"Intel(R) Pentium(R) M processor 1600MHz", 50);
-		printk("CPU brand: %s\n", cpu_info.name);
+
+		DPRINTF(("CPU ID: %08x\n", cpu_info.id));
+		DPRINTF(("CPU brand: %s\n", cpu_info.name));
 		return 0;
 	}
 #endif
@@ -583,10 +587,10 @@ cpu_init(void)
 	 */
 	cpuid(1, regs);
 	cpu_info.id = regs[0];
-	printk("CPU ID: %08x\n", regs[0]);
+	DPRINTF(("CPU ID: %08x\n", regs[0]));
 
 	if ((regs[2] & 0x80) == 0) {
-		printk("cpu: Clock control not supported\n");
+		DPRINTF(("cpu: Clock control not supported\n"));
 		cpu_info.clock_ctrl = 0;
 		return 0;
 	}
@@ -611,6 +615,6 @@ cpu_init(void)
 		*q++ = *p++;
 	*q = '\0';
 
-	printk("CPU brand: %s\n", cpu_info.name);
+	DPRINTF(("CPU brand: %s\n", cpu_info.name));
 	return 0;
 }

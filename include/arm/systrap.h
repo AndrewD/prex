@@ -37,10 +37,9 @@
  * GBA BIOS does not allow to an install SWI handler by user. So, the system
  * calls will jump to the system call entry point (0x200007c) in the kernel
  * code. Then, the kernel SWI handler will switch the CPU mode to SVC mode.
- * However, CPU mode can be changed only in privillaged CPU mode. By this
+ * However, CPU mode can be changed only in privileged CPU mode. By this
  * reason, all applications run in SYS mode with GBA.
  *
- * FIXME: 0x200007c -> should be defined in somewhere...
  */
 
 #define SYSCALL0(name) \

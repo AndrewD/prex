@@ -27,8 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/power.h>
+#include <sys/reboot.h>
 
 #include <unistd.h>
 #include <err.h>
@@ -49,7 +48,7 @@ main(int argc, char *argv[])
 	/* kill(-1, SIGTERM); */
 	sleep(1);
 
-	shutdown(0);
+	reboot(RB_POWERDOWN);
 
 	fprintf(stderr, "shutdown failed!\n");
 	exit(1);

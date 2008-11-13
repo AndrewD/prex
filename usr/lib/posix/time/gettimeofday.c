@@ -41,7 +41,7 @@ gettimeofday(struct timeval *tv, struct timezone *tz)
 
 	if ((fd = open("/dev/rtc", 0)) < 0)
 		return EPERM;
-	err = ioctl(fd, RTCIOC_GET_TIME, (u_long)tv);
+	err = ioctl(fd, RTCIOC_GET_TIME, tv);
 	close(fd);
 	return err;
 }

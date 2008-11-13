@@ -33,6 +33,7 @@
 
 #include <driver.h>
 #include <prex/keycode.h>
+#include "keypad.h"
 
 /* Parameters */
 #define KEYQ_SIZE	32
@@ -105,9 +106,9 @@ static const u_char key_map[] = {
 #define KEY_MAX (sizeof(key_map) / sizeof(u_char))
 
 static device_t keypad_dev;	/* Device object */
-static int keypad_irq;		/* Handle for keyboard irq */
+static irq_t keypad_irq;	/* Handle for keyboard irq */
 static int nr_open;		/* Open count */
-static struct event io_event = EVENT_INIT(io_event, "keypad");
+static struct event keypad_event;
 
 static u_char keyq[KEYQ_SIZE];	/* Queue for ascii character */
 static int q_tail;
@@ -133,7 +134,7 @@ keyq_enqueue(u_char c)
 	if (input_handler)
 		input_handler(c);
 	else {
-		sched_wakeup(&io_event);
+		sched_wakeup(&keypad_event);
 		if (keyq_full())
 			return;
 		keyq[q_tail] = c;
@@ -227,7 +228,7 @@ keypad_close(device_t dev)
 static int
 keypad_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
-	int rc;
+	int rc, c;
 	size_t count;
 
 	if (input_handler)
@@ -235,14 +236,16 @@ keypad_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 	if (*nbyte == 0)
 		return 0;
 	if (keyq_empty()) {
-		rc = sched_sleep(&io_event);
+		rc = sched_sleep(&keypad_event);
 		if (rc == SLP_INTR)
 			return EINTR;
 	}
 	for (count = 0; count < *nbyte; count++) {
 		if (keyq_empty())
 			break;
-		*buf = keyq_dequeue();
+		c = keyq_dequeue();
+		if (umem_copyout(&c, buf, 1))
+			return EFAULT;
 		buf++;
 	}
 	*nbyte = count;
@@ -273,12 +276,14 @@ keypad_init(void)
 	keypad_dev = device_create(&keypad_io, "keypad", DF_CHR);
 	ASSERT(keypad_dev);
 
+	event_init(&keypad_event, "keypad");
+
 	/* Disable keypad interrupt */
 	REG_KEYCNT = 0;
 
 	/* Setup isr */
 	keypad_irq = irq_attach(KEYPAD_IRQ, IPL_INPUT, 0, keypad_isr, NULL);
-	ASSERT(keypad_irq != -1);
+	ASSERT(keypad_irq != IRQ_NULL);
 
 	/* Enable interrupt for all key */
 	REG_KEYCNT = KEY_ALL | KEYIRQ_EN;

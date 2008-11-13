@@ -32,25 +32,22 @@
 
 #include <prex/prex.h>
 #include <sys/types.h>
-#include <sys/syslog.h>
 
 #include <assert.h>
 
-#ifdef DEBUG
 /* #define DEBUG_ARFS 1 */
-#endif
 
 #ifdef DEBUG_ARFS
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "arfs: " fmt, ## args)
-#define ASSERT(e)		assert(e)
+#define DPRINTF(a)	dprintf a
+#define ASSERT(e)	assert(e)
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define DPRINTF(a)	do {} while (0)
 #define ASSERT(e)
 #endif
 
 #if CONFIG_FS_THREADS > 1
-#define malloc(s)		malloc_r(s)
-#define free(p)			free_r(p)
+#define malloc(s)	malloc_r(s)
+#define free(p)		free_r(p)
 #else
 #define mutex_init(m)		do {} while (0)
 #define mutex_destroy(m)	do {} while (0)

@@ -28,8 +28,8 @@
  */
 
 /*
- * syscalls.c - everything in this file is a routine implementing
- *		a VFS system call.
+ * vfs_syscalls.c - everything in this file is a routine implementing
+ *                  a VFS system call.
  */
 
 #include <prex/prex.h>
@@ -52,16 +52,19 @@
 #include "vfs.h"
 
 int
-sys_open(char *path, int flags, mode_t mode, file_t *file)
+sys_open(char *path, int flags, mode_t mode, file_t *pfp)
 {
 	vnode_t vp, dvp;
 	file_t fp;
 	char *filename;
 	int err;
 
-	dprintf("sys_open: path=%s flags=%x mode=%x\n", path, flags, mode);
+	DPRINTF(VFSDB_SYSCALL, ("sys_open: path=%s flags=%x mode=%x\n",
+				path, flags, mode));
 
 	flags = FFLAGS(flags);
+	if  ((flags & (FREAD | FWRITE)) == 0)
+		return EINVAL;
 	if (flags & O_CREAT) {
 		err = namei(path, &vp);
 		if (err == ENOENT) {
@@ -128,7 +131,7 @@ sys_open(char *path, int flags, mode_t mode, file_t *file)
 		return ENOMEM;
 	}
 	/* Request to file system */
-	if ((err = VOP_OPEN(vp, mode)) != 0) {
+	if ((err = VOP_OPEN(vp, flags)) != 0) {
 		free(fp);
 		vput(vp);
 		return err;
@@ -138,7 +141,7 @@ sys_open(char *path, int flags, mode_t mode, file_t *file)
 	fp->f_flags = flags;
 	fp->f_offset = 0;
 	fp->f_count = 1;
-	*file = fp;
+	*pfp = fp;
 	vn_unlock(vp);
 	return 0;
 }
@@ -149,7 +152,7 @@ sys_close(file_t fp)
 	vnode_t vp;
 	int err;
 
-	dprintf("sys_close: fp=%x\n", (u_int)fp);
+	DPRINTF(VFSDB_SYSCALL, ("sys_close: fp=%x\n", (u_int)fp));
 
 	vp = fp->f_vnode;
 	if (--fp->f_count > 0) {
@@ -172,8 +175,8 @@ sys_read(file_t fp, void *buf, size_t size, size_t *count)
 	vnode_t vp;
 	int err;
 
-	dprintf("sys_read: fp=%x buf=%x size=%d\n",
-		(u_int)fp, (u_int)buf, size);
+	DPRINTF(VFSDB_SYSCALL, ("sys_read: fp=%x buf=%x size=%d\n",
+				(u_int)fp, (u_int)buf, size));
 
 	if ((fp->f_flags & FREAD) == 0)
 		return EPERM;
@@ -194,8 +197,8 @@ sys_write(file_t fp, void *buf, size_t size, size_t *count)
 	vnode_t vp;
 	int err;
 
-	dprintf("sys_write: fp=%x buf=%x size=%d\n",
-		(u_int)fp, (u_int)buf, size);
+	DPRINTF(VFSDB_SYSCALL, ("sys_write: fp=%x buf=%x size=%d\n",
+				(u_int)fp, (u_int)buf, size));
 
 	if (size == 0) {
 		*count = 0;
@@ -213,8 +216,8 @@ sys_lseek(file_t fp, off_t off, int type, off_t *origin)
 {
 	vnode_t vp;
 
-	dprintf("sys_seek: fp=%x off=%d type=%d\n", (u_int)fp,
-		(u_int)off, type);
+	DPRINTF(VFSDB_SYSCALL, ("sys_seek: fp=%x off=%d type=%d\n",
+				(u_int)fp, (u_int)off, type));
 
 	vp = fp->f_vnode;
 	vn_lock(vp);
@@ -257,19 +260,19 @@ sys_lseek(file_t fp, off_t off, int type, off_t *origin)
 }
 
 int
-sys_ioctl(file_t fp, int request, char *buf)
+sys_ioctl(file_t fp, u_long request, void *buf)
 {
 	vnode_t vp;
 	int err;
 
-	dprintf("sys_ioctl: fp=%x request=%x\n", fp, request);
+	DPRINTF(VFSDB_SYSCALL, ("sys_ioctl: fp=%x request=%x\n", fp, request));
 
 	if ((fp->f_flags & (FREAD | FWRITE)) == 0)
 		return EBADF;
 
 	vp = fp->f_vnode;
 	vn_lock(vp);
-	err = VOP_IOCTL(vp, fp, request, (u_long)buf);
+	err = VOP_IOCTL(vp, fp, request, buf);
 	vn_unlock(vp);
 	return err;
 }
@@ -280,7 +283,7 @@ sys_fsync(file_t fp)
 	vnode_t vp;
 	int err;
 
-	dprintf("sys_fsync: fp=%x\n", fp);
+	DPRINTF(VFSDB_SYSCALL, ("sys_fsync: fp=%x\n", fp));
 
 	if ((fp->f_flags & FREAD) == 0)
 		return EBADF;
@@ -296,51 +299,15 @@ int
 sys_fstat(file_t fp, struct stat *st)
 {
 	vnode_t vp;
-	mode_t mode;
+	int err = 0;
 
-	dprintf("sys_fstat: fp=%x\n", fp);
-
-	memset(st, 0, sizeof(struct stat));
+	DPRINTF(VFSDB_SYSCALL, ("sys_fstat: fp=%x\n", fp));
 
 	vp = fp->f_vnode;
 	vn_lock(vp);
-	st->st_ino = (ino_t)&vp;
-	st->st_size = vp->v_size;
-	mode = vp->v_mode;
-	switch (vp->v_type) {
-	case VREG:
-		mode |= S_IFREG;
-		break;
-	case VDIR:
-		mode |= S_IFDIR;
-		break;
-	case VBLK:
-		mode |= S_IFBLK;
-		break;
-	case VCHR:
-		mode |= S_IFCHR;
-		break;
-	case VLNK:
-		mode |= S_IFLNK;
-		break;
-	case VSOCK:
-		mode |= S_IFSOCK;
-		break;
-	case VFIFO:
-		mode |= S_IFIFO;
-		break;
-	default:
-		return EBADF;
-	};
-	st->st_mode = mode;
-	st->st_blksize = BSIZE;
-	st->st_blocks = vp->v_size / S_BLKSIZE;
-	st->st_uid = 0;
-	st->st_gid = 0;
-	if (vp->v_type == VCHR || vp->v_type == VBLK)
-		st->st_rdev = (dev_t)vp->v_data;
+	err = vn_stat(vp, st);
 	vn_unlock(vp);
-	return 0;
+	return err;
 }
 
 /*
@@ -377,7 +344,7 @@ sys_opendir(char *path, file_t *file)
 	file_t fp;
 	int err;
 
-	dprintf("sys_opendir: path=%s\n", path);
+	DPRINTF(VFSDB_SYSCALL, ("sys_opendir: path=%s\n", path));
 
 	if ((err = sys_open(path, O_RDONLY, 0, &fp)) != 0)
 		return err;
@@ -401,7 +368,7 @@ sys_closedir(file_t fp)
 	vnode_t dvp;
 	int err;
 
-	dprintf("sys_closedir: fp=%x\n", fp);
+	DPRINTF(VFSDB_SYSCALL, ("sys_closedir: fp=%x\n", fp));
 
 	dvp = fp->f_vnode;
 	vn_lock(dvp);
@@ -420,7 +387,7 @@ sys_readdir(file_t fp, struct dirent *dir)
 	vnode_t dvp;
 	int err;
 
-	dprintf("sys_readdir: fp=%x\n", fp);
+	DPRINTF(VFSDB_SYSCALL, ("sys_readdir: fp=%x\n", fp));
 
 	dvp = fp->f_vnode;
 	vn_lock(dvp);
@@ -488,7 +455,7 @@ sys_mkdir(char *path, mode_t mode)
 	vnode_t vp, dvp;
 	int err;
 
-	dprintf("sys_mkdir: path=%s mode=%d\n", path, mode);
+	DPRINTF(VFSDB_SYSCALL, ("sys_mkdir: path=%s mode=%d\n",	path, mode));
 
 	if ((err = namei(path, &vp)) == 0) {
 		/* File already exists */
@@ -521,7 +488,7 @@ sys_rmdir(char *path)
 	int err;
 	char *name;
 
-	dprintf("sys_rmdir: path=%s\n", path);
+	DPRINTF(VFSDB_SYSCALL, ("sys_rmdir: path=%s\n", path));
 
 	if ((err = check_dir_empty(path)) != 0)
 		return err;
@@ -561,7 +528,18 @@ sys_mknod(char *path, mode_t mode)
 	vnode_t vp, dvp;
 	int err;
 
-	dprintf("sys_mknod: path=%s mode=%d\n", path, mode);
+	DPRINTF(VFSDB_SYSCALL, ("sys_mknod: path=%s mode=%d\n",	path, mode));
+
+	switch (mode & S_IFMT) {
+	case S_IFREG:
+	case S_IFDIR:
+	case S_IFIFO:
+	case S_IFSOCK:
+		/* OK */
+		break;
+	default:
+		return EINVAL;
+	}
 
 	if ((err = namei(path, &vp)) == 0) {
 		vput(vp);
@@ -571,11 +549,15 @@ sys_mknod(char *path, mode_t mode)
 	if ((err = lookup(path, &dvp, &name)) != 0)
 		return err;
 
+	if (dvp->v_mount->m_flags & MNT_RDONLY) {
+		err = EROFS;
+		goto out;
+	}
 	if (S_ISDIR(mode))
 		err = VOP_MKDIR(dvp, name, mode);
 	else
 		err = VOP_CREATE(dvp, name, mode);
-
+ out:
 	vput(dvp);
 	return err;
 }
@@ -589,7 +571,7 @@ sys_rename(char *src, char *dest)
 	size_t len;
 	char root[] = "/";
 
-	dprintf("sys_rename: src=%s dest=%s\n", src, dest);
+	DPRINTF(VFSDB_SYSCALL, ("sys_rename: src=%s dest=%s\n", src, dest));
 
 	if ((err = namei(src, &vp1)) != 0)
 		return err;
@@ -676,7 +658,7 @@ sys_unlink(char *path)
 	vnode_t vp, dvp;
 	int err;
 
-	dprintf("sys_unlink: path=%s\n", path);
+	DPRINTF(VFSDB_SYSCALL, ("sys_unlink: path=%s\n", path));
 
 	if ((err = namei(path, &vp)) != 0)
 		return err;
@@ -713,7 +695,7 @@ sys_access(char *path, int mode)
 	vnode_t vp;
 	int err;
 
-	dprintf("sys_access: path=%s\n", path);
+	DPRINTF(VFSDB_SYSCALL, ("sys_access: path=%s\n", path));
 
 	if ((err = namei(path, &vp)) != 0)
 		return err;
@@ -727,6 +709,19 @@ sys_access(char *path, int mode)
 		goto out;
 	err = 0;
  out:
+	vput(vp);
+	return err;
+}
+
+int
+sys_stat(char *path, struct stat *st)
+{
+	vnode_t vp;
+	int err;
+
+	if ((err = namei(path, &vp)) != 0)
+		return err;
+	err = vn_stat(vp, st);
 	vput(vp);
 	return err;
 }

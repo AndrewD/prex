@@ -30,18 +30,21 @@
 #ifndef _EXCEPT_H
 #define _EXCEPT_H
 
+#include <sys/cdefs.h>
 #include <sys/signal.h>
 
 /* Number of exceptions */
-#define	NR_EXCS		32
+#define	NEXC		32
 
-extern int	 exception_setup(void (*)(int, u_long));
-extern int	 exception_raise(task_t, int);
-extern int	 exception_post(task_t, int);
-extern int	 exception_wait(int *);
-extern void	 exception_mark(int);
-extern void	 exception_deliver(void);
-extern int	 exception_return(void *);
-extern void	 exception_init(void);
+__BEGIN_DECLS
+int	 exception_setup(void (*)(int));
+int	 exception_raise(task_t, int);
+int	 exception_post(task_t, int);
+int	 exception_wait(int *);
+void	 exception_mark(int);
+void	 exception_deliver(void);
+int	 exception_return(void);
+void	 exception_init(void);
+__BEGIN_DECLS
 
 #endif /* !_EXCEPT_H */

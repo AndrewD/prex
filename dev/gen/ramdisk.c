@@ -36,16 +36,16 @@
 /* #define DEBUG_RAMDISK 1 */
 
 #ifdef DEBUG_RAMDISK
-#define rd_printf(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
+#define DPRINTF(a) printf a
 #else
-#define rd_printf(fmt...)	do {} while (0)
+#define DPRINTF(a)
 #endif
 
 /* Block size */
 #define BSIZE		512
 
-static int ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno);
-static int ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno);
+static int ramdisk_read(device_t, char *, size_t *, int);
+static int ramdisk_write(device_t, char *, size_t *, int);
 static int ramdisk_init(void);
 
 /*
@@ -57,6 +57,9 @@ struct driver ramdisk_drv = {
 	/* init */	ramdisk_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio ramdisk_io = {
 	/* open */	NULL,
 	/* close */	NULL,
@@ -77,11 +80,12 @@ ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 	void *kbuf;
 	size_t nr_read;
 
-	rd_printf("read buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno);
+	DPRINTF(("ramdisk_read: buf=%x nbyte=%d blkno=%x\n",
+		 buf, *nbyte, blkno));
 
 	/* Check overrun */
 	if ((size_t)blkno * BSIZE > img_size) {
-		rd_printf("Overrun!\n");
+		DPRINTF(("ramdisk_read: overrun!\n"));
 		return EIO;
 	}
 	nr_read = *nbyte;
@@ -99,16 +103,14 @@ ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 	return 0;
 }
 
-/*
- * Data written to this device is discarded.
- */
 static int
 ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
 	void *kbuf;
 	size_t nr_write;
 
-	rd_printf("write buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno);
+	DPRINTF(("ramdisk_write: buf=%x nbyte=%d blkno=%x\n",
+		 buf, *nbyte, blkno));
 
 	/* Check overrun */
 	if ((size_t)blkno * BSIZE > img_size)
@@ -134,17 +136,18 @@ ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 static int
 ramdisk_init(void)
 {
-	struct boot_info *boot_info;
-	struct mem_map *rd;
+	struct bootinfo *bootinfo;
+	struct physmem *rd;
 
-	machine_bootinfo(&boot_info);
-	rd = (struct mem_map *)&boot_info->ram_disk;
-	img_start = (char *)phys_to_virt((void *)rd->start);
+	machine_bootinfo(&bootinfo);
+	rd = (struct physmem *)&bootinfo->bootdisk;
+	img_start = (char *)phys_to_virt((void *)rd->base);
 	img_size = rd->size;
 	if (img_size == 0)
 		return -1;
-	printk("RAM disk at 0x%08x (%dK bytes)\n", img_start, img_size/1024);
-
+#ifdef DEBUG
+	printf("RAM disk at 0x%08x (%dK bytes)\n", img_start, img_size/1024);
+#endif
 	/* Create device object */
 	ramdisk_dev = device_create(&ramdisk_io, "ram0", DF_BLK);
 	ASSERT(ramdisk_dev);

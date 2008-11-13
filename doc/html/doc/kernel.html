@@ -23,7 +23,7 @@
           <td id="logo">
             <a href="http://prex.sourceforge.net/">
             <img alt="Prex logo" src="../img/logo.gif" border="0"
-            style="width: 281px; height: 56px;"></a>
+            style="width: 250px; height: 54px;"></a>
           </td>
           <td id="brief" align="right" valign="bottom">
             An Open Source, Royalty-free,<br>
@@ -43,15 +43,17 @@
     <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
-      <td id="main" style="vertical-align: top;">
+      <td id="doc" style="vertical-align: top;">
+
       <h1>Prex Kernel Internals</h1>
 
-<i>Version 1.4, 2005/12/31</i>
+<i>Version 1.6, 2008/09/17</i>
 
 <h3>Table of Contents</h3>
 <ul>
+  <li><a href="#intro">Introduction</a></li>
+  <li><a href="#design">Design Philosophy</a></li>
   <li><a href="#over">Kernel Overview</a></li>
-  <li><a href="#design">Design Policy</a></li>
   <li><a href="#thread">Thread</a></li>
   <li><a href="#task">Task</a></li>
   <li><a href="#sched">Scheduler</a></li>
@@ -63,8 +65,111 @@
   <li><a href="#device">Device I/O Service</a></li>
   <li><a href="#mutex">Mutex</a></li>
   <li><a href="#debug">Debug</a></li>
+  <li><a href="#arch">Architecture Dependent Layer</a></li>
 </ul>
-<br>
+
+
+<h2 id="intro">Introduction</h2>
+
+<p>
+This document describes the design and implementation of the Prex kernel.
+</p>
+<p>
+For a full description of the Prex kernel interface,
+see the following documents.
+</p>
+<ul>
+  <li><a href="kapi.html">Prex Kernel API reference</a></li>
+  <li><a href="arch.html">Architecture Dependent Interface</a></li>
+</ul>
+
+
+
+<h2 id="design">Design Philosophy</h2>
+<p>
+The Prex kernel focuses the following points to be designed.
+</p>
+<ul>
+  <li>Portability</li>
+  <li>Scalability</li>
+  <li>Reliability</li>
+  <li>Interoperability</li>
+  <li>Maintainability</li>
+</ul>
+
+<h3>Portability</h3>
+<p>
+Portability is the most important point for the kernel design in Prex.
+The Prex kernel is divided into two different layers -
+a common kernel layer and an architecture dependent layer.
+
+Any routine in the common kernel layer must not access to the H/W by itself.
+Instead, it must use the H/W access services provided by
+the architecture dependent layer.
+</p>
+
+<h3>Scalability</h3>
+<p>
+In order to obtain higher scalability, the kernel does not limit the maximum
+number of the kernel objects to create. So, the resources for all kernel
+objects are allocated dynamically after system boot.
+This can keep the memory prerequisite smaller than the static resource
+allocation.
+This means that the kernel can create any numbers of threads, objects, devices,
+events, mutexes and timers as far as usable memory remains.
+</p>
+<p>
+The kernel supports both of MMU and MMU-less systems. So, most components
+of the kernel are designed carefully to work without MMU.
+</p>
+
+<h3>Reliability</h3>
+<p>
+When the remaining memory is exhausted, what should OS do?
+If the system can stop with panic() there, we can prevent many error checks
+in the kernel.
+But obviously, this is not allowed on the reliable system.
+Even if the memory is exhausted, a kernel must continue to do its jobs.
+So, all kernel codes are always checking the error status returned
+by the memory allocation routine.
+</p>
+<p>
+In addition, the kernel must not crush anytime even if any invalid parameter
+is passed via kernel API. Basically, the Prex kernel code is written with
+"garbage in, error out" principle.
+The Prex kernel never stops even if any malicious program is loaded.
+</p>
+
+<h3>Interoperability</h3>
+<p>
+Although the Prex kernel was written from scratch, its applications
+will be brought from the other operating systems like BSD. So, the system
+call interface is designed with consideration to support generic OS
+API like POSIX or APIs for generic RTOS.
+</p>
+<p>
+The error code for the Prex system call is defined as the same name
+with POSIX. For example, EINVAL for "Invalid argument", or ENOMEM for
+"Out of memory". So, peoples do not have to study new error codes if
+they already have skills about POSIX programming.
+This is important point to write applications and to read
+the kernel code because study of a new error scheme will cause pain
+for developers.
+
+In addition, it simplifies the POSIX emulation library because it
+does not have to remap the error code.
+</p>
+
+<h3>Maintainability</h3>
+<p>
+All kernel codes are kept clean and simple for the maintenance.
+All codes are well-commented and consistent.
+It is easy to add or remove new system call into the kernel.
+The kernel has the debugging facility like the diagnostic message or
+the dump of the kernel objects.
+</p>
+
+
 
 <h2 id="over">Kernel Overview</h2>
 
@@ -79,7 +184,7 @@ style="width: 602px; height: 414px;"><br>
 <i><b>Figure 1. Prex kernel Structure</b></i>
 </p>
 <p>
-A kernel object belongs in one of the following groups.
+Each kernel object belongs in one of the following groups.
 </p>
 <ul>
   <li><b>kern</b>: kernel core components</li>
@@ -105,117 +210,29 @@ in "sync/sem.c".
 <p>
 In addition, there is a standard naming convention about kernel
 routines. The method named <i>bar</i> for the object named <i>foo</i>
-should be named "foo_bar". For example, the routine to create a new 
+should be named "foo_bar". For example, the routine to create a new
 thread is named "thread_create", and locking mutex will be "mutex_lock".
-This rule is not applied to the name of the local function.
+This rule is not applied to the name for the local (private) functions.
 </p>
 
 
-<h2 id="design">Design Policy</h2>
+<h3>Kernel Service</h3>
+
 <p>
-The Prex kernel focuses the following points to be designed.
+The Prex microkernel has kernel calls to support the following:
 </p>
+
 <ul>
-  <li>Portability</li>
-  <li>Scalability</li>
-  <li>Reliability</li>
-  <li>Interoperability</li>
-  <li>Maintainability</li>
+  <li>threads and tasks</li>
+  <li>message passing</li>
+  <li>timers</li>
+  <li>exceptions</li>
+  <li>device i/o</li>
+  <li>mutexes</li>
+  <li>semaphores</li>
+  <li>condition variables</li>
+  <li>debug and log service</li>
 </ul>
-
-<h3>Portability</h3>
-<p>
-The Prex kernel is divided into two different layers -
-a common kernel layer and an architecture dependent layer.
-
-Any routine in the common kernel layer must not access to the H/W by itself.
-Instead, it must request it to the architecture dependent layer.
-The interface to the architecture dependent layer is strictly defined
-by the Prex kernel. This interface is designed carefully to support various
-different architecture with minimum code change.
-So, it is easy to port the Prex kernel to different architecture.
-</p>
-<p>
-The following functions must be provided by the architecture dependent layer.
-</p>
-<ul>
-  <li><b>CPU</b>: initializes processor registers before kernel boot</li>
-  <li><b>Context</b>: abstracts processor and hardware context</li>
-  <li><b>MMU</b>: abstracts memory management unit (*)</li>
-  <li><b>Trap</b>: abstracts processor trap</li>
-  <li><b>Interrupt</b>: abstracts the interrupt control unit</li>
-  <li><b>Clock</b>: abstracts clock timer unit</li>
-  <li><b>Misc.</b>: abstracts system reset, idle power state</li>
-</ul>
-<p>
-<i>*) In case of no-MMU system, MMU related routines will be
-defined as no-operation routine.
-So, the kernel common layer can not assume MMU is always available.</i>
-</p>
-
-<h3>Scalability</h3>
-<p>
-In order to obtain higher scalability, the kernel does not limit the maximum
-number of the kernel objects to create.
-So, the resource for all kernel objects are allocated dynamically after
-system boot.
-This can keep the memory prerequisite smaller than the static
-resource allocation.
-This means that the kernel can create task, thread, object, device,
-event, mutex, timer as many as usable memory remains.
-</p>
-<p>
-The kernel supports both of MMU and No-MMU systems. So, most of the kernel
-components and VM sub-system are designed carefully to work without MMU.
-</p>
-
-<h3>Reliability</h3>
-<p>
-When the remaining memory is exhausted, what should OS do?
-If the system can stop with panic() there, the error checks of many
-portions in the kernel are not necessary.
-But obviously, this is not allowed with the reliable system.
-Even if the memory is exhausted,
-a kernel must continue processing.
-So, all kernel code is checking the error status returned
-by the memory allocation routine.
-</p>
-<p>
-In addition, the kernel must not crush anytime even if any invalid parameter
-is passed via kernel API. Basically, the Prex kernel code is written with
-"garbage in, error out" principle.
-The Prex kernel never stops even if any malicious
-program is loaded.
-</p>
-
-<h3>Interoperability</h3>
-<p>
-Although the Prex kernel was written from scratch, its applications
-will be brought from the other operating systems like BSD. So, the system 
-call interface is designed with consideration to support general OS
-API like POSIX or APIs for generic RTOS.
-</p>
-<p>
-The error code for the Prex system call is defined as the same name 
-with POSIX. For example, EINVAL for "Invalid argument", or ENOMEM for
-"Out of memory". So, peoples do not have to study new error codes if
-they already have skills about POSIX programming.
-This is important point to write applications and to read
-the kernel code because study of a new error scheme will cause pain
-for developers.
-
-In addition, it simplify the POSIX emulation library because it
-does not have to remap the error code.
-</p>
-
-<h3>Maintainability</h3>
-<p>
-All kernel codes are kept clean and simple for the maintenance.
-All codes are well-commented and consistent.
-It is easy to add or remove new system call into the kernel.
-The kernel has the debugging facility like the function trace or 
-the dump of the kernel objects.
-</p>
 
 
 <h2 id="thread">Thread</h2>
@@ -236,33 +253,33 @@ struct thread {
         int             state;          /* thread state */
         int             policy;         /* scheduling policy */
         int             prio;           /* current priority */
-        int             base_prio;      /* base priority */
-        int             ticks_left;     /* remaining ticks to run */
-        u_int           total_ticks;    /* total running ticks */
-        int             need_resched;   /* true if rescheduling is needed */
-        int             lock_count;     /* schedule lock counter */
-        int             suspend_count;  /* suspend counter */
-        struct event    *sleep_event;   /* sleep event */
-        int             sleep_result;   /* sleep result */
+        int             baseprio;       /* base priority */
+        int             timeleft;       /* remaining ticks to run */
+        u_int           time;           /* total running time */
+        int             resched;        /* true if rescheduling is needed */
+        int             locks;          /* schedule lock counter */
+        int             suscnt;         /* suspend counter */
+        struct event    *slpevt;        /* sleep event */
+        int             slpret;         /* sleep result code */
         struct timer    timeout;        /* thread timer */
         struct timer    *periodic;      /* pointer to periodic timer */
+        uint32_t        excbits;        /* bitmap of pending exceptions */
         struct queue    ipc_link;       /* linkage on IPC queue */
-        void            *msg_addr;      /* kernel address of IPC message */
-        size_t          msg_size;       /* size of IPC message */
-        struct thread   *sender;        /* thread that sends IPC message */
-        struct thread   *receiver;      /* thread that receives IPC message */
-        object_t        send_obj;       /* IPC object sending to */
-        object_t        recv_obj;       /* IPC object receiving from */
-        uint32_t        exc_bitmap;     /* bitmap of pending exceptions */
+        void            *msgaddr;       /* kernel address of IPC message */
+        size_t          msgsize;        /* size of IPC message */
+        thread_t        sender;         /* thread that sends IPC message */
+        thread_t        receiver;       /* thread that receives IPC message */
+        object_t        sendobj;        /* IPC object sending to */
+        object_t        recvobj;        /* IPC object receiving from */
         struct list     mutexes;        /* mutexes locked by this thread */
         struct mutex    *wait_mutex;    /* mutex pointer currently waiting */
         void            *kstack;        /* base address of kernel stack */
-        struct context  context;        /* machine specific context */
+        struct context  ctx;            /* machine specific context */
 };</pre>
 
 <h3>Thread Creation</h3>
-New thread can be created by thread_create().
-The initial states of newly created thread are as follow:
+A thread can be created by thread_create().
+The initial states of newly created thread are as follows:
 <p>
 </p>
 
@@ -311,7 +328,6 @@ Since new thread is initially set to the suspended state, thread_resume()
 must be called to start it.
 </p>
 
-<p>
 Creating a thread and loading its register state are isolated
 in different routines. These two routines are used by fork(), exec(),
 and pthread_create() in the POSIX emulation library.
@@ -343,37 +359,43 @@ and pthread_create() in the POSIX emulation library.
 </tbody>
 </table>
 
+<p>
+The address for the stack pointer is also set by thread_load().
+Since the Prex kernel does not allocate any stack buffer for user mode threads,
+the parent thread has responsible to allocate it.
+</p>
+
+
 <h3>Thread Termination</h3>
 <p>
 The kernel will usually release all resources owned by the terminated thread.
-But, there are some complicated process to release the resources.
-The priority adjustment may be required if the thread inherits its
+But, there are some complicated processes to release the resources.
+For example, the priority adjustment may be required if the thread inherits its
 priority.
 </p>
 <p>
-If the thread is terminated with mutex locking, all threads waiting for
-that mutex does sleep forever. So, the mutex held by the terminated thread
+If the thread is terminated with mutex locked, all threads waiting for
+that mutex will sleep forever. So, the mutex held by the terminated thread
 must be unlocked, or change its mutex owner if some thread is waiting for.
 
 </p>
 <p>
 In general, there is a known issue about the thread termination.
-If the termination target is current thread, the kernel can not release
+If the termination target is the current thread, the kernel can not release
 the context of the current thread because the
-thread switching always requires the current context.
+thread switching always requires current context.
 There are the following 3 solutions for this.
 </p>
-<ol>
- <li>Create "clean up thread" to terminate thread</li>
- <li>Add condition check in thread switching code</li>
- <li>Defer termination in next termination request</li>
-</ol>
+<ul>
+ <li>1) Create "clean up thread" to terminate a thread</li>
+ <li>2) Add condition check in thread switching code</li>
+ <li>3) Defer termination until next termination request</li>
+</ul>
 The Prex kernel is using #3.
 
 <h3>Thread Suspension</h3>
 <p>
-Each thread can be set to the suspended state by using thread_suspend()
-interface.
+Each thread can be set to the suspended state by using thread_suspend().
 Although a thread can be suspended any number of times,
 it does not start to run unless it is resumed by the same
 number of suspend.
@@ -403,6 +425,32 @@ An idle thread has FIFO scheduling policy, and it does not
 have time quantum.
 The lowest scheduling priority (=255) is reserved for an idle thread.
 </p>
+<p>
+An idle thread is just a forever-loop to call the machine
+dependent routine to cut power. The following thread_idle() routine
+is called at the end of the kernel initialization.
+</p>
+<pre>
+void
+thread_idle(void)
+{
+
+        for (;;) {
+                machine_idle();
+                sched_yield();
+        }
+}
+</pre>
+<p>
+The machine_idle() routine will program the platform H/W to
+the low power mode. This is typically
+invoking the power saving (halt) instruction
+supported by the processor.
+If any interrupts are occurred in this low power mode, it must be returned
+immediately from machine_idle(). Then, the idle thread will
+call sched_yield() to check the re-scheduling.
+</p>
+
 
 <h2 id="task">Task</h2>
 
@@ -416,7 +464,7 @@ The parent task receives the new task ID of child task from task_create(), but
 child task will receive 0 as task ID.
 </p>
 <p>
-The initial task states are as follow:
+The initial task states are as follows:
 </p>
 
 <i><b>Table 3. Initial task state</b></i>
@@ -471,16 +519,116 @@ and the task suspend count becomes 0.
 
 <h3>Kernel Task</h3>
 <p>
-The kernel task is a special task that has only an idle thread
-and interrupt threads. It does not have any user mode memory.
+A kernel task is the special task that has only an idle thread
+and the interrupt threads. It does not have any user mode memory.
 </p>
+
+<h3>Task Capability</h3>
+<p>
+Prex supports a security framework named "task capability".
+Each task will be assigned its own capabilities for various operations.
+When a task tries to do a privileged operation, the
+kernel, device drivers and system servers
+will check the appropriate bit in the task capability.
+</p>
+
+<i><b>Table 4. Task capabilities</b></i>
+<table border="1" width="80%" cellspacing="0">
+<tbody>
+<tr>
+  <th>Capability</th>
+  <th>Description</th>
+</tr>
+
+<tr>
+  <td>CAP_SETCAP</td>
+  <td>Allow setting capability.</td>
+</tr>
+
+<tr>
+  <td>CAP_TASK</td>
+  <td>Allow controlling another task's execution.</td>
+</tr>
+
+<tr>
+  <td>CAP_MEMORY</td>
+  <td>Allow touching another task's memory.</td>
+</tr>
+
+<tr>
+  <td>CAP_KILL</td>
+  <td>Allow raising exception to another task.</td>
+</tr>
+
+<tr>
+  <td>CAP_SEMAPHORE</td>
+  <td>Allow accessing another task's semaphore.</td>
+</tr>
+
+<tr>
+  <td>CAP_NICE</td>
+  <td>Allow changing scheduling parameter.</td>
+</tr>
+
+<tr>
+  <td>CAP_IPC</td>
+  <td>Allow accessing another task's IPC object.</td>
+</tr>
+
+<tr>
+  <td>CAP_DEVIO</td>
+  <td>Allow device I/O operation</td>
+</tr>
+
+<tr>
+  <td>CAP_POWER</td>
+  <td>Allow power control including shutdown.</td>
+</tr>
+
+<tr>
+  <td>CAP_TIME</td>
+  <td>Allow setting system time.</td>
+</tr>
+
+<tr>
+  <td>CAP_RAWIO</td>
+  <td>Allow direct I/O access.</td>
+</tr>
+
+<tr>
+  <td>CAP_DEBUG</td>
+  <td>Allow debugging requests.</td>
+</tr>
+
+<tr>
+  <td>CAP_ADMNIN</td>
+  <td>Allow mount,umount,sethostname,setdomainname,etc.</td>
+</tr>
+
+<tr>
+  <td>CAP_EXEC</td>
+  <td>Allow executing any file.</td>
+</tr>
+
+<tr>
+  <td>CAP_FS_READ</td>
+  <td>Allow reading any file.</td>
+</tr>
+
+<tr>
+  <td>CAP_FS_WRITE</td>
+  <td>Allow writing any file.</td>
+</tr>
+
+</tbody>
+</table>
 
 <h2 id="sched">Scheduler</h2>
 <h3>Thread Priority</h3>
 <p>
 The Prex scheduler is based on the algorithm known as priority based
 multi level queue. Each thread is assigned the priority between
-0 and 255. The lower number means higher priority like BSD unix.
+0 and 255. The lower number means higher priority like BSD UNIX.
 It maintains 256 level run queues mapped to each priority.
 The lowest priority (=255) is used only for an idle thread.
 </p>
@@ -501,10 +649,71 @@ kernel will sometimes change the current priority to avoid
 "priority inversion".
 </p>
 
+<p>
+The following table shows the priority class for various thread types.
+</p>
+
+
+<i><b>Table 5. Thread Priorities</b></i>
+<table border="1" width="50%" cellspacing="0">
+<tbody>
+<tr>
+  <th>Class</th>
+  <th>Priority</th>
+  <th>Description</th>
+</tr>
+<tr>
+  <td>Critical</td>
+  <td>0<br>-<br>14</td>
+  <td>High priority tasks</td>
+</tr>
+<tr>
+  <td>Timer</td>
+  <td>15</td>
+  <td>Timer thread</td>
+</tr>
+<tr>
+  <td>IST</td>
+  <td>16<br>-<br>32</td>
+  <td>Interrupt threads</td>
+</tr>
+<tr>
+  <td>DPC</td>
+  <td>33</td>
+  <td>DPC thread</td>
+</tr>
+<tr>
+  <td>Real-time</td>
+  <td>34<br>-<br>126</td>
+  <td>Realtime Tasks</td>
+</tr>
+<tr>
+  <td>Normal</td>
+  <td>127<br>-<br>254</td>
+  <td>Normal tasks</td>
+</tr>
+<tr>
+  <td>Idle</td>
+  <td>255</td>
+  <td>Idle thread</td>
+</tr>
+
+</tbody>
+</table>
+
+
+
+
+
+
 <h3>Thread State</h3>
 <p>
 Each thread has one of the following states.
 </p>
+
+<img alt="Memory Structure" src="img/thread.gif" border="1"
+style="width: 430px; height: 314px;"><br>
+<i><b>Figure 2. Thread States</b></i>
 
 <ul>
   <li><b>RUN</b>     :Running or ready to run</li>
@@ -512,12 +721,16 @@ Each thread has one of the following states.
   <li><b>SUSPEND</b> :Suspend count is not 0</li>
   <li><b>EXIT</b>    :Terminated</li>
 </ul>
+
+
+
+
 <p>
-The thread is always preemptive even in kernel mode.
+A thread is always preemptive even in kernel mode.
 There are following 4 events to switch thread:
 </p>
 
-<i><b>Table 4. Events to switch thread</b></i>
+<i><b>Table 6. Events to switch thread</b></i>
 <table border="1" width="90%" cellspacing="0">
 <tbody>
 <tr>
@@ -549,6 +762,7 @@ There are following 4 events to switch thread:
 </tbody>
 </table>
 
+
 <h3>Scheduling Policy</h3>
 <p>
 There are following three types of scheduling policy.
@@ -574,24 +788,64 @@ kernel API.
 <ul>
   <li>Thread Priority</li>
   <li>Scheduling Policy</li>
-  <li>Time Quantum (only for SCHED_RR)</li>
 </ul>
 
 <h3>Scheduling Lock</h3>
 <p>
-The thread scheduling can be disabled by locking the scheduler.
-This is used to synchronize the thread execution to protect the
-access to the global resources.
-Since any interrupt handler can work while scheduling lock state,
+Thread scheduling can be disabled by locking the scheduler.
+This is used to synchronize thread execution to protect
+accessing to the global resources.
+Since an interrupt handler can run while scheduling lock state,
 it does not affect to the interrupt latency.
 </p>
-
-<h3>Named Event</h3>
 <p>
-The thread can sleep/wakeup for the specific event. The event works as
-the queue of the sleeping threads. Since each event has its name,
+The scheduling lock can be performed by sched_lock()/sched_unlock()
+kernek functions.
+</p>
+
+
+
+<h3>Sleep & Wakeup</h3>
+<p>
+If a thread must wait some events, it should enter sleep state and
+release CPU resource for other thread.
+The thread can sleep by calling the sched_tsleep() kernel function.
+And then, to wakeup the sleeping thread, the thread can use one of the
+sched_wakeup() and sched_wakeone().
+</p>
+
+The kernel event consists of the queue of the sleeping threads.
+Since each event has its own name,
 it is easy to know which event the debugee is waiting for.
 </p>
+
+<p>
+<img alt="Kernel Event" src="img/event.gif" border="1"
+style="width: 332px; height: 305px;"><br>
+
+<i><b>Figure 3. Kernel Event</b></i>
+</p>
+
+
+
+<h3>DPC</h3>
+<p>
+DPC (Deferred Procedure Call) is used to call the specific
+function at some later time with a DPC priority. It is also
+known as AST or SoftIRQ in other kernels.  DPC is typically
+used by device drivers to do the low-priority jobs without
+degrading real-time performance.
+</p>
+<p>
+Each DPC routine is called by the DPC thread which works as a kernel thread.
+The requested DPC request is inserted into the DPC queue, and that request
+is processed by DPC thread at later time.
+All interrupts are enabled and the scheduler is unlocked
+when the DPC routine is called.
+</ul>
+</p>
+
+
 
 
 <h2 id="memory">Memory Management</h2>
@@ -599,18 +853,18 @@ it is easy to know which event the debugee is waiting for.
 <h3>Physical Page Allocator</h3>
 <p>The physical page allocator provides the service for
 page allocation/deallocation/reservation.
-It works on the bottom layer for other memory managers.
+It works as a bottom layer for other memory managers.
 </p>
 <p>
 <img alt="Memory Structure" src="img/memory.gif" border="1"
 style="width: 448px; height: 308px;"><br>
 
-<i><b>Figure 2. Prex Memory Structure</b></i>
+<i><b>Figure 4. Prex Memory Structure</b></i>
 </p>
 <p>
-The key point is that Prex kernel does not page out to
-any external disk devices. This is an important design point to get
-real-time performance and system simplicity.
+The important point here is that the Prex kernel does not swap out
+any pages to the disk devices. This is a significant design
+policy to obtain real-time performance and system simplicity.
 
 </p>
 
@@ -651,7 +905,7 @@ free_blks[2] = list for 48 byte block
 free_blks[255] = list for 4096 byte block
 </pre>
 <p>
-In generic design, only one list is used to search the free block
+In general, only one list is used to search the free block
 for a first fit algorithm.
 However, the Prex kernel memory allocator is using multiple lists
 corresponding to each block size.
@@ -675,7 +929,7 @@ automatically copied.
 In this time, the read-only space is not copied and is shared with old map.
 </p>
 <p>
-The kernel provide the following functions for VM:
+A kernel provides the following functions for VM:
 </p>
 <ul>
   <li>Allocate/deallocate memory region</li>
@@ -695,7 +949,7 @@ all user mode task context without switching memory map.
 <img alt="Memory Mapping" src="img/memmap.gif" border="1"
 style="width: 504px; height: 271px;"><br>
 
-<i><b>Figure 3. Kernel Memory Mapping</b></i>
+<i><b>Figure 5. Kernel Memory Mapping</b></i>
 </p>
 
 <p>
@@ -715,41 +969,51 @@ But, it was dropped to increase the real-time performance.</i>
 The message passing model of Prex is very simple compared with other
 modern microkernels. The Prex message is sent to the "object" from thread
 to thread.
-The "object" in Prex is similar concept that is called as "port"
+The "object" is similar concept that is called as "port"
 in other microkernel.
 </p>
 
 <h3>Object</h3>
 <p>
 An object represents service, state, or policies etc.
-For object manipulation, kernel provide 3 functions:
+For the purpose of object manipulation, the kernel provide 3 basic functions:
 object_create(), object_delete(), object_lookup().
-Prex task will create an object to publish its interface to other tasks.
+
+The Prex task will create an object to publish its interface to other tasks.
 For example, server tasks will create objects like "proc", "fs", "exec" to
-allow clients to access their service.
-And then, client tasks will send a request message to these objects
+allow clients to access their services.
+And then, client tasks will send a request message to these objects.
 </p>
 <p>
-An actual object is stored in kernel space, and it is protected
+An actual entity of the object is stored in kernel space, and it is protected
 from user mode code.
-Each object data is managed with the hash table by using its name string.
+The object data is managed with the hash table by using its name string.
 Usually, an object has a unique name within a system. To send a
-message to the specific object, it must obtain the target object ID
-by looking up by the name.
+message to the specific object, the sender must obtain the ID of the target object
+by using object_lookup().
 </p>
 <p>
 An object can be created without its name. These objects can be used as
-private objects for threads in same task.
+private objects for threads in the same task.
 </p>
 
 <h3>Message</h3>
 <p>
-Each IPC message must have the pre-defined message header in it.
-The kernel will store the sender task's ID into the message header.
+Each IPC message must include the message header in it.
+The kernel will automatically store the sender task's ID into the message header.
 This mechanism ensures the receiver task can get the exact task ID
 of the sender task. Therefore, receiver task can check the sender
 task's capability for various secure services.
 </p>
+
+<pre>
+struct msg_header {
+        task_t  task;           /* id of send task */
+        int     code;           /* message code */
+        int     status;         /* return status */
+};
+</pre>
+
 <p>
 It is necessary to recognize the pre-defined message format between
 sender and receiver.
@@ -758,7 +1022,7 @@ sender and receiver.
 Messages are sent to the specific object using msg_send().
 The transmission of a message is always synchronous. This means that
 the thread which sent the message is blocked until it receives
-a response from another threads. msg_receive() performs reception
+a response from another thread. msg_receive() performs reception
 of a message. msg_receive() is also blocked when no message is
 reached to the target object. The receiver thread must answer the
 message using msg_reply() after it finishes processing.
@@ -781,7 +1045,7 @@ sequence of Prex.
 <img alt="ipc queue" src="img/msg.gif" border="1"
 style="width: 505px; height: 347px;"><br>
 
-<i><b>Figure 4. IPC Transmit Sequence</b></i>
+<i><b>Figure 6. IPC Transmit Sequence</b></i>
 
 <h3>Message Transfer</h3>
 <p>
@@ -789,14 +1053,14 @@ The message is copied to task to task directly without kernel
 buffering. The memory region of sent message is
 automatically mapped to the receiver's memory within kernel.
 This mechanism allows to reduce the number of copy time while message
-translation.
+transfer.
 Since there is no page out of memory in Prex, we can
 copy the message data via physical memory at anytime.
 </p>
 <img alt="Message transfer" src="img/ipcmap.gif" border="1"
 style="width: 459px; height: 321px;"><br>
 
-<i><b>Figure 5. IPC message transfer</b></i>
+<i><b>Figure 7. IPC message transfer</b></i>
 
 <h2 id="except">Exception Handling</h2>
 <p>
@@ -822,7 +1086,7 @@ Kernel supports 32 types of exception.
 The following pre-defined exceptions are raised by kernel itself.
 </p>
 
-<i><b>Table 5. Kernel exceptions</b></i>
+<i><b>Table 7. Kernel exceptions</b></i>
 <table border="1" width="80%" cellspacing="0">
 <tbody>
 <tr>
@@ -882,7 +1146,7 @@ Then, ISR should do minimum I/O operation and return control
 as quickly as possible.
 ISR will run within the context of current running thread at
 interrupt time. So, only few kernel services are available within
-ISR. IRQ_ASSERT() macro can be used to detect the invalid
+ISR. ASSERT() macro can be used to detect the invalid
 function call from ISR.
 </p>
 
@@ -900,7 +1164,7 @@ by same IST itself.
 
 <h3>Interrupt Nesting &amp Priority</h3>
 <p>
-Each ISR has its logical priority level, with 0 being the highest
+Each ISR has its logical priority level, with 0 being the lowest
 priority. While one ISR is running, all lower priority interrupts
 are masked off.
 This interrupt nesting mechanism avoids delaying of
@@ -919,7 +1183,7 @@ The following figure is the sample of the Prex interrupt processing.
 </p>
 <p>
 <img alt="Interrupt Processing" src="img/irq.gif" border="1"><br>
-<i><b>Figure 6. Prex Interrupt Processing</b></i>
+<i><b>Figure 8. Prex Interrupt Processing</b></i>
 </p>
 <p>
 </p>
@@ -996,7 +1260,7 @@ for device drivers.
 
 <h3>Application Interface</h3>
 <p>
-The kernel device I/O interface are provided to access the specific device
+The kernel device I/O interfaces are provided to access the specific device
 object which is handled by a driver. 
 The Prex kernel provides the following 5 functions for applications.
 </p>
@@ -1029,7 +1293,7 @@ The thread priority is automatically changed at one of the following conditions.
   current thread.
   </li>
   <li>
-   When the priority is changed by the user request, the related(inherited)
+   When the priority is changed by the user request, the related (inherited)
    thread's priority is also changed.
   </li>
 </ol>
@@ -1049,15 +1313,177 @@ with Prex mutex.
   priority is not adjusted.
   </li>
 </ol>
+
 <h2 id="debug">Debug</h2>
 There are following debugging support functions:
 <ul>
-  <li>printk(): Display the debug message in kernel.</li>
+  <li>printf(): Display the debug message in kernel.</li>
   <li>panic(): Dump processor registers and stop system.</li>
   <li>ASSERT(): If expression is false (zero), stop system and display information.</li>
-  <li>trace_on(): If the kernel trace is enabled, all entry/exit of functions
-  are logged.
 </ul>
+
+<p>
+The output routine for printf() is initially set to the function
+in the architecture dependent layer. However, the device driver can
+override this routine by using debug_attch() service.
+</p>
+
+<h2 id="arch">Architecture Dependent Layer</h2>
+
+<p>
+The interface to the architecture dependent layer is strictly defined
+by the Prex kernel. This interface is designed carefully to support various
+different architectures with minimum code changes.
+So, it is easy to port the Prex kernel to different architecture.
+</p>
+
+<p>
+The following functions must be provided by the architecture dependent layer.
+</p>
+
+<i><b>Table 8. H/W Interface</b></i>
+<table border="1" width="70%" cellspacing="0">
+<tbody>
+
+<tr>
+  <th width="80">Class</th>
+  <th width="100">Methods</th>
+  <th>Description</th>
+</tr>
+
+<tr>
+  <td rowspan="5">context</td>
+  <td>init</td>
+  <td>Initialize specified context</td>
+</tr>
+<tr>
+  <td>set</td>
+  <td>Set specific register value</td>
+</tr>
+<tr>
+  <td>switch</td>
+  <td>Switch context</td>
+</tr>
+<tr>
+  <td>save</td>
+  <td>Save user mode context</td>
+</tr>
+<tr>
+  <td>restore</td>
+  <td>Restore user mode context</td>
+</tr>
+
+<tr>
+  <td rowspan="7">interrupt</td>
+  <td>enable</td>
+  <td>Enable all interrupts</td>
+</tr>
+<tr>
+  <td>disable</td>
+  <td>Disable all interrupts</td>
+</tr>
+<tr>
+  <td>save</td>
+  <td>Save current interrupt state</td>
+</tr>
+<tr>
+  <td>restore</td>
+  <td>Restore interrupt state</td>
+</tr>
+<tr>
+  <td>mask</td>
+  <td>Mask specific interrupt</td>
+</tr>
+<tr>
+  <td>unmask</td>
+  <td>Unmask specific interrupt</td>
+</tr>
+<tr>
+  <td>setup</td>
+  <td>Program interrupt mode (edge/level)</td>
+</tr>
+
+<tr>
+  <td rowspan="6">mmu (*)</td>
+  <td>init</td>
+  <td>Initialize MMU</td>
+</tr>
+<tr>
+  <td>map</td>
+  <td>Map physical memory</td>
+</tr>
+<tr>
+  <td>newmap</td>
+  <td>Creates new page mapping</td>
+</tr>
+<tr>
+  <td>delmap</td>
+  <td>Delete all page mapping</td>
+</tr>
+<tr>
+  <td>switch</td>
+  <td>Switch to new page directory</td>
+</tr>
+<tr>
+  <td>extract</td>
+  <td>Return physical address</td>
+</tr>
+
+<tr>
+  <td>clock</td>
+  <td>init</td>
+  <td>Initialize clock timer device</td>
+</tr>
+
+
+<tr>
+  <td rowspan="3">umem</td>
+  <td>copyin</td>
+  <td>Copy data to kernel area</td>
+</tr>
+<tr>
+  <td>copyout</td>
+  <td>Copy data to user area</td>
+</tr>
+<tr>
+  <td>strnlen</td>
+  <td>Get the string length in user area</td>
+</tr>
+
+
+<tr>
+  <td rowspan="2">diag</td>
+  <td>init</td>
+  <td>Initialize diagnostic port</td>
+</tr>
+<tr>
+  <td>print</td>
+  <td>Put diag message</td>
+</tr>
+
+<tr>
+  <td rowspan="3">machine</td>
+  <td>init</td>
+  <td>Initialize basic h/w</td>
+</tr>
+<tr>
+  <td>idle</td>
+  <td>Set system to idle state</td>
+</tr>
+<tr>
+  <td>reset</td>
+  <td>Reset system</td>
+</tr>
+
+</tbody>
+</table>
+
+<p>
+<i>*) In case of no-MMU system, MMU related routines will be
+defined as no-operation routine.
+So, the kernel common layer can not assume MMU is always available.</i>
+</p>
+
     </tr>
     <tr>
       <td id="footer" colspan="2" style="vertical-align: top;">

@@ -28,11 +28,11 @@
  */
 
 #include <prex/prex.h>
-#include <sys/ioctl.h>
 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <termios.h>
 
 #ifdef CMDBOX
 #define main(argc, argv)	dmesg_main(argc, argv)
@@ -46,8 +46,10 @@ main(int argc, char *argv[])
 	int size;
 	char *buf;
 
-	if (sys_debug(DCMD_LOGSIZE, &size) != 0)
+	if (sys_debug(DCMD_LOGSIZE, &size) != 0) {
+		fprintf(stderr, "dmesg: not supported\n");
 		exit(1);
+	}
 
 	if ((buf = malloc(size)) == NULL)
 		exit(1);
@@ -62,42 +64,30 @@ main(int argc, char *argv[])
 }
 
 static int
-print_msg(char *buf, int size)
+print_msg(char *buf, int bufsize)
 {
 	struct winsize ws;
-	int i, cnt, ignore;
-	int row, maxrow;
+	int i, row, maxrow;
 
 	/* Get screen size */
 	maxrow = 79;
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, (u_long)&ws) == 0)
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
 		maxrow = (int)ws.ws_row - 1;
 
-	/* Find message start point */
-	for (i = 0; i < size; i++) {
-		if (buf[i] == -1)
-			break;
-	}
-	if (i == size)
-		return 1;
-
 	row = 0;
-	ignore = 1;
-	for (cnt = 0; cnt < size; cnt++) {
-		if (buf[i] == '\n') {
+	for (i = 0; i < bufsize; i++) {
+		if (*buf == '\0')
+			break;
+		if (*buf == '\n')
 			row++;
-			ignore = 0;
-		}
-		if (!ignore)		/* skip first line */
-			putc(buf[i], stdout);
-		if (++i >= size)
-			i = 0;
+		putc(*buf, stdout);
 		if (row >= maxrow) {
 			printf("--More-- ");
 			getc(stdin);
 			putchar('\n');
 			row = 0;
 		}
+		buf++;
 	}
 	return 0;
 }

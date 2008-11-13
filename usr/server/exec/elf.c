@@ -82,7 +82,8 @@ load_exec(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 		if (vm_map(task, (void *)phdr->p_vaddr, size, &mapped) != 0)
 			return ENOEXEC;
 		if (phdr->p_filesz > 0) {
-			if (lseek(fd, phdr->p_offset, SEEK_SET) == -(off_t)1)
+			if (lseek(fd, (off_t)phdr->p_offset, SEEK_SET)
+			    == -(off_t)1)
 				goto err;
 			if (read(fd, mapped, phdr->p_filesz) < 0)
 				goto err;
@@ -120,8 +121,9 @@ relocate_section_rela(Elf32_Sym *sym_table, Elf32_Rela *rela,
 				+ sym->st_value;
 			if (relocate_rela(rela, sym_val, target_sect) != 0)
 				return -1;
-		} else if (ELF32_ST_BIND(sym->st_info) == STB_WEAK)
-			dprintf("undefined weak symbol for rela[%d]\n", i);
+		} else if (ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
+			DPRINTF(("undefined weak symbol for rela[%d]\n", i));
+		}
 		rela++;
 	}
 	return 0;
@@ -142,8 +144,9 @@ relocate_section_rel(Elf32_Sym *sym_table, Elf32_Rel *rel,
 				+ sym->st_value;
 			if (relocate_rel(rel, sym_val, target_sect) != 0)
 				return -1;
-		} else if (ELF32_ST_BIND(sym->st_info) == STB_WEAK)
-			dprintf("undefined weak symbol for rel[%d]\n", i);
+		} else if (ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
+			DPRINTF(("undefined weak symbol for rel[%d]\n", i));
+		}
 		rel++;
 	}
 	return 0;
@@ -159,7 +162,7 @@ relocate_section(Elf32_Shdr *shdr, char *rel_data)
 	char *target_sect;
 	int nr_reloc, err;
 
-	dprintf("relocate_sec\n");
+	DPRINTF(("relocate_sec\n"));
 	if (shdr->sh_entsize == 0)
 		return 0;
 	if ((target_sect = sect_addr[shdr->sh_info]) == 0)
@@ -237,9 +240,9 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 	shdr = (Elf32_Shdr *)buf;
 	for (i = 0; i < ehdr->e_shnum; i++, shdr++) {
 		/*
-		 *dprintf("section: type=%x addr=%x size=%d offset=%x flags=%x\n",
+		 *DPRINTF(("section: type=%x addr=%x size=%d offset=%x flags=%x\n",
 		 *   shdr->sh_type, shdr->sh_addr, shdr->sh_size,
-		 *   shdr->sh_offset, shdr->sh_flags);
+		 *   shdr->sh_offset, shdr->sh_flags));
 		 */
 		sect_addr[i] = 0;
 		if (shdr->sh_type == SHT_PROGBITS) {
@@ -288,7 +291,7 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 		if (shdr->sh_type == SHT_REL || shdr->sh_type == SHT_RELA) {
 			if (relocate_section(shdr, sect_addr[i]) != 0) {
 				err = EIO;
-				sys_log("exec: relocation failed\n");
+				DPRINTF(("exec: relocation failed\n"));
 				goto out2;
 			}
 		}

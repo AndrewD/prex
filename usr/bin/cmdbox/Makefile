@@ -4,15 +4,15 @@ PROG=	cmdbox
 SRCS=	main.c cmd_conf.c
 CFLAGS+= -DCMDBOX
 
+SRCS-$(CONFIG_CMD_CAL)+=	../cal/cal.c
 SRCS-$(CONFIG_CMD_CAT)+=	../cat/cat.c
 SRCS-$(CONFIG_CMD_CLEAR)+=	../clear/clear.c
 SRCS-$(CONFIG_CMD_CP)+=		../cp/cp.c
 SRCS-$(CONFIG_CMD_DATE)+=	../date/date.c
-ifeq ($(CONFIG_DMESG),y)
 SRCS-$(CONFIG_CMD_DMESG)+=	../dmesg/dmesg.c
-endif
 SRCS-$(CONFIG_CMD_ECHO)+=	../echo/echo.c
 SRCS-$(CONFIG_CMD_FREE)+=	../free/free.c
+SRCS-$(CONFIG_CMD_HEAD)+=	../head/head.c
 SRCS-$(CONFIG_CMD_HOSTNAME)+=	../hostname/hostname.c
 SRCS-$(CONFIG_CMD_KILL)+=	../kill/kill.c
 SRCS-$(CONFIG_CMD_LS)+=		../ls/ls.c

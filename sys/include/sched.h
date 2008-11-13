@@ -30,6 +30,7 @@
 #ifndef _SCHED_H
 #define _SCHED_H
 
+#include <sys/cdefs.h>
 #include <event.h>
 #include <thread.h>
 
@@ -61,23 +62,25 @@ struct dpc {
 
 #define sched_sleep(evt)	sched_tsleep((evt), 0)
 
-extern int	 sched_tsleep(struct event *, u_long);
-extern void	 sched_wakeup(struct event *);
-extern thread_t	 sched_wakeone(struct event *);
-extern void	 sched_unsleep(thread_t, int);
-extern void	 sched_yield(void);
-extern void	 sched_suspend(thread_t);
-extern void	 sched_resume(thread_t);
-extern void	 sched_tick(void);
-extern void	 sched_start(thread_t);
-extern void	 sched_stop(thread_t);
-extern void	 sched_lock(void);
-extern void	 sched_unlock(void);
-extern int	 sched_getprio(thread_t);
-extern void	 sched_setprio(thread_t, int, int);
-extern int	 sched_getpolicy(thread_t);
-extern int	 sched_setpolicy(thread_t, int);
-extern void	 sched_dpc(struct dpc *, void (*)(void *), void *);
-extern void	 sched_init(void);
+__BEGIN_DECLS
+int	 sched_tsleep(struct event *, u_long);
+void	 sched_wakeup(struct event *);
+thread_t sched_wakeone(struct event *);
+void	 sched_unsleep(thread_t, int);
+void	 sched_yield(void);
+void	 sched_suspend(thread_t);
+void	 sched_resume(thread_t);
+void	 sched_tick(void);
+void	 sched_start(thread_t);
+void	 sched_stop(thread_t);
+void	 sched_lock(void);
+void	 sched_unlock(void);
+int	 sched_getprio(thread_t);
+void	 sched_setprio(thread_t, int, int);
+int	 sched_getpolicy(thread_t);
+int	 sched_setpolicy(thread_t, int);
+void	 sched_dpc(struct dpc *, void (*)(void *), void *);
+void	 sched_init(void);
+__END_DECLS
 
 #endif /* !_SCHED_H */

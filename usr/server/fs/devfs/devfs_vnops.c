@@ -27,6 +27,10 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * devfs - device file system.
+ */
+
 #include <prex/prex.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
@@ -51,15 +55,15 @@
 #define devfs_vget	((vfsop_vget_t)vfs_nullop)
 #define devfs_statfs	((vfsop_statfs_t)vfs_nullop)
 
-static int devfs_open(vnode_t, mode_t);
-static int devfs_close(vnode_t, file_t);
-static int devfs_read(vnode_t, file_t, void *, size_t, size_t *);
-static int devfs_write(vnode_t, file_t, void *, size_t, size_t *);
+static int devfs_open	(vnode_t, int);
+static int devfs_close	(vnode_t, file_t);
+static int devfs_read	(vnode_t, file_t, void *, size_t, size_t *);
+static int devfs_write	(vnode_t, file_t, void *, size_t, size_t *);
 #define devfs_seek	((vnop_seek_t)vop_nullop)
-static int devfs_ioctl(vnode_t, file_t, int, u_long);
+static int devfs_ioctl	(vnode_t, file_t, u_long, void *);
 #define devfs_fsync	((vnop_fsync_t)vop_nullop)
 static int devfs_readdir(vnode_t, file_t, struct dirent *);
-static int devfs_lookup(vnode_t, char *, vnode_t);
+static int devfs_lookup	(vnode_t, char *, vnode_t);
 #define devfs_create	((vnop_create_t)vop_einval)
 #define devfs_remove	((vnop_remove_t)vop_einval)
 #define devfs_rename	((vnop_rename_t)vop_einval)
@@ -109,13 +113,13 @@ struct vnops devfs_vnops = {
 };
 
 static int
-devfs_open(vnode_t vp, mode_t mode)
+devfs_open(vnode_t vp, int flags)
 {
 	char *path;
 	device_t dev;
 	int err;
 
-	dprintf("devfs_open: path=%s\n", vp->v_path);
+	DPRINTF(("devfs_open: path=%s\n", vp->v_path));
 
 	path = vp->v_path;
 	if (!strcmp(path, "/"))	/* root ? */
@@ -123,10 +127,10 @@ devfs_open(vnode_t vp, mode_t mode)
 
 	if (*path == '/')
 		path++;
-	err = device_open(path, mode & DO_RWMASK, &dev);
+	err = device_open(path, flags & DO_RWMASK, &dev);
 	if (err) {
-		dprintf("devfs_open: can not open device = %s error=%d\n",
-			path, err);
+		DPRINTF(("devfs_open: can not open device = %s error=%d\n",
+			 path, err));
 		return err;
 	}
 	vp->v_data = (void *)dev;	/* Store private data */
@@ -137,7 +141,7 @@ static int
 devfs_close(vnode_t vp, file_t fp)
 {
 
-	dprintf("devfs_close: fp=%x\n", fp);
+	DPRINTF(("devfs_close: fp=%x\n", fp));
 
 	if (!strcmp(vp->v_path, "/"))	/* root ? */
 		return 0;
@@ -168,14 +172,14 @@ devfs_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	err = device_write((device_t)vp->v_data, buf, &len, fp->f_offset);
 	if (!err)
 		*result = len;
-	dprintf("devfs_write: err=%d len=%d\n", err, len);
+	DPRINTF(("devfs_write: err=%d len=%d\n", err, len));
 	return err;
 }
 
 static int
-devfs_ioctl(vnode_t vp, file_t fp, int cmd, u_long arg)
+devfs_ioctl(vnode_t vp, file_t fp, u_long cmd, void *arg)
 {
-	dprintf("devfs_ioctl\n");
+	DPRINTF(("devfs_ioctl\n"));
 	return EINVAL;
 }
 
@@ -185,7 +189,7 @@ devfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 	struct info_device info;
 	int err, i;
 
-	dprintf("devfs_lookup:%s\n", name);
+	DPRINTF(("devfs_lookup:%s\n", name));
 
 	if (*name == '\0')
 		return ENOENT;
@@ -216,7 +220,7 @@ devfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 	struct info_device info;
 	int err, i;
 
-	dprintf("devfs_readdir offset=%d\n", fp->f_offset);
+	DPRINTF(("devfs_readdir offset=%d\n", fp->f_offset));
 
 	i = 0;
 	err = 0;
@@ -236,7 +240,7 @@ devfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 	dir->d_fileno = fp->f_offset;
 	dir->d_namlen = strlen(dir->d_name);
 
-	dprintf("devfs_readdir: %s\n", dir->d_name);
+	DPRINTF(("devfs_readdir: %s\n", dir->d_name));
 	fp->f_offset++;
 	return 0;
 }

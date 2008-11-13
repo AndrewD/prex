@@ -16,6 +16,10 @@ ifeq ($(CONFIG_ARFS),y)
 SUBDIR+=	arfs
 OBJS+=		./arfs/arfs.o
 endif
+ifeq ($(CONFIG_FIFOFS),y)
+SUBDIR+=	fifofs
+OBJS+=		./fifofs/fifofs.o
+endif
 ifeq ($(CONFIG_FATFS),y)
 SUBDIR+=	fatfs
 OBJS+=		./fatfs/fatfs.o

@@ -30,19 +30,17 @@
 #ifndef _RAMFS_H
 #define _RAMFS_H
 
+#include <sys/cdefs.h>
 #include <prex/prex.h>
 #include <sys/types.h>
-#include <sys/syslog.h>
 
-#ifdef DEBUG
 /* #define DEBUG_RAMFS 1 */
-#endif
 
 #ifdef DEBUG_RAMFS
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "ramfs: " fmt, ## args)
-#define ASSERT(e)		assert(e)
+#define DPRINTF(a)	dprintf a
+#define ASSERT(e)	assert(e)
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define DPRINTF(a)	do {} while (0)
 #define ASSERT(e)
 #endif
 
@@ -61,17 +59,19 @@
  * File/directory node for RAMFS
  */
 struct ramfs_node {
-	struct	ramfs_node *next;   /* next node in the same directory */
-	struct	ramfs_node *child;  /* first child node */
-	int	type;		/* file or directory */
-	char	*name;		/* name (null-terminated) */
-	size_t	namelen;	/* length of name not including terminator */
-	size_t	size;		/* file size */
-	char	*buf;		/* buffer to the file data */
-	size_t	bufsize;	/* allocated buffer size */
+	struct	ramfs_node *rn_next;   /* next node in the same directory */
+	struct	ramfs_node *rn_child;  /* first child node */
+	int	 rn_type;	/* file or directory */
+	char	*rn_name;	/* name (null-terminated) */
+	size_t	 rn_namelen;	/* length of name not including terminator */
+	size_t	 rn_size;	/* file size */
+	char	*rn_buf;	/* buffer to the file data */
+	size_t	 rn_bufsize;	/* allocated buffer size */
 };
 
-extern struct ramfs_node *ramfs_allocate_node(char *name, int type);
-extern void ramfs_free_node(struct ramfs_node *node);
+__BEGIN_DECLS
+struct ramfs_node *ramfs_allocate_node(char *name, int type);
+void ramfs_free_node(struct ramfs_node *node);
+__END_DECLS
 
 #endif /* !_RAMFS_H */

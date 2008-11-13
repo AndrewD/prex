@@ -34,6 +34,7 @@
 #include <kernel.h>
 #include <page.h>
 #include <cpu.h>
+#include <cpufunc.h>
 
 #ifdef DEBUG
 #ifdef CONFIG_DIAG_SCREEN
@@ -54,7 +55,7 @@ screen_scrollup(void)
 {
 	int i;
 
-	memcpy(vram, vram + screen_x, screen_x * (screen_y - 1) * 2);
+	memcpy(vram, vram + screen_x, (size_t)(screen_x * (screen_y - 1) * 2));
 	for (i = 0; i < screen_x; i++)
 		vram[screen_x * (screen_y - 1) + i] = ' ';
 }
@@ -65,10 +66,10 @@ screen_update(void)
 	int pos = pos_y * screen_x + pos_x;
 
 	outb(0x0e, VID_PORT);
-	outb(pos >> 8, VID_PORT + 1);
+	outb((u_int)pos >> 8, VID_PORT + 1);
 
 	outb(0x0f, VID_PORT);
-	outb(pos & 0xff, VID_PORT + 1);
+	outb((u_int)pos & 0xff, VID_PORT + 1);
 }
 
 static void
@@ -85,7 +86,7 @@ screen_newline(void)
 }
 
 static void
-screen_putchar(char c)
+screen_putc(char c)
 {
 
 	switch (c) {
@@ -123,22 +124,41 @@ screen_init(void)
 	vram = (short *)phys_to_virt(VID_RAM);
 	pos_x = 0;
 	pos_y = 0;
-	screen_x = boot_info->video.text_x;
-	screen_y = boot_info->video.text_y;
+	screen_x = bootinfo->video.text_x;
+	screen_y = bootinfo->video.text_y;
 	return 0;
 }
 #endif /* CONFIG_DIAG_SCREEN */
 
 
+#ifdef CONFIG_DIAG_SERIAL
+
+#define COM_PORT	0x3F8
+
+/* Register offsets */
+#define COM_THR		(COM_PORT + 0x00)	/* transmit holding register */
+#define COM_LSR		(COM_PORT + 0x05)	/* line status register */
+
+static void
+serial_putc(char c)
+{
+
+	while (!(inb(COM_LSR) & 0x20))
+		;
+	outb(c, COM_THR);
+}
+#endif /* CONFIG_DIAG_SERIAL */
+
+
 #ifdef CONFIG_DIAG_BOCHS
 static void
-bochs_putchar(char c)
+bochs_putc(char c)
 {
 	/*
 	 * Bochs debug port
 	 */
 	if (inb(0xe9) == 0xe9)
-		outb(c, 0xe9);
+		outb((u_char)c, 0xe9);
 }
 #endif /* CONFIG_DIAG_BOCHS */
 
@@ -148,10 +168,15 @@ diag_print(char *buf)
 
 	while (*buf) {
 #ifdef CONFIG_DIAG_SCREEN
-		screen_putchar(*buf);
+		screen_putc(*buf);
+#endif
+#ifdef CONFIG_DIAG_SERIAL
+		if (*buf == '\n')
+			serial_putc('\r');
+		serial_putc(*buf);
 #endif
 #ifdef CONFIG_DIAG_BOCHS
-		bochs_putchar(*buf);
+		bochs_putc(*buf);
 #endif
 		++buf;
 	}
@@ -161,7 +186,9 @@ diag_print(char *buf)
 void
 diag_init(void)
 {
-#if defined(DEBUG) && defined(CONFIG_DIAG_SCREEN)
+#ifdef DEBUG
+#ifdef CONFIG_DIAG_SCREEN
 	screen_init();
+#endif
 #endif
 }

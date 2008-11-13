@@ -35,7 +35,7 @@
 int
 vprintf(fmt, ap)
 	char const *fmt;
-	_BSD_VA_LIST_ ap;
+	va_list ap;
 {
 	return (vfprintf(stdout, fmt, ap));
 }

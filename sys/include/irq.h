@@ -30,16 +30,16 @@
 #ifndef _IRQ_H
 #define _IRQ_H
 
+#include <sys/cdefs.h>
 #include <event.h>
 
 struct irq {
 	int		vector;		/* vector number */
 	int		(*isr)(int);	/* pointer to isr */
 	void		(*ist)(int);	/* pointer to ist */
-	u_int		count;		/* interrupt count */
-	int		ist_request;	/* number of ist request */
+	int		istreq;		/* number of ist request */
 	thread_t	thread;		/* thread id of ist */
-	struct event	ist_event;	/* event for ist */
+	struct event	istevt;		/* event for ist */
 };
 
 /*
@@ -72,12 +72,13 @@ struct irq {
  */
 #define ISTPRIO(prio)	(PRIO_IST + (IPL_HIGH - prio))
 
-extern int	 irq_attach(int, int, int, int (*)(int), void (*)(int));
-extern void	 irq_detach(int);
-extern void	 irq_lock(void);
-extern void	 irq_unlock(void);
-extern void	 irq_handler(int);
-extern void	 irq_dump(void);
-extern void	 irq_init(void);
+__BEGIN_DECLS
+irq_t	 irq_attach(int, int, int, int (*)(int), void (*)(int));
+void	 irq_detach(irq_t);
+void	 irq_lock(void);
+void	 irq_unlock(void);
+void	 irq_handler(int);
+void	 irq_init(void);
+__BEGIN_DECLS
 
 #endif /* !_IRQ_H */

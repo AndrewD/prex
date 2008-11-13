@@ -1,3 +1,3 @@
-TARGET=		balls
+TASK=	balls
 
 include $(SRCDIR)/mk/task.mk

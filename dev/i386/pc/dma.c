@@ -31,7 +31,7 @@
  * dma.c - DMA management routines for intel 8237 controller
  */
 
-/** ==================================================================
+/**
  *  Memo:
  *
  *  [Mode Register]
@@ -73,15 +73,25 @@
  *            10    Channel 2 (6)
  *            11    Channel 3 (7)
  *
- * ================================================================== */
+ *
+ */
+
+#include <sys/cdefs.h>
 #include <driver.h>
-#include <cpu.h>
+#include <cpufunc.h>
+#include "dma.h"
+
+#ifdef DEBUG
+#define DPRINTF(a) printf a
+#else
+#define DPRINTF(a)
+#endif
 
 #define NR_DMAS		8
 
 #define DMA_MAX		(1024 * 64)
 #define DMA_MASK	(DMA_MAX-1)
-#define DMA_ALIGN(n)	((((u_long)(n)) + DMA_MASK) & ~DMA_MASK)
+#define DMA_ALIGN(n)	((((paddr_t)(n)) + DMA_MASK) & ~DMA_MASK)
 
 void dma_stop(int handle);
 
@@ -89,8 +99,8 @@ void dma_stop(int handle);
  * DMA descriptor
  */
 struct dma {
-	int chan;		/* dma channel */
-	int in_use;		/* true if used */
+	int	chan;		/* dma channel */
+	int	in_use;		/* true if used */
 };
 
 /*
@@ -131,7 +141,7 @@ dma_attach(int chan)
 
 	ASSERT(chan >= 0 && chan < NR_DMAS);
 	ASSERT(chan != 4);
-	printk("DMA%d attached\n", chan);
+	DPRINTF(("DMA%d attached\n", chan));
 
 	irq_lock();
 	dma = &dma_table[chan];
@@ -156,7 +166,7 @@ dma_detach(int handle)
 	struct dma *dma = (struct dma *)handle;
 
 	ASSERT(dma->in_use);
-	printk("DMA%d detached\n", dma->chan);
+	DPRINTF(("DMA%d detached\n", dma->chan));
 
 	irq_lock();
 	dma->in_use = 0;
@@ -164,17 +174,18 @@ dma_detach(int handle)
 }
 
 void
-dma_setup(int handle, u_long addr, u_long count, int read)
+dma_setup(int handle, void *addr, u_long count, int read)
 {
 	struct dma *dma = (struct dma *)handle;
 	const struct dma_port *regs;
 	u_int chan, bits, mode;
+	paddr_t paddr;
 
 	ASSERT(handle);
-	addr = (u_long)virt_to_phys((void *)addr);
+	paddr = (paddr_t)virt_to_phys(addr);
 
 	/* dma address must be under 16M. */
-	ASSERT(addr < 0xffffff);
+	ASSERT(paddr < 0xffffff);
 
 	irq_lock();
 
@@ -187,9 +198,9 @@ dma_setup(int handle, u_long addr, u_long count, int read)
 	outb_p(bits | 0x04, regs->mask);	/* Disable channel */
 	outb_p(0x00, regs->clear);		/* Clear byte pointer flip-flop */
 	outb_p(bits | mode, regs->mode);	/* Set mode */
-	outb_p(addr >> 0, regs->addr);		/* Address low */
-	outb_p(addr >> 8, regs->addr);		/* Address high */
-	outb_p(addr >> 16, regs->page);		/* Page address */
+	outb_p(paddr >> 0, regs->addr);		/* Address low */
+	outb_p(paddr >> 8, regs->addr);		/* Address high */
+	outb_p(paddr >> 16, regs->page);	/* Page address */
 	outb_p(0x00, regs->clear);		/* Clear byte pointer flip-flop */
 	outb_p(count >> 0, regs->count);	/* Count low */
 	outb_p(count >> 8, regs->count);	/* Count high */
@@ -207,7 +218,7 @@ dma_stop(int handle)
 
 	ASSERT(handle);
 	irq_lock();
-	chan = dma->chan;
+	chan = (u_int)dma->chan;
 
 	bits = (chan < 4) ? chan : chan >> 2;
 	outb_p(bits | 0x04, dma_regs[chan].mask);	/* Disable channel */
@@ -235,17 +246,17 @@ dma_alloc(size_t size)
 	 * Try to allocate temporary buffer for enough size (64K + size).
 	 */
 	size = (size_t)PAGE_ALIGN(size);
-	tmp = page_alloc(DMA_MAX + size);
+	tmp = page_alloc((size_t)(DMA_MAX + size));
 	if (!tmp) {
 		irq_unlock();
 		return NULL;
 	}
-	page_free(tmp, DMA_MAX + size);
+	page_free(tmp, (size_t)(DMA_MAX + size));
 
 	/*
 	 * Now, we know the free address with 64k boundary.
 	 */
-	base = (void *)DMA_ALIGN((u_long)tmp);
+	base = (void *)DMA_ALIGN((paddr_t)tmp);
 	page_reserve(base, size);
 
 	/* Restore interrupts */

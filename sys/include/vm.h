@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,8 @@
 #ifndef _VM_H
 #define _VM_H
 
-#include <arch.h>
+#include <sys/cdefs.h>
+#include <arch.h>	/* for pgd_t */
 
 /*
  * One structure per allocated region.
@@ -40,11 +41,11 @@ struct region {
 	struct region	*next;
 	struct region	*sh_prev;	/* link for all shared region */
 	struct region	*sh_next;
-	u_long		addr;		/* base address */
+	void		*addr;		/* base address */
 	size_t		size;		/* size */
 	int		flags;		/* flag */
 #ifdef CONFIG_MMU
-	u_long		phys;		/* physical address */
+	void		*phys;		/* physical address */
 #endif
 };
 
@@ -61,7 +62,7 @@ struct region {
  */
 struct vm_map {
 	struct region	head;		/* list head of regions */
-	int		ref_count;	/* reference count */
+	int		refcnt;		/* reference count */
 	pgd_t		pgd;		/* page directory */
 };
 
@@ -70,19 +71,20 @@ struct vm_map {
 #define VMA_WRITE	0x02
 #define VMA_EXEC	0x04
 
-extern int	 vm_allocate(task_t, void **, size_t, int);
-extern int	 vm_free(task_t, void *);
-extern int	 vm_attribute(task_t, void *, int);
-extern int	 vm_map(task_t, void *, size_t, void **);
-extern vm_map_t	 vm_fork(vm_map_t);
-extern vm_map_t	 vm_create(void);
-extern int	 vm_reference(vm_map_t);
-extern void	 vm_terminate(vm_map_t);
-extern void	 vm_switch(vm_map_t);
-extern int	 vm_load(vm_map_t, struct module *, void **);
-extern void	*vm_translate(void *, size_t);
-extern int	 vm_access(void *, size_t, int);
-extern void	 vm_dump(void);
-extern void	 vm_init(void);
+__BEGIN_DECLS
+int	 vm_allocate(task_t, void **, size_t, int);
+int	 vm_free(task_t, void *);
+int	 vm_attribute(task_t, void *, int);
+int	 vm_map(task_t, void *, size_t, void **);
+vm_map_t vm_fork(vm_map_t);
+vm_map_t vm_create(void);
+int	 vm_reference(vm_map_t);
+void	 vm_terminate(vm_map_t);
+void	 vm_switch(vm_map_t);
+int	 vm_load(vm_map_t, struct module *, void **);
+void	*vm_translate(void *, size_t);
+void	 vm_dump(void);
+void	 vm_init(void);
+__END_DECLS
 
 #endif /* !_VM_H */

@@ -32,27 +32,30 @@
  *	@(#)local.h	8.3 (Berkeley) 7/3/94
  */
 
+#include <sys/cdefs.h>
+
 /*
  * Information local to this implementation of stdio,
  * in particular, macros and private variables.
  */
 
-extern int	__sflush(FILE *);
-extern FILE	*__sfp(void);
-extern int	__srefill(FILE *);
-extern int	__sread(FILE *, char *, int);
-extern int	__swrite(FILE *, char const *, int);
-extern fpos_t	__sseek(FILE *, fpos_t, int);
-extern int	__sclose(FILE *);
-extern void	__sinit(void);
-extern void	_cleanup(void);
-extern void	(*__cleanup)(void);
-extern void	__smakebuf(FILE *);
-extern int	_fwalk(int (*)(FILE *));
-extern int	__swsetup(FILE *);
-extern int	__sflags(const char *, int *);
-
-extern int	__sdidinit;
+__BEGIN_DECLS
+int	__sflush(FILE *);
+FILE	*__sfp(void);
+int	__srefill(FILE *);
+int	__sread(FILE *, char *, int);
+int	__swrite(FILE *, char const *, int);
+fpos_t	__sseek(FILE *, fpos_t, int);
+int	__sclose(FILE *);
+void	__sinit(void);
+void	_cleanup(void);
+void	(*__cleanup)(void);
+void	__smakebuf(FILE *);
+int	_fwalk(int (*)(FILE *));
+int	__swsetup(FILE *);
+int	__sflags(const char *, int *);
+int	__sdidinit;
+__END_DECLS
 
 /*
  * Return true iff the given FILE cannot be written now.

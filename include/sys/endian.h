@@ -46,15 +46,11 @@
 #define	BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
 
-#include <conf/config.h>
+#include <machine/endian.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#ifdef CONFIG_BIG_ENDIAN
-#define	BYTE_ORDER	BIG_ENDIAN
-#else
-#define	BYTE_ORDER	LITTLE_ENDIAN
-#endif
+#define	BYTE_ORDER	_BYTE_ORDER
 
 __BEGIN_DECLS
 uint32_t htonl(uint32_t);

@@ -23,5 +23,5 @@ OBJS+=	$(SRCDIR)/usr/arch/$(ARCH)/_systrap.o \
 	sem_init.o sem_destroy.o sem_trywait.o sem_post.o sem_getvalue.o \
 	_sem_wait.o sem_wait.o \
 	sys_log.o sys_info.o sys_panic.o sys_time.o \
-	_sys_debug.o sys_debug.o
+	sys_debug.o
 

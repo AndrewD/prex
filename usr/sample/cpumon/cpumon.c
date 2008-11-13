@@ -56,7 +56,7 @@ main(int argc, char *argv[])
 	printf("\33[2J");
 
 	printf("CPU voltage monitor\n");
-	device_ioctl(cpu_dev, CPUIOC_GET_INFO, (u_long)&cpu_info);
+	device_ioctl(cpu_dev, CPUIOC_GET_INFO, &cpu_info);
 	if (cpu_info.clock_ctrl == 0)
 		panic("DVS not supported by cpu");
 	if (cpu_info.speed == 0 || cpu_info.power == 0)
@@ -71,7 +71,7 @@ main(int argc, char *argv[])
 		 * Wait next period
 		 */
 		timer_waitperiod();
-		device_ioctl(cpu_dev, CPUIOC_GET_STAT, (u_long)&cpu_stat);
+		device_ioctl(cpu_dev, CPUIOC_GET_STAT, &cpu_stat);
 		if (cpu_stat.speed != last_mhz) {
 			printf("\33[s"); /* save cursor */
 

@@ -23,7 +23,7 @@
           <td id="logo">
             <a href="http://prex.sourceforge.net/">
             <img alt="Prex logo" src="../img/logo.gif" border="0"
-            style="width: 281px; height: 56px;"></a>
+            style="width: 250px; height: 54px;"></a>
           </td>
           <td id="brief" align="right" valign="bottom">
             An Open Source, Royalty-free,<br>
@@ -43,10 +43,10 @@
     <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
-      <td id="main" style="vertical-align: top;">
+      <td id="doc" style="vertical-align: top;">
       <h1>Prex Driver-Kernel Interface</h1>
 
-<i>Version 1.0.2, 2007/12/23</i><br>
+<i>Version 1.0.3, 2008/10/13</i><br>
 <br>
 
 <h3>Table of Contents</h3>
@@ -56,6 +56,7 @@
 <ul>
   <li><a href="#gen">General Information</a>
   <ul>
+    <li><a href="#gen">Header File</a></li>
     <li><a href="#gen">Data Types</a></li>
     <li><a href="#gen">Calls from ISR</a></li>
   </ul>
@@ -65,7 +66,7 @@
   <li><a href="#obj">Device Object</a>
   <ul>
     <li><a href="#obj">device_create</a></li>
-    <li><a href="#obj">device_delete</a></li>
+    <li><a href="#obj">device_destroy</a></li>
     <li><a href="#obj">device_broadcast</a></li>
   </ul>
   </li>
@@ -132,14 +133,16 @@
 <ul>
   <li><a href="#misc">Miscellaneous</a>
   <ul>
-    <li><a href="#misc">task_capable</a></li>
     <li><a href="#misc">exception_post</a></li>
+    <li><a href="#misc">machine_bootinfo</a></li>
+    <li><a href="#misc">machine_reset</a></li>
+    <li><a href="#misc">machine_setpower</a></li>
+    <li><a href="#misc">machine_halt</a></li>
     <li><a href="#misc">phys_to_virt</a></li>
     <li><a href="#misc">virt_to_phys</a></li>
-    <li><a href="#misc">machine_reset</a></li>
-    <li><a href="#misc">machine_dump</a></li>
     <li><a href="#misc">debug_attach</a></li>
-    <li><a href="#misc">printk</a></li>
+    <li><a href="#misc">debug_dump</a></li>
+    <li><a href="#misc">printf</a></li>
     <li><a href="#misc">panic</a></li>
   </ul>
   </li>
@@ -160,6 +163,18 @@ used by device drivers.
 </p>
 
 <h2 id="gen">General Information</h2>
+
+
+<h3 id="hf">Header File</h3>
+<p>
+The Prex driver header file provides
+common driver services in the kernel. A device driver must
+include this header file to use the driver-kernel interface.
+</p>
+<pre>
+#include &lt;driver.h&gt;
+</pre>
+
 
 <h3>Data Types</h3>
 <p>
@@ -206,7 +221,7 @@ from the interrupt service routine.
   <li>sched_wakeup()</li>
   <li>sched_dpc()</li>
   <li>exception_post()</li>
-  <li>printk()</li>
+  <li>printf()</li>
   <li>panic()</li>
   <li>machine_reset()</li>
   <li>machine_dump()</li>
@@ -222,7 +237,7 @@ physical device. And, it can also be used to handle logical or virtual devices.
 
 <pre>
 device_t device_create(const struct devio *io, const char *name, int flags);
-int device_delete(device_t dev);
+int device_destroy(device_t dev);
 int device_broadcast(int event, int force);
 </pre>
 
@@ -233,25 +248,19 @@ Creates device object with the specified name in <i>name</i>.
 The <i>io</i> argument points to the device I/O table for the device object.
 This function returns the ID of the created device object on success, or
 0 on failure.
-<pre>
-/*
- * Device object
- */
-typedef int *device_t;
-</pre>
+<p>
 All device object has its associated device I/O table. The table defines
 the function pointer for the corresponding request routines.
+The definition of device I/O table is as follows:
+</p>
 <pre>
-/*
- * Device I/O table
- */
 struct devio {
-    int     (*open)(device_t dev, int mode);
-    int     (*close)(device_t dev);
-    int     (*read)(device_t dev, char *buf, u_long *size, u_long offset);
-    int     (*write)(device_t dev, char *buf, u_long *size, u_long offset);
-    int     (*ioctl)(device_t dev, int cmd, u_long arg);
-    int     (*event)(device_t dev, int event);
+        int     (*open)(device_t dev, int mode);
+        int     (*close)(device_t dev);
+        int     (*read)(device_t dev, char *buf, u_long *size, u_long offset);
+        int     (*write)(device_t dev, char *buf, u_long *size, u_long offset);
+        int     (*ioctl)(device_t dev, int cmd, u_long arg);
+        int     (*event)(device_t dev, int event);
 };
 </pre>
 The driver can specify the one same I/O table for the different device
@@ -262,7 +271,7 @@ which device object.
 </dl>
 
 <dl>
-<dt>device_delete()</dt>
+<dt>device_destroy()</dt>
 <dd>
 Deletes the device object specified in <i>dev</i>.
 This function returns ENODEV if the specified device object does not exist.
@@ -331,7 +340,7 @@ int umem_strnlen(const char *uaddr, size_t maxlen, size_t *len);
 </pre>
 
 <dl>
-<dt>umem_copyin</dt>
+<dt>umem_copyin()</dt>
 <dd>
 Copies the data from the user buffer to the kernel area.
 Returns 0 on success, or EFAULT on failure.
@@ -339,7 +348,7 @@ Returns 0 on success, or EFAULT on failure.
 </dl>
 
 <dl>
-<dt>umem_copyout</dt>
+<dt>umem_copyout()</dt>
 <dd>
 Copies the data from the kernel buffer to the user area.
 Returns 0 on success, or EFAULT on failure.
@@ -347,7 +356,7 @@ Returns 0 on success, or EFAULT on failure.
 </dl>
 
 <dl>
-<dt>umem_strnlen</dt>
+<dt>umem_strnlen()</dt>
 <dd>
 Gets the length of specified string in <i>uaddr</i>.
 Returns 0 on success, or EFAULT on failure.
@@ -409,25 +418,22 @@ void irq_unlock(void);
 <dd>
 Attaches to the <i>ISR</i> (interrupt service request) and <i>ist</i>
 (interrupt service thread) to the interrupt vector specified in <i>irqno</i>.
-The argument <i>prio</i> is the logical interrupt priority level. The smaller
-priority value is higher priority for interrupt processing.
+The argument <i>prio</i> is the logical interrupt priority level. The
+priority value 0 is lowest priority for interrupt processing.
 The caller can specify one of the following interrupt priority levels.
 <pre>
-/*
- * Interrupt priority levels
- */
-#define IPL_NONE	0	/* Nothing */
-#define IPL_COMM	1	/* Serial, Parallel */
-#define IPL_BLOCK	2	/* FDD, IDE */
-#define IPL_NET		3	/* Network */
-#define IPL_DISPLAY	4	/* Screen */
-#define IPL_INPUT	5	/* Keyboard, Mouse */
-#define IPL_AUDIO	6	/* Audio */
-#define IPL_BUS		7	/* USB, PCCARD */
-#define IPL_RTC		8	/* RTC Alarm */
-#define IPL_PROFILE	9	/* Profiling timer */
-#define IPL_CLOCK	10	/* System Clock Timer */
-#define IPL_HIGH	11	/* Everything */
+#define IPL_NONE        0       /* Nothing */
+#define IPL_COMM        1       /* Serial, Parallel */
+#define IPL_BLOCK       2       /* FDD, IDE */
+#define IPL_NET         3       /* Network */
+#define IPL_DISPLAY     4       /* Screen */
+#define IPL_INPUT       5       /* Keyboard, Mouse */
+#define IPL_AUDIO       6       /* Audio */
+#define IPL_BUS         7       /* USB, PCCARD */
+#define IPL_RTC         8       /* RTC Alarm */
+#define IPL_PROFILE     9       /* Profiling timer */
+#define IPL_CLOCK       10      /* System Clock Timer */
+#define IPL_HIGH        11      /* Everything */
 </pre>
 If <i>shared</i> argument is true, the kernel allows the other irq owner
 to attach to the same irq vector.
@@ -496,13 +502,13 @@ the thread switch is enabled again.
 Sleep the current thread until specified event occurs.
 The caller can specify <i>timeout</i> value in msec.
 If the <i>timeout</i> value is 0, the timeout timer does not work.
+<p>
+The definition of the event for sleep/wakeup is as follows:
+</p>
 <pre>
-/*
- * Event for sleep/wakeup
- */
 struct event {
-    struct queue    sleepq;         /* Queue for waiting thread */
-    char            *name;          /* Event name */
+        struct queue    sleepq;         /* Queue for waiting thread */
+        char            *name;          /* Event name */
 };
 </pre>
 </dd>
@@ -519,15 +525,15 @@ Wakes up all threads that are waiting for the specified event.
 <dt>sched_dpc()</dt>
 <dd>
 Programs DPC (Deferred Procedure Call).
+<p>
+The definition of the DPC object is as follows:
+</p>
 <pre>
-/*
- * DPC object
- */
 struct dpc {
-	struct queue	link;		/* Linkage on DPC queue */
-	int		state;
-	void		(*func)(void *); /* Call back routine */
-	void		*arg;		/* Argument to pass */
+        struct queue    link;           /* Linkage on DPC queue */
+        int             state;
+        void            (*func)(void *); /* Call back routine */
+        void            *arg;           /* Argument to pass */
 };
 </pre>
 </dd>
@@ -549,18 +555,18 @@ int    timer_hook(void (*func)(int));
 Requests a call out timer. The specified <i>func</i> routine will be
 called with <i>arg</i> argument after <i>msec</i>. The caller must
 allocate the memory for the timer structure for <i>tmr</i>.
+<p>
+The definition of the timer structure is as follows:
+</p>
 <pre>
-/*
- * Timer structure
- */
 struct timer {
-    struct list link;           /* Linkage on timer chain */
-    int         active;         /* True if active */
-    u_long      expire;         /* Expire time (ticks) */
-    u_long      interval;       /* Time interval */
-    void        (*func)(void *); /* Function to call */
-    void        *arg;           /* Function argument */
-    struct event event;         /* Event for this timer */
+        struct list link;           /* Linkage on timer chain */
+        int         active;         /* True if active */
+        u_long      expire;         /* Expire time (ticks) */
+        u_long      interval;       /* Time interval */
+        void (*func)(void *);       /* Function to call */
+        void        *arg;           /* Function argument */
+        struct event event;         /* Event for this timer */
 };
 </pre>
 </dd>
@@ -598,29 +604,47 @@ Installs a hook routine for the timer tick.
 
 <h2 id="misc">Miscellaneous</h2>
 <pre>
-int   task_capable(task_t task);
 int   exception_post(task_t task, int exc);
+void  machine_bootinfo(struct bootinfo **pbi);
+void  machine_reset(void);
+void  machine_halt(void);
+void  machine_setpower(int);
 void *phys_to_virt(void *p_addr);
 void *virt_to_phys(void *v_addr);
-void  machine_reset(void);
-void  machine_dump(int index);
+void  debug_dump(int index);
 void  debug_attach(void (*func)(char *));
-void  printk(const char *fmt, ...);
+void  printf(const char *fmt, ...);
 void  panic(const char *fmt, ...);
 </pre>
-
-
-<dl>
-<dt>task_capable()</dt>
-<dd>
-Checks the task capability for the speciifed item.
-</dd>
-</dl>
 
 <dl>
 <dt>exception_post()</dt>
 <dd>
 Posts an exception for the specific task.
+</dd>
+</dl>
+
+<dl>
+<dt>machine_bootinfo()</dt>
+<dd>
+Returns the pointer to the system boot infomation structure.
+<p>
+ The format of the boot information is as follows:
+</p>
+<pre>
+struct bootinfo
+{
+        struct vidinfo  video;
+        struct physmem  ram[NMEMS];     /* physical ram table */
+        int             nr_rams;        /* number of ram blocks */
+        struct physmem  bootdisk;       /* boot disk in memory */
+        int             nr_tasks;       /* number of boot tasks */
+        struct module   kernel;         /* kernel image */
+        struct module   driver;         /* driver image */
+        struct module   tasks[1];       /* boot tasks image */
+};
+</pre>
+
 </dd>
 </dl>
 
@@ -632,9 +656,16 @@ Resets the system.
 </dl>
 
 <dl>
-<dt>machine_dump()</dt>
+<dt>machine_halt()</dt>
 <dd>
-Dumps the system information for debug.
+Halts the system.
+</dd>
+</dl>
+
+<dl>
+<dt>machine_setpower()</dt>
+<dd>
+Set the system power.
 </dd>
 </dl>
 
@@ -653,14 +684,21 @@ Return the mapped physical address from specifid virtual address.
 </dl>
 
 <dl>
-<dt>debug_attach()</dt>
+<dt>debug_dump()</dt>
 <dd>
-Attaches to the external output routine for the printk().
+Dumps the system information for debug.
 </dd>
 </dl>
 
 <dl>
-<dt>printk()</dt>
+<dt>debug_attach()</dt>
+<dd>
+Attaches to the external output routine for the printf().
+</dd>
+</dl>
+
+<dl>
+<dt>printf()</dt>
 <dd>
 Prints the driver message to the output device.
 The message is enabled only with debugging kernel.

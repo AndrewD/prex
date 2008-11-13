@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
   <title>Architecture Dependent Interface</title>
@@ -23,7 +23,7 @@
           <td id="logo">
             <a href="http://prex.sourceforge.net/">
             <img alt="Prex logo" src="../img/logo.gif" border="0"
-            style="width: 281px; height: 56px;"></a>
+            style="width: 250px; height: 54px;"></a>
           </td>
           <td id="brief" align="right" valign="bottom">
             An Open Source, Royalty-free,<br>
@@ -43,11 +43,11 @@
     <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
-      <td id="main" style="vertical-align: top;">
+      <td id="doc" style="vertical-align: top;">
       <h1>Prex Architecture Dependent Interface</h1>
 
 <p>
-<i>Version 1.0.2, 2007/12/23</i>
+<i>Version 1.1.2, 2008/10/14</i>
 </p>
 
 <h3>Table of Contents</h3>
@@ -58,13 +58,13 @@
   <li><a href="#gen">General Information</a>
   <ul>
     <li><a href="#gen">Data Types</a></li>
+    <li><a href="#gen">Boot Information</a></li>
   </ul>
   </li>
 </ul>
 <ul>
   <li><a href="#context">Context</a>
   <ul>
-    <li><a href="#context">context_init</a></li>
     <li><a href="#context">context_set</a></li>
     <li><a href="#context">context_switch</a></li>
     <li><a href="#context">context_save</a></li>
@@ -127,6 +127,7 @@
     <li><a href="#mach">machine_init</a></li>
     <li><a href="#mach">machine_idle</a></li>
     <li><a href="#mach">machine_reset</a></li>
+    <li><a href="#mach">machine_setpower</a></li>
   </ul>
   </li>
 </ul>
@@ -149,18 +150,26 @@
 The interface for the architecture dependent layer is defined to abstract
 a processor and minimum hardware in the Prex kernel.
 If you want to port the Prex kernel to new architecture or new platform,
-you have to modify the architecture dependent codes properly for
+you have to modify the architecture dependent codes appropriately for
 your target system. 
 </p>
 <p>
-Some functions are optional on the specific target.
+<img alt="Architecture Dependent Interface" src="img/arch.gif" border="1"
+style="width: 404px; height: 287px;"><br>
+
+<i><b>Figure 1. Architecture Dependent Interface</b></i>
+</p>
+
+<p>
+Some functions in this interface are optional on the specific target.
 For example, you don't have to implement the MMU support code if your
 target system does not have a MMU.
 </p>
 <p>
-The interface described here is used only by the kernel code.
-And, it is not defined to provide hardware abstraction for device drivers.
-So, it is different from the layer generally called as HAL (Hardware Abstraction Layer).
+It is important to minimize the number of functions in this interface.
+This is because the porting work will increase if it has many functions.
+So, the functions in this interface are
+limited to minimum functions required to drive the Microkernel.
 </p>
 
 <h2 id="gen">General Information</h2>
@@ -168,9 +177,9 @@ So, it is different from the layer generally called as HAL (Hardware Abstraction
 <h3>Data Types</h3>
 <p>
 The following data types are defined by the architecture dependent layer.
-
 </p>
-<table border="1" width="60%" cellspacing="0">
+
+<table border="1" width="70%" cellspacing="0">
 <tbody>
 <tr>
   <th>Data type</th>
@@ -188,6 +197,37 @@ The following data types are defined by the architecture dependent layer.
 </tbody>
 </table>
 
+
+<h3>Boot Information</h3>
+<p>
+The kernel and device drivers can use "boot information" which includes
+the boot configuration and other system data.
+
+Generally, almost all data in the boot information will be prepared by
+the boot loader before loading a kernel.
+
+In addition, the architecture dependent layer can write data
+into the boot information within machine_init() routine.
+</p>
+<p>
+ The format of the boot information:
+</p>
+<pre>
+struct bootinfo
+{
+        struct vidinfo  video;
+        struct physmem  ram[NMEMS];     /* physical ram table */
+        int             nr_rams;        /* number of ram blocks */
+        struct physmem  bootdisk;       /* boot disk in memory */
+        int             nr_tasks;       /* number of boot tasks */
+        struct module   kernel;         /* kernel image */
+        struct module   driver;         /* driver image */
+        struct module   tasks[1];       /* boot tasks image */
+};
+</pre>
+
+
+
 <h2 id="context">Context</h2>
 <p>
 A context includes processor registers and additional per-thread
@@ -196,21 +236,11 @@ of each architecture/platform. The kernel treats the pointer as a context
 ID and it does not touch the internal data of the context structure.
 </p>
 <pre>
-void context_init(context_t ctx, u_long kstack);
-void context_set(context_t ctx, int type, void *val);
+void context_set(context_t ctx, int type, vaddr_t val);
 void context_switch(context_t prev, context_t next);
-void context_save(context_t ctx, int exc);
-void context_restore(context_t ctx, void *regs);
+void context_save(context_t ctx);
+void context_restore(context_t ctx);
 </pre>
-
-<dl>
-<dt>context_init()</dt>
-<dd>
-Initializes the context identified by <i>ctx</i>.
-It fills some processor registers with known default values. The
-kernel stack pointer is set as <i>kstack</i> value.
-</dd>
-</dl>
 
 <dl>
 <dt>context_set()</dt>
@@ -218,10 +248,12 @@ kernel stack pointer is set as <i>kstack</i> value.
 Sets data <i>val</i> to the specific registers in <i>ctx</i>.
 The <i>type</i> is one of the following register type.
 <ul>
-  <li>CTX_UENTRY - Set the user mode entry address.</li>
-  <li>CTX_USTACK - Set the user mode stack address.</li>
+  <li>CTX_KSTACK - Set the kernel mode stack address.</li>
   <li>CTX_KENTRY - Set the kernel mode entry address.</li>
   <li>CTX_KARG   - Set the kernel mode argument.</li>
+  <li>CTX_UENTRY - Set the user mode entry address.</li>
+  <li>CTX_USTACK - Set the user mode stack address.</li>
+  <li>CTX_UARG   - Set the user mode argument.</li>
 </ul>
 </dd>
 </dl>
@@ -238,8 +270,7 @@ context pointed by <i>next</i>.
 <dt>context_save()</dt>
 <dd>
 Saves the current user mode context to the thread local stack.
-This is used to handle an exception, and the exception number is
-stored in <i>exc</i>.
+This is used to handle an exception.
 </dd>
 </dl>
 
@@ -247,7 +278,7 @@ stored in <i>exc</i>.
 <dt>context_restore()</dt>
 <dd>
 Restores the saved user mode context to the
-specified context. The pointer to user mode registers is specified by <i>reg</i>.
+specified context.
 </dd>
 </dl>
 
@@ -332,7 +363,7 @@ mmu_init() and mmu_switch() must be defined as NULL macro.
 </p>
 
 <pre>
-void  mmu_init(void);
+void  mmu_init(struct mmumap *mmumap_table);
 int   mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type);
 pgd_t mmu_newmap(void);
 void  mmu_delmap(pgd_t pgd);
@@ -356,6 +387,8 @@ virtual address <i>virt</i>. <i>type</i> is one of the following mapping type.
   <li>PG_UNMAP - Remove mapping</li>
   <li>PG_READ - Read only mapping</li>
   <li>PG_WRITE - Read/write are allowed</li>
+  <li>PG_SYSTEM - System memory</li>
+  <li>PG_IOMEM - I/O memory</li>
 </ul>
 It returns 0 on success, or -1 on failure.
 </dd>
@@ -472,6 +505,7 @@ Puts the message specified by <i>buf</i> to the output device.
 void machine_init(void);
 void machine_idle(void);
 void machine_reset(void);
+void machine_setpower(int state);
 </pre>
 
 <dl>
@@ -492,6 +526,17 @@ Sets the system to the low power mode until any interrupt occurs.
 <dt>machine_reset()</dt>
 <dd>
 Resets the system.
+</dd>
+</dl>
+
+<dl>
+<dt>machine_setpower()</dt>
+<dd>
+Set the system power state.
+    <ul>
+      <li>POW_SUSPEND - Suspend</li>
+      <li>POW_OFF - Power off</li>
+    </ul>
 </dd>
 </dl>
 

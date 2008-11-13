@@ -91,11 +91,4 @@ struct __timeval {
 	long	tv_usec;	/* and microseconds */
 };
 
-
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-int	ioctl(int, unsigned long, ...);
-__END_DECLS
-
 #endif /* !_PREX_IOCTL_H */

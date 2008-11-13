@@ -30,11 +30,13 @@
 #ifndef _KMEM_H
 #define _KMEM_H
 
-extern void	*kmem_alloc(size_t);
-extern void	 kmem_free(void *);
-extern void	*kmem_map(void *, size_t);
-extern void	 kmem_info(size_t *);
-extern void	 kmem_dump(void);
-extern void	 kmem_init(void);
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+void	*kmem_alloc(size_t);
+void	 kmem_free(void *);
+void	*kmem_map(void *, size_t);
+void	 kmem_init(void);
+__END_DECLS
 
 #endif /* !_KMEM_H */

@@ -47,7 +47,9 @@ extern struct sigaction __sig_act[NSIG];
 extern sigset_t __sig_mask;
 extern sigset_t __sig_pending;
 
-extern int __sig_flush(void);
+__BEGIN_DECLS
+int __sig_flush(void);
+__END_DECLS
 
 #endif	/* KERNEL */
 #endif	/* !_PREX_POSIX_H */

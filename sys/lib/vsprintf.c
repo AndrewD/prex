@@ -34,12 +34,12 @@
 #include <kernel.h>
 #include <sys/types.h>
 
-#define isdigit(c)  ((unsigned)((c) - '0') < 10)
+#define isdigit(c)  ((u_int)((c) - '0') < 10)
 
-static int
+static u_long
 divide(long *n, int base)
 {
-	int res;
+	u_long res;
 
 	res = ((u_long)*n) % base;
 	*n = ((u_long)*n) / base;

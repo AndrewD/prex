@@ -162,27 +162,15 @@ CODE facilitynames[] = {
 
 #ifndef KERNEL
 
-/*
- * Don't use va_list in the vsyslog() prototype.   Va_list is typedef'd in two
- * places (<machine/varargs.h> and <machine/stdarg.h>), so if we include one
- * of them here we may collide with the utility's includes.  It's unreasonable
- * for utilities to have to include one of them to include syslog.h, so we get
- * _BSD_VA_LIST_ from <machine/ansi.h> and use it.
- */
-#include <machine/ansi.h>
+#include <machine/stdarg.h>
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 void	closelog(void);
 void	openlog(const char *, int, int);
 int	setlogmask(int);
-#ifdef DEBUG
 void	syslog(int, const char *, ...);
-void	vsyslog(int, const char *, _BSD_VA_LIST_);
-#else
-#define syslog(fmt...)
-#define vsyslog(fmt,valist)
-#endif
+void	vsyslog(int, const char *, va_list);
 __END_DECLS
 
 #endif /* !KERNEL */

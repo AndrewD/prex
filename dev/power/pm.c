@@ -33,19 +33,17 @@
 
 #include <sys/ioctl.h>
 #include <driver.h>
-#include <machdep.h>
 #include <event.h>
 #include <pm.h>
-#include "dvs.h"
+#include <cpufreq.h>
 
 /* #define DEBUG_PM 1 */
 
 #ifdef DEBUG_PM
-#define pm_printf(fmt, args...)	printk("pm: " fmt, ## args)
+#define DPRINTF(a) printf a
 #else
-#define pm_printf(fmt...)	do {} while (0)
+#define DPRINTF(a)
 #endif
-
 
 #ifdef CONFIG_PM_POWERSAVE
 #define DEFAULT_POWER_POLICY	PM_POWERSAVE
@@ -54,7 +52,7 @@
 #endif
 
 static int pm_open(device_t dev, int mode);
-static int pm_ioctl(device_t dev, int cmd, u_long arg);
+static int pm_ioctl(device_t dev, u_long cmd, void *arg);
 static int pm_close(device_t dev);
 static int pm_init(void);
 
@@ -67,6 +65,9 @@ struct driver pm_drv = {
 	/* init */	pm_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio pm_io = {
 	/* open */	pm_open,
 	/* close */	pm_close,
@@ -100,11 +101,11 @@ pm_suspend(void)
 {
 	int err;
 
-	pm_printf("Suspend system\n");
+	DPRINTF(("Suspend system\n"));
 	err = device_broadcast(EVT_SUSPEND, 1);
 	if (err)
 		return err;
-	machine_suspend();
+	machine_setpower(POW_SUSPEND);
 	return 0;
 }
 
@@ -114,7 +115,8 @@ pm_suspend(void)
 int
 pm_resume(void)
 {
-	pm_printf("Resume system\n");
+
+	DPRINTF(("Resume system\n"));
 	device_broadcast(EVT_RESUME, 1);
 	return 0;
 }
@@ -128,11 +130,13 @@ pm_poweroff(void)
 {
 	int err;
 
-	pm_printf("Power off...\n");
+#ifdef DEBUG
+	printf("power off...\n");
+#endif
 	err = device_broadcast(EVT_SHUTDOWN, 1);
 	if (err)
 		return err;
-	machine_poweroff();
+	machine_setpower(POW_OFF);
 	return 0;
 }
 
@@ -144,7 +148,9 @@ pm_reboot(void)
 {
 	int err;
 
-	pm_printf("rebooting...\n");
+#ifdef DEBUG
+	printf("rebooting...\n");
+#endif
 	err = device_broadcast(EVT_SHUTDOWN, 1);
 	if (err)
 		return err;
@@ -159,10 +165,10 @@ pm_reboot(void)
 }
 
 /*
- * Idle timer handler
+ * Idle timer handler.
  */
 static void
-idle_timeout(u_long dummy)
+idle_timeout(void *arg)
 {
 
 	irq_lock();
@@ -171,19 +177,20 @@ idle_timeout(u_long dummy)
 	if (idle_count >= suspend_timeout)
 		pm_suspend();
 	else
-		timer_callout(&idle_timer, idle_timeout, 0, 1000);
+		timer_callout(&idle_timer, 1000, &idle_timeout, NULL);
 }
 
+#if 0
 /*
- * Set suspend timer
+ * Set suspend timer.
  */
-int
+static int
 pm_settimer(u_long sec)
 {
 
 	sched_lock();
 	if (sec)
-		timer_callout(&idle_timer, idle_timeout, 0, 1000);
+		timer_callout(&idle_timer, 1000, &idle_timeout, NULL);
 	else
 		timer_stop(&idle_timer);
 	idle_count = 0;
@@ -193,28 +200,34 @@ pm_settimer(u_long sec)
 }
 
 /*
- * Get power management timer
+ * Get power management timer.
  */
-int
+static int
 pm_gettimer(u_long *sec)
 {
 
 	*sec = suspend_timeout;
 	return 0;
 }
+#endif
 
 /*
- * Reload idle timer
+ * Reload idle timer.
+ *
+ * A keyboard or mouse driver will call this routine when
+ * it detect the user activity like key press or mouse move.
  */
 void
 pm_active(void)
 {
 
+	irq_lock();
 	idle_count = 0;
+	irq_unlock();
 }
 
 /*
- * Set power policy
+ * Set power policy.
  */
 static int
 pm_setpolicy(int policy)
@@ -230,7 +243,7 @@ pm_setpolicy(int policy)
 }
 
 /*
- * Get current power policy
+ * Get current power policy.
  */
 int
 pm_getpolicy(void)
@@ -268,14 +281,17 @@ pm_close(device_t dev)
 }
 
 static int
-pm_ioctl(device_t dev, int cmd, u_long arg)
+pm_ioctl(device_t dev, u_long cmd, void *arg)
 {
 	int err = 0;
-	int policy;
+	int policy, subcmd;
 
 	switch (cmd) {
 	case PMIOC_SET_POWER:
-		switch (arg) {
+		if (umem_copyin(arg, &subcmd, sizeof(int)))
+			return EFAULT;
+
+		switch (subcmd) {
 		case POWER_SUSPEND:
 			pm_suspend();
 			break;
@@ -289,12 +305,16 @@ pm_ioctl(device_t dev, int cmd, u_long arg)
 			return EINVAL;
 		}
 		break;
+
 	case PMIOC_SET_POLICY:
-		err = pm_setpolicy((int)arg);
+		if (umem_copyin(arg, &policy, sizeof(int)))
+			return EFAULT;
+		err = pm_setpolicy(policy);
 		break;
+
 	case PMIOC_GET_POLICY:
 		policy = pm_getpolicy();
-		if (umem_copyout(&policy, (int *)arg, sizeof(int)))
+		if (umem_copyout(&policy, arg, sizeof(int)))
 			return EFAULT;
 		break;
 	default:
@@ -319,7 +339,9 @@ pm_init(void)
 	suspend_timeout = 0;
 	power_policy = DEFAULT_POWER_POLICY;
 	timer_init(&idle_timer);
-	printk("pm: Default power policy is %s mode\n",
+#ifdef DEBUG
+	printf("pm: Default power policy is %s mode\n",
 	       (power_policy == PM_POWERSAVE) ? "power save" : "performance");
+#endif
 	return 0;
 }

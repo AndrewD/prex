@@ -27,8 +27,10 @@
  * SUCH DAMAGE.
  */
 
+#include <drvlib.h>
+
 /*
- * Convert string to long interger
+ * Convert string to long integer
  * This version does not support minus value.
  */
 long

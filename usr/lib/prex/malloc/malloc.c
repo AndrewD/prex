@@ -27,11 +27,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <prex/prex.h>
 #include <sys/param.h>
 #include <sys/syslog.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "malloc.h"
 
 #ifdef _REENTRANT
@@ -169,9 +171,9 @@ mstat(void)
 {
 	struct header *p;
 
-	syslog(LOG_INFO, "mstat: task=%x\n", task_self());
+	printf("mstat: task=%x\n", task_self());
 	for (p = free_list.next; p != &free_list; p = p->next) {
-		syslog(LOG_INFO, "mstat: addr=%x size=%d next=%x\n", p, p->size, p->next);
+		printf("mstat: addr=%x size=%d next=%x\n", p, p->size, p->next);
 	}
 }
 #endif

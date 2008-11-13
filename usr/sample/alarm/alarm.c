@@ -62,7 +62,7 @@ static u_long start_tick;
  * Re-program alarm timer as count * 200msec.
  */
 static void
-alarm_handler(int code, void *regs)
+alarm_handler(int code)
 {
 	u_long tick;
 
@@ -77,7 +77,7 @@ alarm_handler(int code, void *regs)
 		printf("Ring! count=%d time=%d msec\n", count,
 		       (u_int)((tick - start_tick) * 1000 / hz));
 	}
-	exception_return(regs);
+	exception_return();
 }
 
 int

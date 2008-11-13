@@ -7,10 +7,16 @@ CFLAGS+=	$(INCLUDE) -nostdinc -D_STANDALONE
 CPPFLAGS+=	$(INCLUDE) -nostdinc -D_STANDALONE
 LDFLAGS+=	-static $(USR_LDFLAGS)
 
-LD_SCRIPT=	$(SRCDIR)/usr/arch/$(ARCH)/$(ARCH)-$(PLATFORM).ld
 LIBC=		$(SRCDIR)/usr/lib/libsa.a
 CRT0=		$(SRCDIR)/usr/lib/crt0.o
 TYPE=		EXEC
+
+ifeq ($(CONFIG_MMU), y)
+LD_SCRIPT=	$(SRCDIR)/usr/arch/$(ARCH)/user.ld
+else
+LD_SCRIPT=	$(SRCDIR)/usr/arch/$(ARCH)/user-nommu.ld
+LDFLAGS+=	--relocatable -d
+endif
 
 ifdef TASK
 TARGET ?= $(TASK)

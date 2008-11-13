@@ -31,6 +31,8 @@
  * stdlib.c - minimum standard library
  */
 
+#include <boot.h>
+
 /*
  * Convert string to long interger
  * This version does not support minus value.

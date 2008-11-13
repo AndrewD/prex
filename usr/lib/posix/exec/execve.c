@@ -40,7 +40,7 @@
 /*
  * Note:
  *
- * The state after exec() are as follow.
+ * The state after exec() are as follows:
  * - Opened file descriptors remain open except FD_CLOEXEC flag is set.
  * - Opened directory streams are closed
  * - Signals set to the default action.
@@ -109,7 +109,6 @@ execve(char *path, char *argv[], char *envp[])
 	/*
 	 * If exec() request is done successfully, control never comes here.
 	 */
-	
 	errno = 0;
 	if (err)
 		errno = EIO;

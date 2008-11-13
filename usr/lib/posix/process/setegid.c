@@ -36,6 +36,7 @@ setegid(gid_t egid)
 
 	if (egid == 1)
 		return 0;
-	errno = EINVAL;
+
+	errno = EPERM;
 	return -1;
 }

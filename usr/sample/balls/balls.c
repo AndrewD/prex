@@ -27,8 +27,13 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * ball.c - move many balls within screen.
+ */
+
 #include <prex/prex.h>
-#include <sys/ioctl.h>
+
+#include <termios.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -64,11 +69,9 @@ move_ball(void)
 	int x, y;
 	int delta_x, delta_y;
 	int old_x, old_y;
-	int color;
 
 	/* Get random value for moving speed. */
 	old_x = old_y = 0;
-	color = 31 + (random() % 7);
 	x = random() % max_x;
 	y = random() % max_y;
 	delta_x = (random() % 10) + 1;
@@ -79,7 +82,7 @@ move_ball(void)
 		printf("\33[%d;%dH ", old_y / 10, old_x / 10);
 
 		/* Print ball at new position */
-		printf("\33[%d;%dH\033[%dm*", y / 10, x / 10, color);
+		printf("\33[%d;%dH*", y / 10, x / 10);
 
 		/* Wait 5ms */
 		timer_sleep(5, 0);
@@ -106,7 +109,7 @@ main(int argc, char *argv[])
 
 	/* Get screen size */
 	device_open("console", 0, &cons);
-	if (device_ioctl(cons, TIOCGWINSZ, (u_long)&ws) == 0) {
+	if (device_ioctl(cons, TIOCGWINSZ, &ws) == 0) {
 		rows = ws.ws_row;
 		cols = ws.ws_col;
 	} else {

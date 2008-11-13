@@ -49,9 +49,9 @@ __posix_call(object_t obj, void *msg, size_t size, int restart)
 		return -1;
 	}
 
-	do
+	do {
 		err = msg_send(obj, msg, size);
-	while (err == EINTR && restart);
+	} while (err == EINTR && restart);
 
 	if (err) {
 		errno = (err == EINTR) ? EINTR : ENOSYS;
@@ -59,6 +59,8 @@ __posix_call(object_t obj, void *msg, size_t size, int restart)
 	} else if (((struct msg_header *)msg)->status) {
 		errno = ((struct msg_header *)msg)->status;
 		return -1;
+	} else {
+		/* DO NOTHING */
 	}
 	return 0;
 }

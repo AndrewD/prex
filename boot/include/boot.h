@@ -34,44 +34,50 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/cdefs.h>
-#include <sys/null.h>
 #include <sys/types.h>
 #include <sys/elf.h>
 #include <machine/stdarg.h>
 #include <prex/bootinfo.h>
 
-/* #define DEBUG_BOOT		1 */
-/* #define DEBUG_BOOT_IMAGE	1 */
+#include <elf.h>
+#include <arch.h>
+#include <platform.h>
+#include <syspage.h>
+#include <bootlib.h>
 
-extern u_long load_base;
-extern u_long load_start;
-
-extern struct boot_info *boot_info;
-
-#ifdef DEBUG_BOOT_IMAGE
-#define elf_print(fmt, args...)	printk(fmt, ## args)
-#else
-#define elf_print(fmt...)	do {} while (0)
-#endif
+/* #define DEBUG_BOOTINFO 1 */
+/* #define DEBUG_ELF      1 */
 
 #ifdef DEBUG
-extern void printk(const char *fmt, ...);
+#define DPRINTF(a) printf a
 #else
-#define printk(fmt...)	do {} while (0)
+#define DPRINTF(a)
 #endif
 
-extern int elf_load(char *img, struct module *mod);
-extern void reserve_memory(u_long start, size_t size);
-extern void start_kernel(unsigned int entry, unsigned int boot_info);
-extern int relocate_rel(Elf32_Rel *, Elf32_Addr, char *);
-extern int relocate_rela(Elf32_Rela *, Elf32_Addr, char *);
-extern void panic(const char *msg);
+#ifdef DEBUG_ELF
+#define ELFDBG(a) DPRINTF(a)
+#else
+#define ELFDBG(a)
+#endif
 
-extern char *strncpy(char *dest, const char *src, size_t count);
-extern int strncmp(const char *src, const char *tgt, size_t count);
-extern size_t strnlen(const char *str, size_t count);
-extern void *memcpy(void *dest, const void *src, size_t count);
-extern void *memset(void *dest, int ch, size_t count);
-extern long atol(char *nptr);
+/* Address translation */
+#define phys_to_virt(pa)	(void *)((paddr_t)(pa) + PAGE_OFFSET)
+#define virt_to_phys(va)	(void *)((vaddr_t)(va) - PAGE_OFFSET)
+
+extern paddr_t load_base;
+extern paddr_t load_start;
+extern int nr_img;
+extern struct bootinfo *const bootinfo;
+
+__BEGIN_DECLS
+#ifdef DEBUG
+void	printf(const char *fmt, ...);
+#endif
+void	panic(const char *msg);
+void	setup_image(void);
+int	elf_load(char *img, struct module *mod);
+void	start_kernel(paddr_t entry);
+void	loader_main(void);
+__END_DECLS
 
 #endif /* !_BOOT_H */

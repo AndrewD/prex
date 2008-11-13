@@ -32,13 +32,14 @@
  */
 
 /*
- * The context consists of kernel/user mode registers, and
- * kernel stack. The user mode registers are always saved to the
- * kernel stack when processor enters kernel mode by H/W or S/W events.
+ * The context consists of kernel/user mode registers, and kernel
+ * stack. The user mode registers are always saved to the kernel
+ * stack when processor enters kernel mode by H/W or S/W events.
  *
- * The user mode registers are located in the interrupt/trap frame
- * at the top of the kernel stack. Before the control returns to user
- * mode next time, these register value will be restored automatically.
+ * The user mode registers are located in the interrupt/trap
+ * frame at the top of the kernel stack. Before the control
+ * returns to user mode next time, these register value will be
+ * restored automatically.
  *
  * All thread owns its context to keep its execution state. The
  * scheduler will switch the context to change an active thread.
@@ -49,93 +50,90 @@
 #include <locore.h>
 
 /*
- * Exception frame - stack layout for exception handler
- */
-struct exc_frame {
-	void *ret;		/* Return address */
-	u_long code;		/* Argument 1 */
-	struct cpu_regs *uregs;	/* Argument 2 */
-};
-
-/*
- * Initialize specified context.
- * @ctx: context id (pointer)
- * @kstack: kernel stack for the context
- *
- * All thread will start at syscall_ret().
- * In this time, the interrupt and I/O access are enabled.
- */
-void
-context_init(context_t ctx, u_long kstack)
-{
-	struct kern_regs *k;
-	struct cpu_regs *u;
-
-	ctx->uregs = (struct cpu_regs *)(kstack - sizeof(struct cpu_regs));
-	ctx->esp0 = kstack;
-
-	/* Initialize kernel mode registers */
-	k = &ctx->kregs;
-	k->eip = (u_long)syscall_ret;
-	k->esp = (u_long)ctx->uregs - sizeof(u_long);
-
-	/* Reset minimum user mode registers */
-	u = ctx->uregs;
-	u->eax = 0;
-	u->eflags = EFL_IF | EFL_IOPL_KERN;
-}
-
-/*
- * Set data to the specific register stored in context.
- * @type: register type to be set
- * @val: register value to be set
+ * Set user mode registers into the specific context.
  *
  * Note: When user mode program counter is set, all register
- * values except stack pointer are reset to default value.
+ * values except a stack pointer are reset to default value.
  */
 void
-context_set(context_t ctx, int type, u_long val)
+context_set(context_t ctx, int type, vaddr_t val)
 {
 	struct kern_regs *k;
 	struct cpu_regs *u;
+	uint32_t *argp;
+
+	k = &ctx->kregs;
 
 	switch (type) {
-	case CTX_UENTRY:	/* User mode program counter */
+	case CTX_KSTACK:
+		/* Set kernel mode stack pointer */
+		ctx->uregs = (struct cpu_regs *)
+				((uint32_t)val - sizeof(struct cpu_regs));
+		ctx->esp0 = (uint32_t)val;
+
+		k->eip = (uint32_t)&syscall_ret;
+		k->esp = (uint32_t)ctx->uregs - sizeof(uint32_t);
+
+		/* Reset minimum user mode registers */
 		u = ctx->uregs;
+		u->eax = 0;
+		u->eflags = (uint32_t)(EFL_IF | EFL_IOPL_KERN);
+		break;
+
+	case CTX_KENTRY:
+		/* Kernel mode program counter */
+		k->eip = (uint32_t)val;
+		break;
+
+	case CTX_KARG:
+		/* Kernel mode argument */
+		argp = (uint32_t *)(k->esp + sizeof(uint32_t) * 2);
+		*argp = (uint32_t)val;
+		break;
+
+	case CTX_USTACK:
+		/* User mode stack pointer */
+		u = ctx->uregs;
+		u->esp = (uint32_t)val;
+		u->ss = (uint32_t)(USER_DS | 3); /* fail safe */
+		break;
+
+	case CTX_UENTRY:
+		/* User mode program counter */
+		u = ctx->uregs;
+		u->eip = (uint32_t)val;
+		u->cs = (uint32_t)(USER_CS | 3);
+		u->ds = u->es = (uint32_t)(USER_DS | 3);
+		u->eflags = (uint32_t)(EFL_IF | EFL_IOPL_KERN);
 		u->eax = u->ebx = u->ecx = u->edx =
-		    u->edi = u->esi = u->ebp = 0;
-		u->cs = USER_CS | 3;
-		u->ds = u->es = USER_DS | 3;
-		u->eflags = EFL_IF | EFL_IOPL_KERN;
-		u->eip = val;
+			u->edi = u->esi = u->ebp = 0x12345678;
 		break;
-	case CTX_USTACK:	/* User mode stack pointer */
+
+	case CTX_UARG:
+		/* User mode argument */
 		u = ctx->uregs;
-		u->esp = val;
-		u->ss = USER_DS | 3;
+		argp = (uint32_t *)(u->esp + sizeof(uint32_t));
+		umem_copyout(&val, argp, sizeof(uint32_t));
 		break;
-	case CTX_KENTRY:	/* Kernel mode program counter */
-		k = &ctx->kregs;
-		k->eip = val;
-		break;
-	case CTX_KARG:		/* Kernel mode argument */
-		k = &ctx->kregs;
-		*(u_long *)(k->esp + sizeof(u_long) * 2) = val;
+
+	default:
+		/* invalid */
 		break;
 	}
+
 }
 
 /*
  * Switch to new context
  *
- * Kernel mode registers and kernel stack pointer are switched to the
- * next context.
+ * Kernel mode registers and kernel stack pointer are switched to
+ * the next context.
  *
- * We don't use x86 task switch mechanism to minimize the context space.
- * The system has only one TSS(task state segment), and the context
- * switching is done by changing the register value in this TSS. Processor
- * will reload them automatically when it enters to the kernel mode in
- * next time.
+ * We don't use x86 task switch mechanism to minimize the context
+ * space. The system has only one TSS(task state segment), and
+ * the context switching is done by changing the register value
+ * in this TSS. Processor will reload them automatically when it
+ * enters to the kernel mode in next time.
  *
  * It is assumed all interrupts are disabled by caller.
  *
@@ -145,7 +143,7 @@ void
 context_switch(context_t prev, context_t next)
 {
 	/* Set kernel stack pointer in TSS (esp0). */
-	tss_set((u_long)next->esp0);
+	tss_set((uint32_t)next->esp0);
 
 	/* Save the previous context, and restore the next context */
 	cpu_switch(&prev->kregs, &next->kregs);
@@ -153,12 +151,11 @@ context_switch(context_t prev, context_t next)
 
 /*
  * Save user mode context to handle exceptions.
- * @exc: exception code passed to the exception handler
  *
- * Copy current user mode registers in the kernel stack to the user
- * mode stack. The user stack pointer is adjusted for this area.
- * So that the exception handler can get the register state of
- * the target thread.
+ * Copy current user mode registers in the kernel stack to the
+ * user mode stack. The user stack pointer is adjusted for this
+ * area. So that the exception handler can get the register
+ * state of the target thread.
  *
  * It builds arguments for the exception handler in the following
  * format.
@@ -166,40 +163,36 @@ context_switch(context_t prev, context_t next)
  *   void exception_handler(int exc, void *regs);
  */
 void
-context_save(context_t ctx, int exc)
+context_save(context_t ctx)
 {
 	struct cpu_regs *cur, *sav;
-	struct exc_frame *frm;
 
 	/* Copy current register context into user mode stack */
 	cur = ctx->uregs;
 	sav = (struct cpu_regs *)(cur->esp - sizeof(struct cpu_regs));
-	memcpy(sav, cur, sizeof(struct cpu_regs));
+	*sav = *cur;
 
-	/* Setup exception frame for exception handler */
-	frm = (struct exc_frame *)(sav - sizeof(struct exc_frame));
-	frm->uregs = sav;
-	frm->code = exc;
-	frm->ret = NULL;
-	cur->esp = (u_long)frm;
+	ctx->saved_regs = sav;
+
+	/* Adjust stack pointer */
+	cur->esp = (uint32_t)(sav - (sizeof(uint32_t) * 2));
 }
 
 /*
  * Restore register context to return from the exception handler.
- * @regs: pointer to user mode register context.
  */
 void
-context_restore(context_t ctx, void *regs)
+context_restore(context_t ctx)
 {
 	struct cpu_regs *cur;
 
 	/* Restore user mode context */
 	cur = ctx->uregs;
-	memcpy(cur, regs, sizeof(struct cpu_regs));
+	*cur = *ctx->saved_regs;
 
 	/* Correct some registers for fail safe */
-	cur->cs = USER_CS | 3;
-	cur->ss = cur->ds = cur->es = USER_DS | 3;
+	cur->cs = (uint32_t)(USER_CS | 3);
+	cur->ss = cur->ds = cur->es = (uint32_t)(USER_DS | 3);
 	cur->eflags |= EFL_IF;
 
 	ASSERT(cur->eip && user_area(cur->eip));

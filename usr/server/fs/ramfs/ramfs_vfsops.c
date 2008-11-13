@@ -60,15 +60,15 @@ struct vfsops ramfs_vfsops = {
 static int
 ramfs_mount(mount_t mp, char *dev, int flags, void *data)
 {
-	struct ramfs_node *node;
+	struct ramfs_node *np;
 
-	dprintf("ramfs_mount: dev=%s\n", dev);
+	DPRINTF(("ramfs_mount: dev=%s\n", dev));
 
 	/* Create a root node */
-	node = ramfs_allocate_node("/", VDIR);
-	if (node == NULL)
+	np = ramfs_allocate_node("/", VDIR);
+	if (np == NULL)
 		return ENOMEM;
-	mp->m_root->v_data = node;
+	mp->m_root->v_data = np;
 	return 0;
 }
 

@@ -70,7 +70,7 @@ setpriority(int which, int who, int prio)
 	if (prio > PRIO_MAX)
 		prio = PRIO_MAX;
 
-	val = CONFIG_USER_PRIO + prio;
+	val = PRIO_DFLT + prio;
 
 	err = thread_setprio(thread_self(), val);
 	if (err)

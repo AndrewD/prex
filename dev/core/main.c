@@ -32,7 +32,12 @@
  */
 
 #include <driver.h>
-#include <machdep.h>
+
+#ifdef DEBUG
+#define DPRINTF(a) printf a
+#else
+#define DPRINTF(a)
+#endif
 
 #define MAXDRIVER	100
 
@@ -47,12 +52,12 @@ driver_main(void)
 	struct driver *drv;
 	int order, i, err;
 
-	printk("Prex driver module built: " __DATE__ "\n");
+	DPRINTF(("Prex driver module built: " __DATE__ "\n"));
 
 	/*
-	 * Initialize platform hardware.
+	 * Initialize library components.
 	 */
-	if (machine_init())
+	if (drvlib_init())
 		panic("driver_main: init failed");
 
 	/*
@@ -67,10 +72,12 @@ driver_main(void)
 			ASSERT(drv->order < 16);
 			if (drv->order == order) {
 				if (drv->init) {
-					printk("Initializing %s\n", drv->name);
+					DPRINTF(("Initializing %s\n",
+						 drv->name));
 					err = drv->init();
 				}
 			}
 		}
 	}
+	DPRINTF(("Driver initialized\n"));
 }

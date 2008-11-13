@@ -43,7 +43,8 @@ nice(incr)
 {
 	int prio;
 
-	errno = 0;
+	errno = 0;	/* XXX: Do not set 0 in errno... */
+
 	prio = getpriority(PRIO_PROCESS, 0);
 	if (prio == -1 && errno)
 		return (-1);

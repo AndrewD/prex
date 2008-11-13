@@ -32,103 +32,32 @@
  */
 
 /*
- * The device_* system calls are interfaces for user mode applications
- * to access the specific device object which is handled by the related
- * device driver. A device driver is an execution module different from
- * a kernel on Prex. The routines in this file have the following role
- * to handle the device I/O.
+ * The device_* system calls are interfaces for user mode
+ * applications to access the specific device object which is
+ * handled by the related device driver. A device driver is an
+ * execution module different from a kernel on Prex. The routines
+ * in this file have the following role to handle the device I/O.
  *
  *  - Manage the name space for device objects.
- *  - Forward user I/O requests to the drivers after checking parameters.
+ *  - Forward user I/O requests to the drivers after checking
+ *    parameters.
  *
- * The driver module(s) and kernel are dynamically linked at system boot.
+ * The driver module(s) and kernel are dynamically linked
+ * at system boot.
  */
 
 #include <kernel.h>
 #include <irq.h>
-#include <page.h>
 #include <kmem.h>
 #include <task.h>
-#include <timer.h>
 #include <sched.h>
-#include <exception.h>
-#include <vm.h>
 #include <device.h>
-#include <system.h>
-
-/* forward declarations */
-static device_t device_create(struct devio *, const char *, int);
-static int device_destroy(device_t);
-static int device_broadcast(int, int);
-static void machine_bootinfo(struct boot_info **);
-static void machine__reset(void);
-static void machine__idle(void);
-static int task__capable(cap_t cap);
-static void *phys__to_virt(void *);
-static void *virt__to_phys(void *);
-
-#ifndef DEBUG
-static void nosys(void);
-#undef printk
-#define printk nosys
-
-#undef panic
-#define panic machine_reset
-#endif
-
-typedef void (*dkifn_t)(void);
-
-#define DKIENT(func)	(dkifn_t)(func)
-
-/*
- * Driver-Kernel Interface (DKI)
- */
-static const dkifn_t driver_service[] = {
-	/*  0 */ DKIENT(device_create),
-	/*  1 */ DKIENT(device_destroy),
-	/*  2 */ DKIENT(device_broadcast),
-	/*  3 */ DKIENT(umem_copyin),
-	/*  4 */ DKIENT(umem_copyout),
-	/*  5 */ DKIENT(umem_strnlen),
-	/*  6 */ DKIENT(kmem_alloc),
-	/*  7 */ DKIENT(kmem_free),
-	/*  8 */ DKIENT(kmem_map),
-	/*  9 */ DKIENT(page_alloc),
-	/* 10 */ DKIENT(page_free),
-	/* 11 */ DKIENT(page_reserve),
-	/* 12 */ DKIENT(irq_attach),
-	/* 13 */ DKIENT(irq_detach),
-	/* 14 */ DKIENT(irq_lock),
-	/* 15 */ DKIENT(irq_unlock),
-	/* 16 */ DKIENT(timer_callout),
-	/* 17 */ DKIENT(timer_stop),
-	/* 18 */ DKIENT(timer_delay),
-	/* 19 */ DKIENT(timer_count),
-	/* 20 */ DKIENT(timer_hook),
-	/* 21 */ DKIENT(sched_lock),
-	/* 22 */ DKIENT(sched_unlock),
-	/* 23 */ DKIENT(sched_tsleep),
-	/* 24 */ DKIENT(sched_wakeup),
-	/* 25 */ DKIENT(sched_dpc),
-	/* 26 */ DKIENT(task__capable),
-	/* 27 */ DKIENT(exception_post),
-	/* 28 */ DKIENT(machine_bootinfo),
-	/* 29 */ DKIENT(machine__reset),
-	/* 30 */ DKIENT(machine__idle),
-	/* 31 */ DKIENT(phys__to_virt),
-	/* 32 */ DKIENT(virt__to_phys),
-	/* 33 */ DKIENT(debug_attach),
-	/* 34 */ DKIENT(debug_dump),
-	/* 35 */ DKIENT(printk),
-	/* 36 */ DKIENT(panic),
-};
 
 static struct list device_list;		/* list of the device objects */
 
 /*
  * Increment reference count on an active device.
- * This routine checks whether the specified device is valid.
- * It returns 0 on success, or -1 on failure.
+ * It returns 0 on success, or -1 if the device is invalid.
  */
 static int
 device_hold(device_t dev)
@@ -137,7 +66,7 @@ device_hold(device_t dev)
 
 	sched_lock();
 	if (device_valid(dev)) {
-		dev->ref_count++;
+		dev->refcnt++;
 		err = 0;
 	}
 	sched_unlock();
@@ -145,16 +74,17 @@ device_hold(device_t dev)
 }
 
 /*
- * Decrement the reference count on a device. If the reference
- * count becomes zero, we can release the resource for the
- * target device. Assumes the device is already validated by caller.
+ * Decrement the reference count on a device. If the
+ * reference count becomes zero, we can release the
+ * resource for the target device. Assumes the device
+ * is already validated by caller.
  */
 static void
 device_release(device_t dev)
 {
 
 	sched_lock();
-	if (--dev->ref_count == 0) {
+	if (--dev->refcnt == 0) {
 		list_remove(&dev->link);
 		kmem_free(dev);
 	}
@@ -186,18 +116,15 @@ device_lookup(const char *name)
 
 /*
  * device_create - create new device object.
- * @io:    pointer to device I/O routines
- * @name:  string for device name
- * @flags: flags for device object. (ex. block or character)
  *
  * A device object is created by the device driver to provide
  * I/O services to applications.
  * Returns device ID on success, or 0 on failure.
  */
-static device_t
+device_t
 device_create(struct devio *io, const char *name, int flags)
 {
-	device_t dev;
+	struct device *dev;
 	size_t len;
 
 	ASSERT(irq_level == 0);
@@ -214,14 +141,14 @@ device_create(struct devio *io, const char *name, int flags)
 		sched_unlock();
 		return 0;
 	}
-	if ((dev = kmem_alloc(sizeof(struct device))) == NULL) {
+	if ((dev = kmem_alloc(sizeof(*dev))) == NULL) {
 		sched_unlock();
 		return 0;
 	}
 	strlcpy(dev->name, name, len + 1);
 	dev->devio = io;
 	dev->flags = flags;
-	dev->ref_count = 1;
+	dev->refcnt = 1;
 	dev->magic = DEVICE_MAGIC;
 	list_insert(&device_list, &dev->link);
 	sched_unlock();
@@ -229,11 +156,11 @@ device_create(struct devio *io, const char *name, int flags)
 }
 
 /*
- * Destroy a device object. If some other threads still refer
- * the target device, the destroy operating will be pending
- * until its reference count becomes 0.
+ * Destroy a device object. If some other threads still
+ * refer the target device, the destroy operating will be
+ * pending until its reference count becomes 0.
  */
-static int
+int
 device_destroy(device_t dev)
 {
 	int err = 0;
@@ -251,15 +178,13 @@ device_destroy(device_t dev)
 
 /*
  * device_open - open the specified device.
- * @name: device name (null-terminated)
- * @mode: open mode. (like O_RDONLY etc.)
- * @devp: device handle of opened device to be returned.
  *
- * Even if the target driver does not have an open routine, this
- * function does not return an error. By using this mechanism, an
- * application can check whether the specific device exists or not.
- * The open mode should be handled by an each device driver if it
- * is needed.
+ * Even if the target driver does not have an open
+ * routine, this function does not return an error. By
+ * using this mechanism, an application can check whether
+ * the specific device exists or not. The open mode
+ * should be handled by an each device driver if it is
+ * needed.
  */
 int
 device_open(const char *name, int mode, device_t *devp)
@@ -279,7 +204,7 @@ device_open(const char *name, int mode, device_t *devp)
 	if (len >= MAXDEVNAME)
 		return ENAMETOOLONG;
 
-	if (umem_copyin((void *)name, str, len + 1))
+	if (umem_copyin(name, str, len + 1))
 		return EFAULT;
 
 	sched_lock();
@@ -291,10 +216,9 @@ device_open(const char *name, int mode, device_t *devp)
 	sched_unlock();
 
 	if (dev->devio->open != NULL)
-		err = (dev->devio->open)(dev, mode);
-
+		err = (*dev->devio->open)(dev, mode);
 	if (!err)
-		err = umem_copyout(&dev, devp, sizeof(device_t));
+		err = umem_copyout(&dev, devp, sizeof(dev));
 	device_release(dev);
 	return err;
 }
@@ -317,7 +241,7 @@ device_close(device_t dev)
 		return ENODEV;
 
 	if (dev->devio->close != NULL)
-		err = (dev->devio->close)(dev);
+		err = (*dev->devio->close)(dev);
 
 	device_release(dev);
 	return err;
@@ -325,11 +249,8 @@ device_close(device_t dev)
 
 /*
  * device_read - read from a device.
- * @dev:   device id
- * @buf:   pointer to read buffer
- * @nbyte: number of bytes to read. actual read count is set in return.
- * @blkno: block number (for block device)
  *
+ * Actual read count is set in "nbyte" as return.
  * Note: The size of one block is device dependent.
  */
 int
@@ -348,24 +269,22 @@ device_read(device_t dev, void *buf, size_t *nbyte, int blkno)
 		device_release(dev);
 		return EBADF;
 	}
-	if (umem_copyin(nbyte, &count, sizeof(u_long)) ||
-	    vm_access(buf, count, VMA_WRITE)) {
+	if (umem_copyin(nbyte, &count, sizeof(count))) {
 		device_release(dev);
 		return EFAULT;
 	}
-	err = (dev->devio->read)(dev, buf, &count, blkno);
+	err = (*dev->devio->read)(dev, buf, &count, blkno);
 	if (err == 0)
-		err = umem_copyout(&count, nbyte, sizeof(u_long));
+		err = umem_copyout(&count, nbyte, sizeof(count));
+
 	device_release(dev);
 	return err;
 }
 
 /*
  * device_write - write to a device.
- * @dev:   device id
- * @buf:   pointer to write buffer
- * @nbyte: number of bytes to write. actual write count is set in return.
- * @blkno: block number (for block device)
+ *
+ * Actual write count is set in "nbyte" as return.
  */
 int
 device_write(device_t dev, void *buf, size_t *nbyte, int blkno)
@@ -383,33 +302,29 @@ device_write(device_t dev, void *buf, size_t *nbyte, int blkno)
 		device_release(dev);
 		return EBADF;
 	}
-	if (umem_copyin(nbyte, &count, sizeof(u_long)) ||
-	    vm_access(buf, count, VMA_READ)) {
+	if (umem_copyin(nbyte, &count, sizeof(count))) {
 		device_release(dev);
 		return EFAULT;
 	}
-	err = (dev->devio->write)(dev, buf, &count, blkno);
+	err = (*dev->devio->write)(dev, buf, &count, blkno);
 	if (err == 0)
-		err = umem_copyout(&count, nbyte, sizeof(u_long));
+		err = umem_copyout(&count, nbyte, sizeof(count));
 
 	device_release(dev);
 	return err;
 }
 
 /*
- * deivce_ioctl - I/O control request.
- * @dev: device id
- * @cmd: command
- * @arg: argument
+ * device_ioctl - I/O control request.
  *
  * A command and an argument are completely device dependent.
- * If argument type is pointer, the driver routine must validate
- * the pointer address.
+ * The ioctl routine of each driver must validate the user buffer
+ * pointed by the arg value.
  */
 int
-device_ioctl(device_t dev, int cmd, u_long arg)
+device_ioctl(device_t dev, u_long cmd, void *arg)
 {
-	int err;
+	int err = EBADF;
 
 	if (!task_capable(CAP_DEVIO))
 		return EPERM;
@@ -417,9 +332,8 @@ device_ioctl(device_t dev, int cmd, u_long arg)
 	if (device_hold(dev))
 		return ENODEV;
 
-	err = EBADF;
 	if (dev->devio->ioctl != NULL)
-		err = (dev->devio->ioctl)(dev, cmd, arg);
+		err = (*dev->devio->ioctl)(dev, cmd, arg);
 
 	device_release(dev);
 	return err;
@@ -427,10 +341,8 @@ device_ioctl(device_t dev, int cmd, u_long arg)
 
 /*
  * device_broadcast - broadcast an event to all device objects.
- * @event: event code
- * @force: true to ignore the return value from driver.
  *
- * If force argument is true, a kernel will continue event
+ * If "force" argument is true, a kernel will continue event
  * notification even if some driver returns error. In this case,
  * this routine returns EIO error if at least one driver returns
  * an error.
@@ -440,7 +352,7 @@ device_ioctl(device_t dev, int cmd, u_long arg)
  * device_broadcast will return the error code which is returned
  * by the driver.
  */
-static int
+int
 device_broadcast(int event, int force)
 {
 	device_t dev;
@@ -449,22 +361,20 @@ device_broadcast(int event, int force)
 
 	sched_lock();
 	head = &device_list;
-
-#ifdef DEBUG
-	printk("Broadcasting device event:%d\n", event);
-#endif
 	for (n = list_first(head); n != head; n = list_next(n)) {
 		dev = list_entry(n, struct device, link);
-		if (dev->devio->event == NULL)
-			continue;
-
-		err = (dev->devio->event)(event);
-		if (err) {
-			if (force)
-				ret = EIO;
-			else {
-				ret = err;
-				break;
+		if (dev->devio->event != NULL) {
+			/*
+			 * Call driver's event routine.
+			 */
+			err = (*dev->devio->event)(event);
+			if (err) {
+				if (force)
+					ret = EIO;
+				else {
+					ret = err;
+					break;
+				}
 			}
 		}
 	}
@@ -482,114 +392,25 @@ device_info(struct info_device *info)
 	device_t dev;
 	struct devio *io;
 	list_t head, n;
+	int err = ESRCH;
 
 	sched_lock();
-
 	index = 0;
-	head = &device_list;
-	for (n = list_first(head); n != head; n = list_next(n), index++) {
-		dev = list_entry(n, struct device, link);
-		io = dev->devio;
-		if (index == target)
-			break;
-	}
-	if (n == head) {
-		sched_unlock();
-		return ESRCH;
-	}
-	info->id = dev;
-	info->flags = dev->flags;
-	strlcpy(info->name, dev->name, MAXDEVNAME);
-
-	sched_unlock();
-	return 0;
-}
-
-#if defined(DEBUG) && defined(CONFIG_KDUMP)
-void
-device_dump(void)
-{
-	device_t dev;
-	struct devio *io;
-	list_t head, n;
-
-	printk("Device dump:\n");
-	printk(" device   open     close    read     write    ioctl    "
-	       "event    name\n");
-	printk(" -------- -------- -------- -------- -------- -------- "
-	       "-------- ------------\n");
-
 	head = &device_list;
 	for (n = list_first(head); n != head; n = list_next(n)) {
 		dev = list_entry(n, struct device, link);
 		io = dev->devio;
-		printk(" %08x %08x %08x %08x %08x %08x %08x %s\n",
-		       dev, io->open, io->close, io->read, io->write,
-		       io->ioctl, io->event, dev->name);
+		if (index == target) {
+			info->id = dev;
+			info->flags = dev->flags;
+			strlcpy(info->name, dev->name, MAXDEVNAME);
+			err = 0;
+			break;
+		}
+		index++;
 	}
-}
-#endif
-
-#ifndef DEBUG
-static void
-nosys(void)
-{
-}
-#endif
-
-/*
- * Check the capability of the current task.
- */
-static int
-task__capable(cap_t cap)
-{
-
-	return task_capable(cap);
-}
-
-/*
- * Return boot information
- */
-static void
-machine_bootinfo(struct boot_info **info)
-{
-	ASSERT(info != NULL);
-
-	*info = boot_info;
-}
-
-static void
-machine__reset(void)
-{
-
-	machine_reset();
-}
-
-static void
-machine__idle(void)
-{
-
-	machine_idle();
-}
-
-/*
- *  Address transtion (physical -> virtual)
- */
-static void *
-phys__to_virt(void *phys)
-{
-
-	return phys_to_virt(phys);
-}
-
-/*
- *  Address transtion (virtual -> physical)
- */
-static void *
-virt__to_phys(void *virt)
-{
-
-	return virt_to_phys(virt);
+	sched_unlock();
+	return err;
 }
 
 /*
@@ -598,20 +419,24 @@ virt__to_phys(void *virt)
 void
 device_init(void)
 {
-	struct module *m;
+	struct module *mod;
 	void (*drv_entry)(const dkifn_t *);
 
 	list_init(&device_list);
 
-	m = &boot_info->driver;
-	if (m == NULL)
+	mod = &bootinfo->driver;
+	if (mod == NULL) {
+		DPRINTF(("Warning: No driver found."));
 		return;
+	}
 
-	drv_entry = (void (*)(const dkifn_t *))m->entry;
+	drv_entry = (void (*)(const dkifn_t *))mod->entry;
+	ASSERT(drv_entry);
 	if (drv_entry == NULL)
 		return;
+
 	/*
-	 * Call all driver initialization functions.
+	 * Call all initialization functions in drivers.
 	 */
-	drv_entry(driver_service);
+	(*drv_entry)(driver_service);
 }

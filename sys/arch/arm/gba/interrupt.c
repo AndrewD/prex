@@ -34,6 +34,7 @@
 #include <kernel.h>
 #include <irq.h>
 #include <locore.h>
+#include <cpu.h>
 
 /* Interrupt hook vector */
 #define IRQ_VECTOR	*(uint32_t *)0x3007ffc
@@ -53,9 +54,9 @@
 /*
  * Interrupt priority level
  *
- * Each interrupt has its logical priority level, with 0 being the highest
- * priority. While some ISR is running, all lower priority interrupts
- * are masked off.
+ * Each interrupt has its logical priority level, with 0 being
+ * the lowest priority. While some ISR is running, all lower
+ * priority interrupts are masked off.
  */
 volatile int irq_level;
 
@@ -73,7 +74,7 @@ static uint16_t mask_table[NIPLS];	/* Level -> mask */
 /*
  * Unmask interrupt in PIC for specified irq.
  * The interrupt mask table is also updated.
- * Assumed CPU interrupt is disabled in caller.
+ * Assumes CPU interrupt is disabled in caller.
  */
 void
 interrupt_unmask(int vector, int level)
@@ -81,7 +82,9 @@ interrupt_unmask(int vector, int level)
 	int i;
 	uint16_t unmask = (uint16_t)1 << vector;
 
+	/* Save level mapping */
 	ipl_table[vector] = level;
+
 	/*
 	 * Unmask target interrupt for all
 	 * lower interrupt levels.
@@ -120,7 +123,6 @@ interrupt_setup(int vector, int mode)
 
 /*
  * Dispatch interrupt
- *
  */
 void
 interrupt_dispatch(int vector)
@@ -197,6 +199,13 @@ interrupt_init(void)
 		mask_table[i] = 0;
 
 	ICU_IME = IRQ_OFF;
+
+	/*
+	 * Since GBA has its own interrupt vector in ROM area,
+	 * we can not modify it. Instead, the GBA BIOS will
+	 * call the user's interrupt hook routine placed in
+	 * the address in 0x3007ffc.
+	 */
 	IRQ_VECTOR = (uint32_t)interrupt_entry; /* Interrupt hook address */
 	ICU_IE = 0;			/* Mask all interrupts */
 	ICU_IME = IRQ_ON;

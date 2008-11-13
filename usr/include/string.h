@@ -31,11 +31,10 @@
 
 #ifndef _STRING_H_
 #define	_STRING_H_
-#include <machine/ansi.h>
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#if !defined(_SIZE_T)
+#define _SIZE_T
+typedef	unsigned int	size_t;		/* size of something in bytes */
 #endif
 
 #ifndef	NULL

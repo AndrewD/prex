@@ -42,14 +42,14 @@
 
 #include "proc.h"
 
-static int vfork_start(struct proc *proc);
+static int vfork_start(struct proc *);
 
 /*
  * fork() support.
  *
  * It creates new process data and update all process relations.
- * The task creation and the thread creation are done by the fork()
- * library stub.
+ * The task creation and the thread creation are done by the
+ * fork() library stub.
  */
 int
 proc_fork(struct msg *msg)
@@ -58,16 +58,16 @@ proc_fork(struct msg *msg)
 	struct pgrp *pgrp;
 	task_t child;
 	pid_t pid;
-	int vfork;
+	int vfork_flag;
 
 	if (curproc == NULL)
 		return EINVAL;
 
 	child = (task_t)msg->data[0];
-	vfork = msg->data[1];
+	vfork_flag = msg->data[1];
 
-	dprintf("fork: parent=%x child=%x vfork=%d\n",
-	    msg->hdr.task, child, vfork);
+	DPRINTF(("fork: parent=%x child=%x vfork=%d\n", msg->hdr.task,
+		 child, vfork_flag));
 
 	if (task_to_proc(child) != NULL)
 		return EINVAL;	/* Process already exists */
@@ -78,27 +78,24 @@ proc_fork(struct msg *msg)
 	if ((p = malloc(sizeof(struct proc))) == NULL)
 		return ENOMEM;
 
-	p->parent = curproc;
-	p->pgrp = curproc->pgrp;
-	p->stat = SRUN;
-	p->exit_code = 0;
-	p->pid = pid;
-	p->task = child;
-	list_init(&p->children);
+	p->p_parent = curproc;
+	p->p_pgrp = curproc->p_pgrp;
+	p->p_stat = SRUN;
+	p->p_exitcode = 0;
+	p->p_pid = pid;
+	p->p_task = child;
+	list_init(&p->p_children);
 	proc_add(p);
+	list_insert(&curproc->p_children, &p->p_sibling);
+	pgrp = p->p_pgrp;
+	list_insert(&pgrp->pg_members, &p->p_pgrp_link);
+	list_insert(&allproc, &p->p_link);
 
-	list_insert(&curproc->children, &p->sibling);
-
-	pgrp = p->pgrp;
-	list_insert(&pgrp->members, &p->pgrp_link);
-
-	list_insert(&allproc, &p->link);
-
-	if (vfork)
+	if (vfork_flag)
 		vfork_start(curproc);
 
-	dprintf("fork: new pid=%d\n", p->pid);
-	msg->data[0] = (int)p->pid;
+	DPRINTF(("fork: new pid=%d\n", p->p_pid));
+	msg->data[0] = (int)p->p_pid;
 	return 0;
 }
 
@@ -106,53 +103,52 @@ proc_fork(struct msg *msg)
  * Clean up all resource created by fork().
  */
 void
-proc_cleanup(struct proc *proc)
+proc_cleanup(struct proc *p)
 {
 	struct proc *pp;
 
-	pp = proc->parent;
-	list_remove(&proc->sibling);
-	list_remove(&proc->pgrp_link);
-	proc_remove(proc);
-	list_remove(&proc->link);
-	free(proc);
+	pp = p->p_parent;
+	list_remove(&p->p_sibling);
+	list_remove(&p->p_pgrp_link);
+	proc_remove(p);
+	list_remove(&p->p_link);
+	free(p);
 }
 
 static int
-vfork_start(struct proc *proc)
+vfork_start(struct proc *p)
 {
 	void *stack;
 
 	/*
 	 * Save parent's stack
 	 */
-	if (vm_allocate(proc->task, &stack, USTACK_SIZE, 1) != 0)
+	if (vm_allocate(p->p_task, &stack, USTACK_SIZE, 1) != 0)
 		return ENOMEM;
 
-	memcpy(stack, proc->stack_base, USTACK_SIZE);
-	proc->stack_saved = stack;
+	memcpy(stack, p->p_stackbase, USTACK_SIZE);
+	p->p_stacksaved = stack;
 
-	proc->wait_vfork = 1;
-	dprintf("vfork_start: saved=%x org=%x\n", stack, proc->stack_base);
-
+	p->p_vforked = 1;
+	DPRINTF(("vfork_start: saved=%x org=%x\n", stack, p->p_stackbase));
 	return 0;
 }
 
 void
-vfork_end(struct proc *proc)
+vfork_end(struct proc *p)
 {
 
-	dprintf("vfork_end: org=%x saved=%x\n", proc->stack_base,
-		proc->stack_saved);
+	DPRINTF(("vfork_end: org=%x saved=%x\n", p->p_stackbase,
+		 p->p_stacksaved));
 	/*
 	 * Restore parent's stack
 	 */
-	memcpy(proc->stack_base, proc->stack_saved, USTACK_SIZE);
-	vm_free(proc->task, proc->stack_saved);
+	memcpy(p->p_stackbase, p->p_stacksaved, USTACK_SIZE);
+	vm_free(p->p_task, p->p_stacksaved);
 
 	/*
 	 * Resume parent
 	 */
-	proc->wait_vfork = 0;
-	task_resume(proc->task);
+	p->p_vforked = 0;
+	task_resume(p->p_task);
 }

@@ -40,8 +40,8 @@
 /*
  * Create and initialize a condition variable (CV).
  *
- * If an initialized condition variable is reinitialized, undefined
- * behavior results.
+ * If an initialized condition variable is reinitialized,
+ * undefined behavior results.
  */
 int
 cond_init(cond_t *cond)
@@ -55,7 +55,7 @@ cond_init(cond_t *cond)
 	c->task = cur_task();
 	c->magic = COND_MAGIC;
 
-	if (umem_copyout(&c, cond, sizeof(cond_t))) {
+	if (umem_copyout(&c, cond, sizeof(c))) {
 		kmem_free(c);
 		return EFAULT;
 	}
@@ -64,8 +64,6 @@ cond_init(cond_t *cond)
 
 /*
  * cond_copyin - copy a condition variable from user space.
- * @uc: pointer to cv in user space.
- * @kc: pointer to cv in kernel space.
  *
  * It also checks if the passed CV is valid.
  */
@@ -74,7 +72,7 @@ cond_copyin(cond_t *ucond, cond_t *kcond)
 {
 	cond_t c;
 
-	if (umem_copyin(ucond, &c, sizeof(cond_t)))
+	if (umem_copyin(ucond, &c, sizeof(ucond)))
 		return EFAULT;
 	if (!cond_valid(c))
 		return EINVAL;
@@ -84,8 +82,9 @@ cond_copyin(cond_t *ucond, cond_t *kcond)
 
 /*
  * Destroy a condition variable.
- * If there are any blocked thread waiting for the specified CV,
- * it returns EBUSY.
+ *
+ * If there are any blocked thread waiting for the specified
+ * CV, it returns EBUSY.
  */
 int
 cond_destroy(cond_t *cond)
@@ -114,8 +113,9 @@ cond_destroy(cond_t *cond)
  * If the thread receives any exception while waiting CV, this
  * routine returns immediately with EINTR in order to invoke
  * exception handler. However, an application assumes this call
- * does NOT return with an error. So, the stub routine in a system
- * call library must call cond_wait() again if it gets EINTR as error.
+ * does NOT return with an error. So, the stub routine in a
+ * system call library must call cond_wait() again if it gets
+ * EINTR as error.
  */
 int
 cond_wait(cond_t *cond, mutex_t *mtx)
@@ -123,7 +123,7 @@ cond_wait(cond_t *cond, mutex_t *mtx)
 	cond_t c;
 	int err, rc;
 
-	if (umem_copyin(cond, &c, sizeof(cond_t)))
+	if (umem_copyin(cond, &c, sizeof(cond)))
 		return EFAULT;
 
 	sched_lock();
@@ -132,7 +132,7 @@ cond_wait(cond_t *cond, mutex_t *mtx)
 			sched_unlock();
 			return err;
 		}
-		umem_copyin(cond, &c, sizeof(cond_t));
+		umem_copyin(cond, &c, sizeof(cond));
 	} else {
 		if (!cond_valid(c)) {
 			sched_unlock();

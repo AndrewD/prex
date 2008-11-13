@@ -43,7 +43,7 @@
 /*
  * Number of threads
  */
-#define NR_THREADS 100000
+#define NR_THREADS 10000
 
 static thread_t *th;
 

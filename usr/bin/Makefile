@@ -6,15 +6,15 @@ ifeq ($(CONFIG_CMDBOX),y)
 SUBDIR+=	cmdbox
 else
 # Build all commands
+SUBDIR-$(CONFIG_CMD_CAL)+=	cal
 SUBDIR-$(CONFIG_CMD_CAT)+=	cat
 SUBDIR-$(CONFIG_CMD_CLEAR)+=	clear
 SUBDIR-$(CONFIG_CMD_CP)+=	cp
 SUBDIR-$(CONFIG_CMD_DATE)+=	date
-ifeq ($(CONFIG_DMESG),y)
 SUBDIR-$(CONFIG_CMD_DMESG)+=	dmesg
-endif
 SUBDIR-$(CONFIG_CMD_ECHO)+=	echo
 SUBDIR-$(CONFIG_CMD_FREE)+=	free
+SUBDIR-$(CONFIG_CMD_HEAD)+=	head
 SUBDIR-$(CONFIG_CMD_HOSTNAME)+=	hostname
 SUBDIR-$(CONFIG_CMD_KILL)+=	kill
 SUBDIR-$(CONFIG_CMD_LS)+=	ls

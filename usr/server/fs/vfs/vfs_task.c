@@ -63,7 +63,7 @@ static mutex_t task_lock = MUTEX_INITIALIZER;
 #endif
 
 /*
- * Lookup task by task id.
+ * Convert task ID to a task structure.
  * Returns locked task. Caller must unlock it after using it.
  */
 struct task *
@@ -134,7 +134,7 @@ task_free(struct task *t)
 }
 
 /*
- * Update task id of specified task.
+ * Update task id of the specified task.
  */
 void
 task_update(struct task *t, task_t task)
@@ -165,6 +165,25 @@ task_getfp(struct task *t, int fd)
 		return NULL;
 
 	return t->file[fd];
+}
+
+/*
+ * Get new file descriptor in the task.
+ * Find the smallest empty slot in the fd array.
+ * Returns -1 if there is no empty slot.
+ */
+int
+task_newfd(struct task *t)
+{
+	int fd;
+
+	for (fd = 0; fd < OPEN_MAX; fd++)
+		if (t->file[fd] == NULL)
+			break;
+	if (fd == OPEN_MAX)
+		return -1;	/* slot full */
+
+	return fd;
 }
 
 /*
@@ -250,17 +269,18 @@ task_dump(void)
 	int i;
 
 	TASK_LOCK();
-	printf("Dump file data\n");
-	printf(" task     nr_open cwd\n");
-	printf(" -------- ------- ------------------------------\n");
+	dprintf("Dump file data\n");
+	dprintf(" task     opens   cwd\n");
+	dprintf(" -------- ------- ------------------------------\n");
 	for (i = 0; i < TASK_MAXBUCKETS; i++) {
 		head = &task_table[i];
 		for (n = list_first(head); n != head; n = list_next(n)) {
 			t = list_entry(n, struct task, link);
-			printf(" %08x %7x %s\n", t->task, t->nr_open, t->cwd);
+			dprintf(" %08x %7x %s\n", (int)t->task, t->nopens,
+			       t->cwd);
 		}
 	}
-	printf("\n");
+	dprintf("\n");
 	TASK_UNLOCK();
 #endif
 }
@@ -275,6 +295,7 @@ task_init(void)
 		list_init(&task_table[i]);
 }
 
+#ifdef DEBUG_VFS
 void
 task_debug(void)
 {
@@ -283,9 +304,10 @@ task_debug(void)
 
 	for (i = 0; i < TASK_MAXBUCKETS; i++) {
 		head = &task_table[i];
-		syslog(LOG_DEBUG, "head=%x head->next=%x head->prev=%x\n",
-		       head, head->next, head->prev);
+		dprintf("head=%x head->next=%x head->prev=%x\n", head,
+			head->next, head->prev);
 		ASSERT(head->next);
 		ASSERT(head->prev);
 	}
 }
+#endif

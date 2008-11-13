@@ -47,17 +47,16 @@
  */
 
 #include <driver.h>
-#include <delay.h>
-#include <cpu.h>
+#include <cpufunc.h>
 
 #include "dma.h"
 
-/* #define DEBUG_FDD */
+/* #define DEBUG_FDD 1 */
 
 #ifdef DEBUG_FDD
-#define fdd_printf(fmt, args...)	printk("%s: " fmt, ## args)
+#define DPRINTF(a) printf a
 #else
-#define fdd_printf(fmt...)		do {} while (0)
+#define DPRINTF(a)
 #endif
 
 #define FDD_IRQ		6	/* IRQ6 */
@@ -102,7 +101,7 @@
 #define FDS_IO		5	/* Read/write */
 #define FDS_READY	6	/* Ready */
 
-static void fdc_timeout(u_long);
+static void fdc_timeout(void *);
 static void fdc_recal(void);
 static void fdc_off(void);
 static void fdc_io(void);
@@ -142,6 +141,9 @@ struct driver fdd_drv = {
 	/* init */	fdd_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio fdd_io = {
 	/* open */	fdd_open,
 	/* close */	fdd_close,
@@ -152,7 +154,7 @@ static struct devio fdd_io = {
 };
 
 static device_t fdd_dev;	/* Device object */
-static int fdd_irq;		/* Interrupt handle */
+static irq_t fdd_irq;		/* Interrupt handle */
 static int fdd_dma;		/* DMA handle */
 static int nr_open;		/* Open count */
 static struct timer fdd_tmr;	/* Timer */
@@ -162,7 +164,7 @@ static struct io_req ioreq;	/* I/O request */
 static void *read_buf;		/* DMA buffer for read (1 track) */
 static void *write_buf;		/* DMA buffer for write (1 sector) */
 static u_char result[7];	/* Result from fdc */
-static struct event io_event = EVENT_INIT(io_event, "fdd");
+static struct event fdd_event;
 static int track_cache;		/* Current track of read buffer */
 
 /*
@@ -170,7 +172,7 @@ static int track_cache;		/* Current track of read buffer */
  * Return -1 on failure
  */
 static int
-fdc_out(u_char dat)
+fdc_out(int dat)
 {
 	int i;
 
@@ -180,7 +182,7 @@ fdc_out(u_char dat)
 			return 0;
 		}
 	}
-	printk("fdc: timeout msr=%x\n", inb(FDC_MSR));
+	DPRINTF(("fdc: timeout msr=%x\n", inb(FDC_MSR)));
 	return -1;
 }
 
@@ -197,29 +199,29 @@ fdc_result(void)
 		}
 		if ((msr & 0xd0) == 0xd0) {
 			if (index > 6) {
-				printk("fdc: overrun\n");
+				DPRINTF(("fdc: overrun\n"));
 				return -1;
 			}
 			result[index++] = inb_p(FDC_DAT);
 			/*
-			fdd_printf("result[%d]=%x\n", index - 1,
-				   result[index - 1]);
+			DPRINTF(("result[%d]=%x\n", index - 1,
+				result[index - 1]));
 			*/
 		}
 		delay_usec(10);
 	}
-	printk("fdc: timeout\n");
+	DPRINTF(("fdc: timeout\n"));
 	return -1;
 }
 
 static void
 fdc_error(int errno)
 {
-	printk("fdc: errno=%d\n", errno);
+	DPRINTF(("fdc: errno=%d\n", errno));
 
 	dma_stop(fdd_dma);
 	ioreq.errno = errno;
-	sched_wakeup(&io_event);
+	sched_wakeup(&fdd_event);
 	fdc_off();
 }
 
@@ -229,7 +231,7 @@ fdc_error(int errno)
 static void
 fdc_off(void)
 {
-	fdd_printf("motor off\n");
+	DPRINTF(("fdc: motor off\n"));
 
 	fdc_stat = FDS_OFF;
 	timer_stop(&fdd_tmr);
@@ -242,11 +244,11 @@ fdc_off(void)
 static void
 fdc_on(void)
 {
-	fdd_printf("motor on\n");
+	DPRINTF(("fdc: motor on\n"));
 
 	fdc_stat = FDS_ON;
 	outb_p(0x1c, FDC_DOR);
-	timer_callout(&fdd_tmr, fdc_timeout, 0, 250);
+	timer_callout(&fdd_tmr, 250, &fdc_timeout, NULL);
 }
 
 /*
@@ -256,10 +258,10 @@ fdc_on(void)
 static void
 fdc_reset(void)
 {
-	fdd_printf("reset\n");
+	DPRINTF(("fdc: reset\n"));
 
 	fdc_stat = FDS_RESET;
-	timer_callout(&fdd_tmr, fdc_timeout, 0, 500);
+	timer_callout(&fdd_tmr, 500, &fdc_timeout, NULL);
 	outb_p(0x18, FDC_DOR);	/* Motor0 enable, DMA enable */
 	delay_usec(20);		/* Wait 20 usec while reset */
 	outb_p(0x1c, FDC_DOR);	/* Clear reset */
@@ -272,10 +274,10 @@ fdc_reset(void)
 static void
 fdc_recal(void)
 {
-	fdd_printf("recalibrate\n");
+	DPRINTF(("fdc: recalibrate\n"));
 
 	fdc_stat = FDS_RECAL;
-	timer_callout(&fdd_tmr, fdc_timeout, 0, 5000);
+	timer_callout(&fdd_tmr, 5000, &fdc_timeout, NULL);
 	fdc_out(CMD_RECAL);
 	fdc_out(0);		/* Drive 0 */
 }
@@ -287,14 +289,14 @@ fdc_recal(void)
 static void
 fdc_seek(void)
 {
-	u_int head, track;
+	int head, track;
 
-	fdd_printf("seek\n");
+	DPRINTF(("fdc: seek\n"));
 	fdc_stat = FDS_SEEK;
 	head = (ioreq.blkno % (FDG_SECTORS * FDG_HEADS)) / FDG_SECTORS;
 	track = ioreq.blkno / (FDG_SECTORS * FDG_HEADS);
 
-	timer_callout(&fdd_tmr, fdc_timeout, 0, 4000);
+	timer_callout(&fdd_tmr, 4000, &fdc_timeout, NULL);
 
 	fdc_out(CMD_SPECIFY);	/* specify command parameter */
 	fdc_out(0xd1);		/* Step rate = 3msec, Head unload time = 16msec */
@@ -312,11 +314,11 @@ fdc_seek(void)
 static void
 fdc_io(void)
 {
-	u_int head, track, sect;
+	int head, track, sect;
 	u_long io_size;
 	int read;
 
-	fdd_printf("read/write\n");
+	DPRINTF(("fdc: read/write\n"));
 	fdc_stat = FDS_IO;
 
 	head = (ioreq.blkno % (FDG_SECTORS * FDG_HEADS)) / FDG_SECTORS;
@@ -325,12 +327,12 @@ fdc_io(void)
 	io_size = ioreq.blksz * SECTOR_SIZE;
 	read = (ioreq.cmd == IO_READ) ? 1 : 0;
 
-	fdd_printf("hd=%x trk=%x sec=%x size=%d read=%d\n",
-		   head, track, sect, io_size, read);
+	DPRINTF(("fdc: hd=%x trk=%x sec=%x size=%d read=%d\n",
+		 head, track, sect, io_size, read));
 
-	timer_callout(&fdd_tmr, fdc_timeout, 0, 2000);
+	timer_callout(&fdd_tmr, 2000, &fdc_timeout, NULL);
 
-	dma_setup(fdd_dma, (u_long) ioreq.buf, io_size, read);
+	dma_setup(fdd_dma, ioreq.buf, io_size, read);
 
 	/* Send command */
 	fdc_out(read ? CMD_READ : CMD_WRITE);
@@ -351,20 +353,20 @@ fdc_io(void)
 static void
 fdc_ready(void)
 {
-	fdd_printf("wakeup requester\n");
+	DPRINTF(("fdc: wakeup requester\n"));
 
 	fdc_stat = FDS_READY;
-	sched_wakeup(&io_event);
-	timer_callout(&fdd_tmr, fdc_timeout, 0, 5000);
+	sched_wakeup(&fdd_event);
+	timer_callout(&fdd_tmr, 5000, &fdc_timeout, NULL);
 }
 
 /*
  * Timeout handler
  */
 static void
-fdc_timeout(u_long unused)
+fdc_timeout(void *arg)
 {
-	fdd_printf("fdc_stat=%d\n", fdc_stat);
+	DPRINTF(("fdc: fdc_stat=%d\n", fdc_stat));
 
 	switch (fdc_stat) {
 	case FDS_ON:
@@ -372,12 +374,12 @@ fdc_timeout(u_long unused)
 		break;
 	case FDS_RESET:
 	case FDS_RECAL:
-		printk("fdc: reset/recal timeout\n");
+		DPRINTF(("fdc: reset/recal timeout\n"));
 		fdc_error(EIO);
 		break;
 	case FDS_SEEK:
 	case FDS_IO:
-		printk("fdc: seek/io timeout retry=%d\n", ioreq.nr_retry);
+		DPRINTF(("fdc: seek/io timeout retry=%d\n", ioreq.nr_retry));
 		if (++ioreq.nr_retry <= 3)
 			fdc_reset();
 		else
@@ -387,7 +389,7 @@ fdc_timeout(u_long unused)
 		fdc_off();
 		break;
 	default:
-		panic("fdc: unknown timeout\n");
+		panic("fdc: unknown timeout");
 	}
 }
 
@@ -398,7 +400,7 @@ fdc_timeout(u_long unused)
 static int
 fdc_isr(int irq)
 {
-	fdd_printf("fdc_stat=%d\n", fdc_stat);
+	DPRINTF(("fdc_stat=%d\n", fdc_stat));
 
 	timer_stop(&fdd_tmr);
 	switch (fdc_stat) {
@@ -409,7 +411,7 @@ fdc_isr(int irq)
 	case FDS_RECAL:
 	case FDS_SEEK:
 		if (ioreq.cmd == IO_NONE) {
-			printk("fdc: invalid interrupt\n");
+			DPRINTF(("fdc: invalid interrupt\n"));
 			timer_stop(&fdd_tmr);
 			break;
 		}
@@ -417,7 +419,7 @@ fdc_isr(int irq)
 	case FDS_OFF:
 		break;
 	default:
-		printk("fdc: unknown interrupt\n");
+		DPRINTF(("fdc: unknown interrupt\n"));
 		break;
 	}
 	return 0;
@@ -432,7 +434,7 @@ fdc_ist(int irq)
 {
 	int i;
 
-	fdd_printf("fdc_stat=%d\n", fdc_stat);
+	DPRINTF(("fdc_stat=%d\n", fdc_stat));
 	if (ioreq.cmd == IO_NONE)
 		return;
 
@@ -449,7 +451,7 @@ fdc_ist(int irq)
 		fdc_out(CMD_SENSE);
 		fdc_result();
 		if ((result[0] & 0xf8) != 0x20) {
-			printk("fdc: recal error\n");
+			DPRINTF(("fdc: recal error\n"));
 			fdc_error(EIO);
 			break;
 		}
@@ -459,7 +461,7 @@ fdc_ist(int irq)
 		fdc_out(CMD_SENSE);
 		fdc_result();
 		if ((result[0] & 0xf8) != 0x20) {
-			printk("fdc: seek error\n");
+			DPRINTF(("fdc: seek error\n"));
 			if (++ioreq.nr_retry <= 3)
 				fdc_reset();
 			else
@@ -471,16 +473,17 @@ fdc_ist(int irq)
 	case FDS_IO:
 		fdc_result();
 		if ((result[0] & 0xd8) != 0x00) {
-			printk("fdc: i/o error st0=%x st1=%x st2=%x st3=%x retry=%d\n",
-			     result[0], result[1], result[2], result[3],
-			     ioreq.nr_retry);
+			DPRINTF(("fdc: i/o error st0=%x st1=%x st2=%x st3=%x "
+				 "retry=%d\n",
+				 result[0], result[1], result[2], result[3],
+				 ioreq.nr_retry));
 			if (++ioreq.nr_retry <= 3)
 				fdc_reset();
 			else
 				fdc_error(EIO);
 			break;
 		}
-		fdd_printf("i/o complete\n");
+		DPRINTF(("fdc: i/o complete\n"));
 		fdc_ready();
 		break;
 	case FDS_OFF:
@@ -489,7 +492,6 @@ fdc_ist(int irq)
 	default:
 		ASSERT(0);
 	}
-	return;
 }
 
 /*
@@ -500,7 +502,7 @@ fdd_open(device_t dev, int mode)
 {
 
 	nr_open++;
-	fdd_printf("nr_open=%d\n", nr_open);
+	DPRINTF(("fdd_open: nr_open=%d\n", nr_open));
 	return 0;
 }
 
@@ -510,7 +512,7 @@ fdd_open(device_t dev, int mode)
 static int
 fdd_close(device_t dev)
 {
-	fdd_printf("dev=%x\n", dev);
+	DPRINTF(("fdd_close: dev=%x\n", dev));
 
 	if (nr_open < 1)
 		return EINVAL;
@@ -530,7 +532,8 @@ fdd_rw(int cmd, char *buf, u_long blksz, int blkno)
 {
 	int err;
 
-	fdd_printf("cmd=%x buf=%x blksz=%d blkno=%x\n", cmd, buf, blksz, blkno);
+	DPRINTF(("fdd_rw: cmd=%x buf=%x blksz=%d blkno=%x\n",
+		 cmd, buf, blksz, blkno));
 	ioreq.cmd = cmd;
 	ioreq.nr_retry = 0;
 	ioreq.blkno = blkno;
@@ -544,7 +547,7 @@ fdd_rw(int cmd, char *buf, u_long blksz, int blkno)
 	else
 		fdc_seek();
 
-	if (sched_sleep(&io_event) == SLP_INTR)
+	if (sched_sleep(&fdd_event) == SLP_INTR)
 		err = EINTR;
 	else
 		err = ioreq.errno;
@@ -566,9 +569,10 @@ static int
 fdd_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
 	char *kbuf;
-	int i, track, sect, nr_sect, err;
+	int track, sect, err;
+	u_int i, nr_sect;
 
-	fdd_printf("read buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno);
+	DPRINTF(("fdd_read: buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno));
 
 	/* Check overrun */
 	if (blkno > FDG_HEADS * FDG_TRACKS * FDG_SECTORS)
@@ -620,9 +624,10 @@ static int
 fdd_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
 	char *kbuf, *wbuf;
-	int i, track, sect, nr_sect, err;
+	int track, sect, err;
+	u_int i, nr_sect;
 
-	fdd_printf("write buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno);
+	DPRINTF(("fdd_write: buf=%x nbyte=%d blkno=%x\n", buf, *nbyte, blkno));
 
 	/* Check overrun */
 	if (blkno > FDG_HEADS * FDG_TRACKS * FDG_SECTORS)
@@ -659,7 +664,7 @@ fdd_write(device_t dev, char *buf, size_t *nbyte, int blkno)
 	}
 	*nbyte = i * SECTOR_SIZE;
 
-	fdd_printf("fdd_write err=%d\n", err);
+	DPRINTF(("fdd_write: err=%d\n", err));
 	return err;
 }
 
@@ -672,9 +677,9 @@ fdd_init(void)
 	char *buf;
 	int i;
 
-	fdd_printf("fdd_init\n");
+	DPRINTF(("fdd_init\n"));
 	if (inb(FDC_MSR) == 0xff) {
-		printk("Floppy drive not found!\n");
+		printf("floppy drive not found!\n");
 		return -1;
 	}
 
@@ -682,12 +687,13 @@ fdd_init(void)
 	fdd_dev = device_create(&fdd_io, "fd0", DF_BLK);
 	ASSERT(fdd_dev);
 
+	event_init(&fdd_event, "fdd i/o");
+
 	/*
 	 * Allocate physical pages for DMA buffer.
 	 * Buffer: 1 track for read, 1 sector for write.
 	 */
 	buf = dma_alloc(TRACK_SIZE + SECTOR_SIZE);
-
 	ASSERT(buf);
 	read_buf = buf;
 	write_buf = buf + TRACK_SIZE;
@@ -698,7 +704,7 @@ fdd_init(void)
 
 	/* Allocate IRQ */
 	fdd_irq = irq_attach(FDD_IRQ, IPL_BLOCK, 0, fdc_isr, fdc_ist);
-	ASSERT(fdd_irq != -1);
+	ASSERT(fdd_irq != IRQ_NULL);
 
 	timer_init(&fdd_tmr);
 	fdc_stat = FDS_OFF;

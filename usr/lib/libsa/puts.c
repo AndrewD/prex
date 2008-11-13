@@ -27,8 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <string.h>
 #include <prex/prex.h>
+#include <string.h>
+#include <stdio.h>
 
 extern void __console_write(char *buf, size_t len);
 extern int putchar(int);

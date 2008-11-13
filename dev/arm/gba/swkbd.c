@@ -67,12 +67,11 @@
 #include <driver.h>
 #include <prex/keycode.h>
 #include <sys/tty.h>
+#include <console.h>
 #include "lcd.h"
 #include "kbd_img.h"
 #include "keymap.h"
-
-extern void console_attach(struct tty **tpp);
-extern void keypad_attach(void (*handler)(u_char));
+#include "keypad.h"
 
 /*
  * Since GBA does not kick interrupt for the button release, we have
@@ -83,7 +82,7 @@ extern void keypad_attach(void (*handler)(u_char));
 #define BUTTON_WAIT	200	/* 200 msec */
 
 static int kbd_init(void);
-static int kbd_ioctl(device_t, int, u_long);
+static int kbd_ioctl(device_t, u_long, void *);
 
 static void move_cursor(void);
 
@@ -166,7 +165,7 @@ kbd_toggle(void)
  * Just clear ignoring flag.
  */
 static void
-kbd_timeout(u_long tmp)
+kbd_timeout(void *arg)
 {
 
 	ignore_key = 0;
@@ -351,10 +350,10 @@ kbd_isr(u_char c)
 		kbd_toggle();
 		break;
 	case '\n':
-#ifdef CONFIG_KDUMP
-		debug_dump(1);	/* Thread dump */
-		debug_dump(2);	/* Thread dump */
-		debug_dump(7);	/* VM dump */
+#ifdef DEBUG
+		debug_dump(DUMP_THREAD);
+		debug_dump(DUMP_TASK);
+		debug_dump(DUMP_VM);
 #endif
 		break;
 	}
@@ -364,7 +363,7 @@ kbd_isr(u_char c)
 	}
 out:
 	ignore_key = 1;
-	timer_callout(&kbd_tmr, kbd_timeout, 0, timeout);
+	timer_callout(&kbd_tmr, timeout, &kbd_timeout, NULL);
 	return;
 }
 
@@ -372,7 +371,7 @@ out:
  * I/O control
  */
 static int
-kbd_ioctl(device_t dev, int cmd, u_long arg)
+kbd_ioctl(device_t dev, u_long cmd, void *arg)
 {
 
 	return 0;

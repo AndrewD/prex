@@ -46,7 +46,7 @@
 /*
  * Convert a pathname into a pointer to a locked vnode.
  * @path: full path name.
- * @vpp:   vnode to be returned.
+ * @vpp:  vnode to be returned.
  */
 int
 namei(char *path, vnode_t *vpp)
@@ -58,7 +58,7 @@ namei(char *path, vnode_t *vpp)
 	vnode_t dvp, vp;
 	int err, i;
 
-	vn_printf("namei: path=%s\n", path);
+	DPRINTF(VFSDB_VNODE, ("namei: path=%s\n", path));
 
 	/*
 	 * Convert a full path name to its mount point and
@@ -71,13 +71,13 @@ namei(char *path, vnode_t *vpp)
 	vp = vn_lookup(mp, node);
 	if (vp) {
 		/* vnode is already active. */
-		vref(vp);
 		*vpp = vp;
 		return 0;
 	}
 	/*
-	 * Find target vnode, started from root directory. This is
-	 * done to attach the fs specific data to the target vnode.
+	 * Find target vnode, started from root directory.
+	 * This is done to attach the fs specific data to
+	 * the target vnode.
 	 */
 	if ((dvp = mp->m_root) == NULL)
 		sys_panic("VFS: no root");
@@ -105,9 +105,7 @@ namei(char *path, vnode_t *vpp)
 		strlcat(node, "/", PATH_MAX);
 		strlcat(node, name, PATH_MAX);
 		vp = vn_lookup(mp, node);
-		if (vp) {
-			vref(vp);
-		} else {
+		if (vp == NULL) {
 			vp = vget(mp, node);
 			if (vp == NULL) {
 				vput(dvp);
@@ -149,7 +147,7 @@ lookup(char *path, vnode_t *vpp, char **name)
 	vnode_t vp;
 	int err;
 
-	vn_printf("lookup: path=%s\n", path);
+	DPRINTF(VFSDB_VNODE, ("lookup: path=%s\n", path));
 
 	/*
 	 * Get the path for directory.

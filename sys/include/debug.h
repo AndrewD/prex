@@ -30,62 +30,19 @@
 #ifndef _DEBUG_H
 #define _DEBUG_H
 
-#define MSGBUFSZ	128	/* Size of one kernel message */
+#include <sys/cdefs.h>
 
-/*
- * BREAKPOINT()
- *
- * Break into debugger.
- * This works only with a debug version, and only when debugger
- * is attached.
- */
-#ifdef DEBUG
-#define BREAKPOINT()	breakpoint()
-#else
-#define BREAKPOINT()	do {} while (0)
-#endif
+#define LOGBUF_SIZE	2048	/* size of log buffer */ 
+#define DBGMSG_SIZE	128	/* Size of one kernel message */
 
-/*
- * printk()
- *
- * Print out kernel message to the debug port.
- * The message is enabled only when DEBUG build.
- */
 #ifdef DEBUG
-extern void printk(const char *fmt, ...);
-#else
-#define printk(fmt...)	do {} while (0)
-#endif
-
-/*
- * panic()
- *
- * Reset CPU for fatal error.
- * If debugger is attached, break into it.
- */
-#ifdef DEBUG
-extern void panic(const char *fmt, ...);
-#else
-extern void machine_reset(void);
-#define panic(fmt...)	machine_reset()
-#endif
-
-/*
- * ASSERT(exp)
- *
- * If exp is false(zero), stop with source info.
- * This is enabled only when DEBUG build. An asserion check
- * should be used only for invalid kernel condition.
- * It can not be used to check the input argument from user
- * mode because kernel must not do panic for it. The kernel
- * should return an appropriate error code in such case.
- */
-#ifdef DEBUG
-extern void assert(const char *file, int line, const char *exp);
+#define DPRINTF(a)	printf a
 #define ASSERT(exp)	do { if (!(exp)) \
-    assert(__FILE__, __LINE__, #exp); } while (0)
+			     assert(__FILE__, __LINE__, #exp); } while (0)
 #else
+#define DPRINTF(a)	do {} while (0)
 #define ASSERT(exp)	do {} while (0)
+#define panic(x)	machine_reset()
 #endif
 
 /*
@@ -100,19 +57,17 @@ extern void assert(const char *file, int line, const char *exp);
  */
 #define DUMP_THREAD	1
 #define DUMP_TASK	2
-#define DUMP_OBJECT	3
-#define DUMP_TIMER	4
-#define DUMP_IRQ	5
-#define DUMP_DEVICE	6
-#define DUMP_VM		7
-#define DUMP_MSGLOG	8
-#define DUMP_TRACE	9
+#define DUMP_VM		3
 
 #ifdef DEBUG
-extern void	 boot_dump(void);
-extern int	 log_get(char **, size_t *);
+__BEGIN_DECLS
+void	printf(const char *, ...);
+void	panic(const char *);
+int	debug_dump(int);
+void	debug_attach(void (*)(char *));
+void	assert(const char *, int, const char *);
+int	debug_getlog(char *);
+__END_DECLS
 #endif
-extern int	 debug_dump(int);
-extern void	 debug_attach(void (*)(char *));
 
 #endif /* !_DEBUG_H */

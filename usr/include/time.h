@@ -39,25 +39,23 @@
 
 #include <sys/param.h>
 
-#include <machine/ansi.h>
-
 #ifndef	NULL
 #define	NULL	0
 #endif
 
-#ifdef	_BSD_CLOCK_T_
-typedef	_BSD_CLOCK_T_	clock_t;
-#undef	_BSD_CLOCK_T_
+#if !defined(_CLOCK_T)
+#define _CLOCK_T
+typedef	unsigned long	clock_t;	/* relative time in a specified resolution */
 #endif
 
-#ifdef	_BSD_TIME_T_
-typedef	_BSD_TIME_T_	time_t;
-#undef	_BSD_TIME_T_
+#if !defined(_SIZE_T)
+#define _SIZE_T
+typedef	unsigned int	size_t;		/* size of something in bytes */
 #endif
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#if !defined(_TIME_T)
+#define _TIME_T
+typedef	long		time_t;		/* time of day in seconds */
 #endif
 
 struct tm {

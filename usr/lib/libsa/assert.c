@@ -29,6 +29,7 @@
 
 #include <sys/syslog.h>
 #include <stdlib.h>
+#include <assert.h>
 
 void
 __assert(const char *file, int line, const char *exp)

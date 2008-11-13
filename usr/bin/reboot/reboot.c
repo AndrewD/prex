@@ -54,7 +54,6 @@ main(int argc, char *argv[])
 	/* kill(-1, SIGTERM); */
 	sleep(1);
 
-	sync();
 	reboot(0);
 
 	fprintf(stderr, "reboot failed!\n");

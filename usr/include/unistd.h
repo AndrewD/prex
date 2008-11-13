@@ -44,7 +44,6 @@
 #endif
 
 __BEGIN_DECLS
-void	 _exit(int) __noreturn;
 int	 access(const char *, int);
 unsigned int	 alarm(unsigned int);
 int	 chdir(const char *);
@@ -59,7 +58,9 @@ int	 execlp(const char *, const char *, ...);
 int	 execv(const char *, char * const *);
 int	 execve(const char *, char * const *, char * const *);
 int	 execvp(const char *, char * const *);
-pid_t	 fork(void);
+void	_exit(int) __noreturn;
+/* pid_t	 fork(void); */
+pid_t	 vfork(void);
 long	 fpathconf(int, int);
 char	*getcwd(char *, size_t);
 gid_t	 getegid(void);
@@ -102,16 +103,8 @@ extern	 int optopt;
 #ifdef	__STDC__
 struct timeval;				/* select(2) */
 #endif
-int	 acct(const char *);
-int	 async_daemon(void);
 char	*brk(const char *);
 int	 chroot(const char *);
-char	*crypt(const char *, const char *);
-int	 des_cipher(const char *, char *, long, int);
-int	 des_setkey(const char *key);
-int	 encrypt(char *, int);
-void	 endusershell(void);
-int	 exect(const char *, char * const *, char * const *);
 int	 fchdir(int);
 int	 fchown(int, int, int);
 int	 fsync(int);
@@ -134,14 +127,8 @@ int	 nfssvc(int, void *);
 int	 nice(int);
 void	 psignal(unsigned int, const char *);
 extern const char *const sys_siglist[];
-int	 profil(char *, int, int, int);
-int	 rcmd(char **, int, const char *,
-		const char *, const char *, int *);
-char	*re_comp(const char *);
-int	 re_exec(const char *);
 int	 readlink(const char *, char *, int);
 int	 reboot(int);
-int	 revoke(const char *);
 int	 rresvport(int *);
 int	 ruserok(const char *, int, const char *, const char *);
 char	*sbrk(int);
@@ -151,25 +138,18 @@ int	 seteuid(uid_t);
 int	 setgroups(int, const gid_t *);
 void	 sethostid(long);
 int	 sethostname(const char *, size_t);
-int	 setkey(const char *);
-int	 setlogin(const char *);
-void	*setmode(const char *);
-int	 setpgrp(pid_t pid, pid_t pgrp);	/* obsoleted by setpgid() */
+int	 setpgrp(pid_t, pid_t);	/* obsoleted by setpgid() */
 int	 setregid(gid_t, gid_t);
 int	 setreuid(uid_t, uid_t);
 int	 setrgid(gid_t);
 int	 setruid(uid_t);
 void	 setusershell(void);
-int	 swapon(const char *);
 int	 symlink(const char *, const char *);
 void	 sync(void);
-int	 syscall(int, ...);
 int	 truncate(const char *, off_t);
-int	 ttyslot(void);
 unsigned int	 ualarm(unsigned int, unsigned int);
-int	 unwhiteout(const char *);
 void	 usleep(unsigned int);
-pid_t	 vfork(void);
+pid_t	 getsid(pid_t);
 
 extern char *suboptarg;			/* getsubopt(3) external variable */
 int	 getsubopt(char **, char * const *, char **);
@@ -177,7 +157,6 @@ int	 getsubopt(char **, char * const *, char **);
 
 void	 fslib_init(void);	/* used by Prex native task */
 void	 fslib_exit(void);	/* used by Prex native task */
-
 __END_DECLS
 
 /* configurable system strings */

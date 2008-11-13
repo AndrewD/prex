@@ -42,15 +42,17 @@
 #include "proc.h"
 
 /*
- * Send a signal to the task.
+ * Send a signal to the process.
  */
 static int
-send_sig(struct proc *proc, int sig)
+send_sig(struct proc *p, int sig)
 {
 
-	if (proc->pid == 0 || proc->pid == 1)
+	if (p->p_pid == 0 || p->p_pid == 1)
 		return EPERM;
-	return exception_raise(proc->task, sig);
+
+	DPRINTF(("proc: send_sig task=%x\n", p->p_task));
+	return exception_raise(p->p_task, sig);
 }
 
 /*
@@ -61,14 +63,15 @@ kill_one(pid_t pid, int sig)
 {
 	struct proc *p;
 
-	dprintf("killone pid=%x sig=%d\n", pid, sig);
+	DPRINTF(("proc: killone pid=%d sig=%d\n", pid, sig));
+
 	if ((p = proc_find(pid)) == NULL)
 		return ESRCH;
 	return send_sig(p, sig);
 }
 
 /*
- * Send signal to all process in the process group.
+ * Send a signal to all process in the process group.
  */
 int
 kill_pg(pid_t pgid, int sig)
@@ -78,14 +81,14 @@ kill_pg(pid_t pgid, int sig)
 	list_t head, n;
 	int err = 0;
 
-	dprintf("killpg pgid=%x sig=%d\n", pgid, sig);
+	DPRINTF(("proc: killpg pgid=%d sig=%d\n", pgid, sig));
 
 	if ((pgrp = pgrp_find(pgid)) == NULL)
 		return ESRCH;
 
-	head = &pgrp->members;
+	head = &pgrp->pg_members;
 	for (n = list_first(head); n != head; n = list_next(n)) {
-		p = list_entry(n, struct proc, pgrp_link);
+		p = list_entry(n, struct proc, p_link);
 		if ((err = send_sig(p, sig)) != 0)
 			break;
 	}
@@ -124,7 +127,7 @@ proc_kill(struct msg *msg)
 	pid = (pid_t)msg->data[0];
 	sig = msg->data[1];
 
-	dprintf("kill pid=%x sig=%d\n", pid, sig);
+	DPRINTF(("proc: kill pid=%d sig=%d\n", pid, sig));
 
 	switch (sig) {
 	case SIGFPE:
@@ -133,11 +136,11 @@ proc_kill(struct msg *msg)
 		return EINVAL;
 	}
 
-	if (curproc->cap & CAP_KILL)
+	if (curproc->p_cap & CAP_KILL)
 		capable = 1;
 
 	if (pid > 0) {
-		if (pid != curproc->pid && !capable)
+		if (pid != curproc->p_pid && !capable)
 			return EPERM;
 		err = kill_one(pid, sig);
 	}
@@ -146,9 +149,9 @@ proc_kill(struct msg *msg)
 			return EPERM;
 		for (n = list_first(&allproc); n != &allproc;
 		     n = list_next(n)) {
-			p = list_entry(n, struct proc, link);
-			if (p->pid != 0 && p->pid != 1) {
-				err = kill_one(p->pid, sig);
+			p = list_entry(n, struct proc, p_link);
+			if (p->p_pid != 0 && p->p_pid != 1) {
+				err = kill_one(p->p_pid, sig);
 				if (err != 0)
 					break;
 			}
@@ -157,10 +160,10 @@ proc_kill(struct msg *msg)
 	else if (pid == 0) {
 		if ((p = proc_find(pid)) == NULL)
 			return ESRCH;
-		err = kill_pg(p->pgrp->pgid, sig);
+		err = kill_pg(p->p_pgrp->pg_pgid, sig);
 	}
 	else {
-		if (curproc->pgrp->pgid != -pid && !capable)
+		if (curproc->p_pgrp->pg_pgid != -pid && !capable)
 			return EPERM;
 		err = kill_pg(-pid, sig);
 	}

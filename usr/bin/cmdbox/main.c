@@ -29,7 +29,6 @@
 
 #include <prex/prex.h>
 #include <sys/utsname.h>
-#include <sys/ioctl.h>
 
 #include <limits.h>
 #include <ctype.h>
@@ -38,6 +37,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <libgen.h>
+#include <termios.h>
 
 #include "cmdbox.h"
 
@@ -54,7 +54,7 @@ help_main(int argc, char *argv[])
 
 	/* Get screen size */
 	maxcol = 80;
-	if (ioctl(fileno(stderr), TIOCGWINSZ, (u_long)&ws) == 0)
+	if (ioctl(fileno(stderr), TIOCGWINSZ, &ws) == 0)
 		maxcol = (int)ws.ws_col;
 	if (maxcol < 80)
 		maxcol -= 15;
@@ -78,7 +78,7 @@ help_main(int argc, char *argv[])
 }
 
 static void
-bannar(void)
+banner(void)
 {
 	struct info_kernel info;
 
@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 	prog = basename(argv[0]);
 	if (!strcmp(prog, "cmdbox")) {
 		if (argc == 1) {
-			bannar();
+			banner();
 #ifdef CONFIG_CMD_SH
 			exit(sh_main(1, shcmd));
 #else

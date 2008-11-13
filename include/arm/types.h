@@ -38,11 +38,14 @@
  * Basic integral types.  Omit the typedef if
  * not possible for a machine/compiler combination.
  */
-typedef	signed char		   int8_t;
-typedef	unsigned char		  uint8_t;
-typedef	short			  int16_t;
-typedef	unsigned short		 uint16_t;
-typedef	int			  int32_t;
-typedef	unsigned int		 uint32_t;
+typedef	signed char	   int8_t;
+typedef	unsigned char	  uint8_t;
+typedef	short		  int16_t;
+typedef	unsigned short	 uint16_t;
+typedef	int		  int32_t;
+typedef	unsigned int	 uint32_t;
+
+typedef unsigned long	  paddr_t;	/* type for a physical address */
+typedef unsigned long	  vaddr_t;	/* type for a virtual address */
 
 #endif	/* _ARM_TYPES_H */

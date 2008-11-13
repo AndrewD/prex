@@ -30,6 +30,7 @@
 #ifndef _KERNEL_H
 #define _KERNEL_H
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/list.h>
 #include <sys/errno.h>
@@ -47,7 +48,11 @@ typedef struct mutex	*mutex_t;
 typedef struct cond	*cond_t;
 typedef struct sem	*sem_t;
 typedef struct vm_map	*vm_map_t;
-typedef uint32_t	cap_t;
+typedef struct irq	*irq_t;
+
+typedef void (*sysfn_t)(void);
+typedef void (*dkifn_t)(void);
+
 
 #include <prex/sysinfo.h>
 
@@ -63,20 +68,24 @@ typedef uint32_t	cap_t;
 #define SEM_MAGIC	0x53656d3f	/* 'Sem?' */
 
 /*
- * Global variables
+ * Global variables in the kernel
  */
 extern struct thread	*cur_thread;	/* pointer to the current thread */
 extern struct task	kern_task;	/* kernel task */
-extern struct boot_info	*boot_info;	/* pointer to boot information */
-#ifdef DEBUG
+extern struct bootinfo	*bootinfo;	/* pointer to boot information */
 extern volatile int	irq_level;	/* current interrupt level */
-#endif
+extern const dkifn_t	driver_service[];
+extern const sysfn_t	syscall_table[];
+extern const u_int	nr_syscalls;
 
-extern size_t	 strlcpy(char *, const char *, size_t);
-extern int	 strncmp(const char *, const char *, size_t);
-extern size_t	 strnlen(const char *, size_t);
-extern void	*memcpy(void *, const void *, size_t);
-extern void	*memset(void *, int, size_t);
-extern int	 vsprintf(char *, const char *, va_list);
+
+__BEGIN_DECLS
+size_t	 strlcpy(char *, const char *, size_t);
+int	 strncmp(const char *, const char *, size_t);
+size_t	 strnlen(const char *, size_t);
+void	*memcpy(void *, const void *, size_t);
+void	*memset(void *, int, size_t);
+int	 vsprintf(char *, const char *, va_list);
+__BEGIN_DECLS
 
 #endif /* !_KERNEL_H */

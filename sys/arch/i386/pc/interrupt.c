@@ -34,6 +34,8 @@
 #include <kernel.h>
 #include <irq.h>
 #include <cpu.h>
+#include <locore.h>
+#include <cpufunc.h>
 
 /* I/O address for master/slave programmable interrupt controller */
 #define PIC_M           0x20
@@ -45,9 +47,9 @@
 /*
  * Interrupt priority level
  *
- * Each interrupt has its logical priority level, with 0 being the highest
- * priority. While some ISR is running, all lower priority interrupts
- * are masked off.
+ * Each interrupt has its logical priority level, with 0 being
+ * the highest priority. While some ISR is running, all lower
+ * priority interrupts are masked off.
  */
 volatile int irq_level;
 
@@ -131,10 +133,11 @@ interrupt_setup(int vector, int mode)
 
 /*
  * Common interrupt handler.
- * This routine is called from low level interrupt routine written
- * in assemble code. The interrupt flag is automatically disabled
- * by h/w in CPU when the interrupt is occurred.
- * The target interrupt will be masked in ICU while the irq handler
+ *
+ * This routine is called from the low level interrupt routine
+ * written in assemble code. The interrupt flag is automatically
+ * disabled by h/w in CPU when the interrupt is occurred. The
+ * target interrupt will be masked in ICU while the irq handler
  * is called.
  */
 void
@@ -156,13 +159,23 @@ interrupt_handler(struct cpu_regs *regs)
 	outb(0x20, PIC_M);		/* Non specific EOI to master */
 
 	/* Dispatch interrupt */
-	sti();
+	interrupt_enable();
 	irq_handler(vector);
-	cli();
+	interrupt_disable();
 
 	/* Restore interrupt level */
 	irq_level = old_ipl;
 	update_mask();
+}
+
+void interrupt_save(int *sts)
+{
+	*sts = (int)(get_eflags() & EFL_IF);
+}
+
+void interrupt_restore(int sts)
+{
+	set_eflags((get_eflags() & ~EFL_IF) | sts);
 }
 
 /*

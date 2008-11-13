@@ -6,11 +6,11 @@ INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/dev/$(ARCH)/include \
 ASFLAGS+=	$(INCLUDE)
 CFLAGS+=	$(INCLUDE) -nostdinc -fno-builtin -DKERNEL
 CPPFLAGS+=	$(INCLUDE) -DKERNEL
-LDFLAGS+=	-static -nostdlib
+LDFLAGS+=	-static -nostdlib -L$(SRCDIR)/conf
 LINTFLAGS+=	-DKERNEL
 
-ifeq ($(KTRACE),1)
-CFLAGS+=	-finstrument-functions
+ifeq ($(DRIVER_BASE),AUTODETECT)
+LDFLAGS+=	-r
 endif
 
 include $(SRCDIR)/mk/Makefile.inc

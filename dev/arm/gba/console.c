@@ -39,7 +39,8 @@
 static int console_init(void);
 static int console_read(device_t, char *, size_t *, int);
 static int console_write(device_t, char *, size_t *, int);
-static int console_ioctl(device_t, int, u_long);
+static int console_ioctl(device_t, u_long, void *);
+void console_attach(struct tty **);
 
 /*
  * Driver structure
@@ -91,7 +92,6 @@ static void
 move_cursor(void)
 {
 }
-
 
 static void
 new_line(void)
@@ -234,6 +234,9 @@ check_escape(char c)
 				clear_screen();
 			break;
 		case 'm':	/* Change attribute */
+			/*
+			 * XXX: We don't support attribute for GBA.
+			 */
 			switch (esc_arg1) {
 			case 0:		/* reset */
 				attrib = 0x0F;
@@ -291,7 +294,7 @@ check_escape(char c)
 }
 
 static void
-put_char(char c)
+console_putc(char c)
 {
 
 	if (check_escape(c))
@@ -323,25 +326,28 @@ put_char(char c)
 	}
 }
 
+/*
+ * Start output operation.
+ */
 static void
-console_output(struct tty *tp)
+console_start(struct tty *tp)
 {
 	int c;
 
 	sched_lock();
 	while ((c = ttyq_getc(&tp->t_outq)) >= 0)
-		put_char(c);
+		console_putc(c);
 	move_cursor();
-	esc_index = 0;
+	tty_done(tp);
 	sched_unlock();
 }
 
-#if defined(DEBUG) && defined(CONFIG_DIAG_VBA)
+#if defined(DEBUG) && defined(CONFIG_DIAG_SCREEN)
 /*
  * Debug print handler
  */
 static void
-diag_print(char *str)
+console_puts(char *str)
 {
 	size_t count;
 	char c;
@@ -351,7 +357,7 @@ diag_print(char *str)
 		c = *str;
 		if (c == '\0')
 			break;
-		put_char(c);
+		console_putc(c);
 		str++;
 	}
 	move_cursor();
@@ -384,10 +390,10 @@ console_write(device_t dev, char *buf, size_t *nbyte, int blkno)
  * I/O control
  */
 static int
-console_ioctl(device_t dev, int cmd, u_long arg)
+console_ioctl(device_t dev, u_long cmd, void *arg)
 {
 
-	return tty_ioctl(&console_tty, cmd, (void *)arg);
+	return tty_ioctl(&console_tty, cmd, arg);
 }
 
 /*
@@ -451,13 +457,17 @@ console_init(void)
 	esc_index = 0;
 	pos_x = 0;
 	pos_y = 19;
+
 	console_dev = device_create(&console_io, "console", DF_CHR);
+
 	init_font();
 	init_screen();
-#if defined(DEBUG) && defined(CONFIG_DIAG_VBA)
-	debug_attach(diag_print);
+#if defined(DEBUG) && defined(CONFIG_DIAG_SCREEN)
+	debug_attach(console_puts);
 #endif
-	tty_register(&console_io, &console_tty, console_output);
+	tty_attach(&console_io, &console_tty);
+
+	console_tty.t_oproc = console_start;
 	console_tty.t_winsize.ws_row = SCR_ROWS;
 	console_tty.t_winsize.ws_col = SCR_COLS;
 	return 0;

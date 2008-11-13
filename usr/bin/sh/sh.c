@@ -37,11 +37,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 
 #include "sh.h"
 
-#define	LINELEN		512
+#define	LINELEN		256
+#define ARGMAX		32
 
 #ifdef CMDBOX
 extern const struct cmd_entry builtin_cmds[];
@@ -52,37 +54,7 @@ extern int exec_builtin(cmd_func_t, int argc, char *argv[]);
 extern int exec_cmd(int argc, char *argv[]);
 extern const struct cmd_entry internal_cmds[];
 
-static char *argv[20];
-
-/*
- * Read command string.
- */
-static char *
-read_line(char *line, int len)
-{
-	int c, index = 0;
-
-	for (;;) {
-		c = getchar();
-		switch (c) {
-		case '\n':
-		case EOF:
-			line[index] = 0;
-			return &line[index];
-
-		default:
-			if (index > len) {
-				fprintf(stderr, "Command line overflow\n");
-				return (char *)-1;
-			}
-			if (c < 0x80) {
-				line[index] = (char)c;
-				index++;
-			}
-			break;
-		}
-	}
-}
+static char *args[ARGMAX];
 
 /*
  * Find command from the specifid table.
@@ -111,59 +83,95 @@ static void
 parse_line(char *line)
 {
 	char *p = line;
-	int argc = 0;
+	int i, argc;
 	cmd_func_t cmd;
 
 	/*
 	 * Build argument list
 	 */
-	for (;;) {
-		/* Skip space */
+	i = 0;
+	do {
+		/* Ignore whitespace at beginning */
 		while (*p && isspace((int)*p))
 			p++;
-		if (*p == 0)
+		if (*p == '\0')
 			break;
-		argv[argc++] = p;
+		args[i] = p;
+		i++;
 
 		/* Skip word */
 		while (*p && !isspace((int)*p))
 			p++;
-		if (*p == 0)
+		if (*p == '\0')
 			break;
-		*p++ = 0;
+		*p++ = '\0';
+	} while (i < ARGMAX - 1);
+
+	if (i == ARGMAX) {
+		fprintf(stderr, "Too many args\n");
+		return;
 	}
-	argv[argc] = NULL;
+	args[i] = NULL;
+	argc = i;
 
 	/*
 	 * Dispatch command
 	 */
-	if (argc) {
+	if (argc > 0) {
 		optind = 1;
 
 		/* Run it as internal command */
-		cmd  = find_cmd(internal_cmds, argv[0]);
+		cmd  = find_cmd(internal_cmds, args[0]);
 		if (cmd != NULL) {
-			if ((cmd)(argc, argv) != 0) {
-				fprintf(stderr, "%s: %s\n", argv[0],
+			if ((*cmd)(argc, args) != 0) {
+				fprintf(stderr, "%s: %s\n", args[0],
 					strerror(errno));
 			}
 			return;
 		}
 #ifdef CMDBOX
 		/* Run it as shell built-in command */
-		cmd  = find_cmd(builtin_cmds, argv[0]);
+		cmd  = find_cmd(builtin_cmds, args[0]);
 		if (cmd != NULL) {
-			exec_builtin(cmd, argc, argv);
+			exec_builtin(cmd, argc, args);
 			return;
 		}
 #endif
 		/* Next, run it as external command */
-		exec_cmd(argc, argv);
+		exec_cmd(argc, args);
 	}
 }
 
+/*
+ * Read command string.
+ */
+static char *
+read_line(char *line, int len, int fd)
+{
+	char *p, *end;
+	int c;
+
+	end = line + len;
+	for (p = line; p < end; p++) {
+		c = getchar();
+		if (c == EOF) {
+			if (p == line)
+				return NULL;
+			*p = '\0';
+			return p;
+		}
+		if (c == '\n') {
+			*p = '\0';
+			return p;
+		}
+		*p = (char)c;
+	}
+	fprintf(stderr, "Command line overflow\n");
+	return (char *)-1;
+}
+
 int
-main(int dummy, char *argv[])
+main(int argc, char **argv)
 {
 	static char line[LINELEN];
 	static char cwd[PATH_MAX];
@@ -172,6 +180,7 @@ main(int dummy, char *argv[])
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
+	signal(SIGTSTP, SIG_IGN);	/* temporary... */
 
 	/*
 	 * Command loop
@@ -185,7 +194,7 @@ main(int dummy, char *argv[])
 		printf("\033[0m# ");
 
 		/* Read and parse user input */
-		p  = read_line(line, LINELEN);
+		p = read_line(line, LINELEN, 0);
 		if (p == NULL)
 			break;
 		if (p == (char *)-1)
@@ -193,7 +202,7 @@ main(int dummy, char *argv[])
 		while (*(p - 1) == '\\' && (p - 2) >= line
 			&& *(p - 2) != '\\') {
 			*(p - 1) = ' ';
-			p = read_line(p, LINELEN - (p - line));
+			p = read_line(p, LINELEN - (p - line), 0);
 			if (p == NULL)
 				break;
 			if (p == (char *)-1)
@@ -201,5 +210,7 @@ main(int dummy, char *argv[])
 		}
 		parse_line(line);
 	}
+	printf("bye!\n");
+	exit(0);
 	return 0;
 }

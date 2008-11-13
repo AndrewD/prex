@@ -64,6 +64,7 @@ struct timezone {
 	int	tz_minuteswest;	/* minutes west of Greenwich */
 	int	tz_dsttime;	/* type of dst correction */
 };
+
 #define	DST_NONE	0	/* not on dst */
 #define	DST_USA		1	/* USA style dst */
 #define	DST_AUST	2	/* Australian style dst */

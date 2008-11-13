@@ -32,6 +32,8 @@
 #ifndef _SYS_TERMIOS_H_
 #define _SYS_TERMIOS_H_
 
+#include <sys/ioctl.h>
+
 /*
  * Special Control Characters
  *
@@ -221,21 +223,141 @@ __END_DECLS
 
 #endif /* !KERNEL */
 
-#ifndef _POSIX_SOURCE
 
 /*
- * Include tty ioctl's that aren't just for backwards compatibility
- * with the old tty driver.  These ioctl definitions were previously
- * in <sys/ioctl.h>.
+ * Tty ioctl's except for those supported only for backwards compatibility
+ * with the old tty driver.
  */
-#include <sys/ttycom.h>
-#endif
+
+/*
+ * Window/terminal size structure.  This information is stored by the kernel
+ * in order to provide a consistent interface, but is not used by the kernel.
+ */
+struct winsize {
+	unsigned short	ws_row;		/* rows, in characters */
+	unsigned short	ws_col;		/* columns, in characters */
+	unsigned short	ws_xpixel;	/* horizontal size, pixels */
+	unsigned short	ws_ypixel;	/* vertical size, pixels */
+};
+
+#define	TIOCMODG	_IOR('t', 3, int)	/* get modem control state */
+#define	TIOCMODS	_IOW('t', 4, int)	/* set modem control state */
+#define		TIOCM_LE	0001		/* line enable */
+#define		TIOCM_DTR	0002		/* data terminal ready */
+#define		TIOCM_RTS	0004		/* request to send */
+#define		TIOCM_ST	0010		/* secondary transmit */
+#define		TIOCM_SR	0020		/* secondary receive */
+#define		TIOCM_CTS	0040		/* clear to send */
+#define		TIOCM_CAR	0100		/* carrier detect */
+#define		TIOCM_CD	TIOCM_CAR
+#define		TIOCM_RNG	0200		/* ring */
+#define		TIOCM_RI	TIOCM_RNG
+#define		TIOCM_DSR	0400		/* data set ready */
+						/* 8-10 compat */
+#define	TIOCEXCL	 _IO('t', 13)		/* set exclusive use of tty */
+#define	TIOCNXCL	 _IO('t', 14)		/* reset exclusive use of tty */
+						/* 15 unused */
+#define	TIOCFLUSH	_IOW('t', 16, int)	/* flush buffers */
+						/* 17-18 compat */
+#define	TIOCGETA	_IOR('t', 19, struct termios) /* get termios struct */
+#define	TIOCSETA	_IOW('t', 20, struct termios) /* set termios struct */
+#define	TIOCSETAW	_IOW('t', 21, struct termios) /* drain output, set */
+#define	TIOCSETAF	_IOW('t', 22, struct termios) /* drn out, fls in, set */
+#define	TIOCGETD	_IOR('t', 26, int)	/* get line discipline */
+#define	TIOCSETD	_IOW('t', 27, int)	/* set line discipline */
+						/* 127-124 compat */
+#define	TIOCSBRK	 _IO('t', 123)		/* set break bit */
+#define	TIOCCBRK	 _IO('t', 122)		/* clear break bit */
+#define	TIOCSDTR	 _IO('t', 121)		/* set data terminal ready */
+#define	TIOCCDTR	 _IO('t', 120)		/* clear data terminal ready */
+#define	TIOCGPGRP	_IOR('t', 119, int)	/* get pgrp of tty */
+#define	TIOCSPGRP	_IOW('t', 118, int)	/* set pgrp of tty */
+						/* 117-116 compat */
+#define	TIOCOUTQ	_IOR('t', 115, int)	/* output queue size */
+#define	TIOCSTI		_IOW('t', 114, char)	/* simulate terminal input */
+#define	TIOCNOTTY	 _IO('t', 113)		/* void tty association */
+#define	TIOCPKT		_IOW('t', 112, int)	/* pty: set/clear packet mode */
+#define		TIOCPKT_DATA		0x00	/* data packet */
+#define		TIOCPKT_FLUSHREAD	0x01	/* flush packet */
+#define		TIOCPKT_FLUSHWRITE	0x02	/* flush packet */
+#define		TIOCPKT_STOP		0x04	/* stop output */
+#define		TIOCPKT_START		0x08	/* start output */
+#define		TIOCPKT_NOSTOP		0x10	/* no more ^S, ^Q */
+#define		TIOCPKT_DOSTOP		0x20	/* now do ^S ^Q */
+#define		TIOCPKT_IOCTL		0x40	/* state change of pty driver */
+#define	TIOCSTOP	 _IO('t', 111)		/* stop output, like ^S */
+#define	TIOCSTART	 _IO('t', 110)		/* start output, like ^Q */
+#define	TIOCMSET	_IOW('t', 109, int)	/* set all modem bits */
+#define	TIOCMBIS	_IOW('t', 108, int)	/* bis modem bits */
+#define	TIOCMBIC	_IOW('t', 107, int)	/* bic modem bits */
+#define	TIOCMGET	_IOR('t', 106, int)	/* get all modem bits */
+#define	TIOCREMOTE	_IOW('t', 105, int)	/* remote input editing */
+#define	TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
+#define	TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
+#define	TIOCUCNTL	_IOW('t', 102, int)	/* pty: set/clr usr cntl mode */
+#define		UIOCCMD(n)	_IO('u', n)	/* usr cntl op "n" */
+#define	TIOCCONS	_IOW('t', 98, int)	/* become virtual console */
+#define	TIOCSCTTY	 _IO('t', 97)		/* become controlling tty */
+#define	TIOCEXT		_IOW('t', 96, int)	/* pty: external processing */
+#define	TIOCSIG		 _IO('t', 95)		/* pty: generate signal */
+#define	TIOCDRAIN	 _IO('t', 94)		/* wait till output drained */
+
+#define	TTYDISC		0		/* termios tty line discipline */
+#define	TABLDISC	3		/* tablet discipline */
+#define	SLIPDISC	4		/* serial IP discipline */
+
+#define	TIOCSETSIGT	_IOW('t', 200, int)	/* set signal task */
+#define TIOCINQ		_IOR('t', 201, int)	/* input queue size */
+
+/*
+ * Defaults on "first" open.
+ */
+#define	TTYDEF_IFLAG	(tcflag_t)(BRKINT | ICRNL | IXON | IXANY)
+#define TTYDEF_OFLAG	(tcflag_t)(OPOST | ONLCR | OXTABS)
+#define TTYDEF_LFLAG	(tcflag_t)(ECHO | ICANON | ISIG | ECHOE|ECHOK|ECHONL)
+#define TTYDEF_CFLAG	(tcflag_t)(CREAD | CS8 | HUPCL)
+#define TTYDEF_SPEED	(B9600)
+
+/*
+ * Control Character Defaults
+ */
+#define CTRL(x)	(cc_t)(x&037)
+#define	CEOF		CTRL('d')
+#define	CEOL		((unsigned char)'\377')	/* XXX avoid _POSIX_VDISABLE */
+#define	CERASE		0177
+#define	CINTR		CTRL('c')
+#define	CSTATUS		((unsigned char)'\377')	/* XXX avoid _POSIX_VDISABLE */
+#define	CKILL		CTRL('u')
+#define	CMIN		1
+#define	CQUIT		034		/* FS, ^\ */
+#define	CSUSP		CTRL('z')
+#define	CTIME		0
+#define	CDSUSP		CTRL('y')
+#define	CSTART		CTRL('q')
+#define	CSTOP		CTRL('s')
+#define	CLNEXT		CTRL('v')
+#define	CDISCARD 	CTRL('o')
+#define	CWERASE 	CTRL('w')
+#define	CREPRINT 	CTRL('r')
+#define	CEOT		CEOF
+/* compat */
+#define	CBRK		CEOL
+#define CRPRNT		CREPRINT
+#define	CFLUSH		CDISCARD
+
+#ifdef KERNEL
+/*
+ * #define TTYDEFCHARS to include an array of default control characters.
+ */
+#define TTYDEFCHARS \
+{ \
+	CEOF,	CEOL,	CEOL,	CERASE, CWERASE, CKILL, CREPRINT, \
+	_POSIX_VDISABLE, CINTR,	CQUIT,	CSUSP,	CDSUSP,	CSTART,	CSTOP,	CLNEXT, \
+	CDISCARD, CMIN,	CTIME,  CSTATUS, _POSIX_VDISABLE \
+}
+#endif /* KERNEL */
 
 /*
  * END OF PROTECTED INCLUDE.
  */
 #endif /* !_SYS_TERMIOS_H_ */
-
-#ifndef _POSIX_SOURCE
-#include <sys/ttydefaults.h>
-#endif

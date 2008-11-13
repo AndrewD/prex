@@ -27,6 +27,10 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * arfs_vfsops.c - vfs operations for archive file system.
+ */
+
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/param.h>
@@ -42,8 +46,8 @@
 extern struct vnops arfs_vnops;
 
 
-static int arfs_mount(mount_t mp, char *dev, int flags, void *data);
-static int arfs_unmount(mount_t mp);
+static int arfs_mount	(mount_t mp, char *dev, int flags, void *data);
+static int arfs_unmount	(mount_t mp);
 #define arfs_sync	((vfsop_sync_t)vfs_nullop)
 #define arfs_vget	((vfsop_vget_t)vfs_nullop)
 #define arfs_statfs	((vfsop_statfs_t)vfs_nullop)
@@ -70,7 +74,7 @@ arfs_mount(mount_t mp, char *dev, int flags, void *data)
 	char *buf;
 	int err = 0;
 
-	dprintf("arfs_mount: dev=%s\n", dev);
+	DPRINTF(("arfs_mount: dev=%s\n", dev));
 
 	if ((buf = malloc(BSIZE)) == NULL)
 		return ENOMEM;
@@ -79,13 +83,13 @@ arfs_mount(mount_t mp, char *dev, int flags, void *data)
 	size = BSIZE;
 	err = device_read((device_t)mp->m_dev, buf, &size, 0);
 	if (err) {
-		dprintf("arfs_mount: read error=%d\n", err);
+		DPRINTF(("arfs_mount: read error=%d\n", err));
 		goto out;
 	}
 
 	/* Check if the device includes valid archive image. */
 	if (strncmp(buf, ARMAG, SARMAG)) {
-		dprintf("invalid archive image!\n");
+		DPRINTF(("arfs_mount: invalid archive image!\n"));
 		err = EINVAL;
 		goto out;
 	}

@@ -97,12 +97,12 @@ build(path)
 			if (errno != ENOENT ||
 			    mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
 				warn("%s", path);
-				return (1);
+				return 1;
 			}
 		}
 		*p = '/';
 	}
-	return (0);
+	return 0;
 }
 
 static void

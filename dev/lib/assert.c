@@ -30,6 +30,7 @@
 /*
  * assert.c - assertion routine
  */
+
 #include <driver.h>
 
 /*
@@ -42,6 +43,11 @@
 void
 assert(const char *file, int line, const char *exp)
 {
+
 	irq_lock();
-	panic("\nAssertion fail!: %s line:%d '%s'\n", file, line, exp);
+#ifdef DEBUG
+	printf("\nAssertion failed: %s line:%d '%s'\n", file, line, exp);
+#endif
+	panic("driver panic");
+	/* NOTREACHED */
 }

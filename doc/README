@@ -31,8 +31,8 @@ Current Port
 Available port (arch-platform):
 
   - i386-pc
-  - i386-nommu
   - arm-gba
+  - arm-integrator
 
 
 How to Build?

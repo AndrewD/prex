@@ -30,23 +30,21 @@
 #ifndef _EXEC_H
 #define _EXEC_H
 
+#include <sys/cdefs.h>
 #include <prex/prex.h>
 #include <prex/elf.h>
 #include <sys/param.h>
-#include <sys/syslog.h>
 #include <sys/stat.h>
 #include <server/exec.h>
 
 #include <unistd.h>
 
-#ifdef DEBUG
 /* #define DEBUG_EXEC 1 */
-#endif
 
 #ifdef DEBUG_EXEC
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "exec: " fmt, ## args)
+#define DPRINTF(a) dprintf a
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define DPRINTF(a)
 #endif
 
 #define PRIO_EXEC       127
@@ -57,22 +55,26 @@
  * Definition for exec loader
  */
 struct exec_loader {
-	const char *name;		/* name of loader */
-	void	(*init)(void);		/* initialize routine */
-	int	(*probe)(void *);	/* probe routine */
-	int	(*load)(void *, task_t, int, void **);	/* load routine */
+	const char *el_name;		/* name of loader */
+	void	(*el_init)(void);	/* initialize routine */
+	int	(*el_probe)(void *);	/* probe routine */
+	int	(*el_load)(void *, task_t, int, void **entry);	/* load routine */
 };
 
+/*
+ * Global variables
+ */
 extern object_t proc_obj;
 extern object_t fs_obj;
 extern struct exec_loader loader_table[];
 
-extern int build_args(task_t, void *, struct exec_msg *, void **);
-
-extern int file_open(char *path, int flags);
-extern int file_close(int fd);
-extern int file_read(int fd, void *buf, size_t len);
-extern int file_lseek(int fd, off_t offset, int whence);
-extern int file_fstat(int fd, struct stat *st);
+__BEGIN_DECLS
+int	 build_args(task_t, void *, struct exec_msg *, void **);
+int	 file_open(char *path, int flags);
+int	 file_close(int fd);
+int	 file_read(int fd, void *buf, size_t len);
+int	 file_lseek(int fd, off_t offset, int whence);
+int	 file_fstat(int fd, struct stat *st);
+__END_DECLS
 
 #endif /* !_EXEC_H */

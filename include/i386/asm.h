@@ -47,27 +47,9 @@
 #define	ASENTRY(y)	_ENTRY(_ASM_LABEL(y));
 
 #if defined(PIC)
-#ifdef __STDC__
 #define	PIC_SYM(x,y)	x ## ( ## y ## )
-#else
-#define	PIC_SYM(x,y)	x/**/(/**/y/**/)
-#endif
 #else
 #define	PIC_SYM(x,y)	x
 #endif
-
-#define	WEAK_ALIAS(alias,sym)						\
-	.weak alias;							\
-	alias = sym
-
-#ifdef __STDC__
-#define	WARN_REFERENCES(sym,msg)					\
-	.stabs msg ## ,30,0,0,0 ;					\
-	.stabs __STRING(_C_LABEL(sym)) ## ,1,0,0,0
-#else
-#define	WARN_REFERENCES(sym,msg)					\
-	.stabs msg,30,0,0,0 ;						\
-	.stabs __STRING(sym),1,0,0,0
-#endif /* __STDC__ */
 
 #endif /* !_I386_ASM_H */

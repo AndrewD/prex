@@ -36,12 +36,6 @@
 
 #include <conf/config.h>
 
-#define	BSD	199506		/* System version (year & month). */
-#define BSD4_3	1
-#define BSD4_4	1
-
-#include <sys/null.h>
-
 #ifndef LOCORE
 #include <sys/types.h>
 #endif
@@ -65,20 +59,34 @@
 #define	NOGROUP		65535		/* marker for empty group set member */
 #define MAXHOSTNAMELEN	32		/* max hostname size */
 
+/* The following name length include a null-terminate charcter */
 #define MAXTASKNAME	12		/* max task name */
 #define MAXDEVNAME	12		/* max device name */
 #define MAXOBJNAME	16		/* max object name */
 #define MAXEVTNAME	12		/* max event name */
 
-#define HZ		CONFIG_HZ		/* ticks per second */
-#define PAGE_SIZE	CONFIG_PAGE_SIZE
-#define KSTACK_SIZE	CONFIG_KSTACK_SIZE	/* kernel stack size */
-#define USTACK_SIZE	CONFIG_USTACK_SIZE	/* user stack size */
+#define HZ		CONFIG_HZ	/* ticks per second */
+#define KSTACK_SIZE	768		/* kernel stack size */
+#define USTACK_SIZE	4096		/* user stack size */
+#ifdef CONFIG_MMU
+#define PAGE_SIZE	4096		/* bytes per page */
+#else /* !CONFIG_MMU */
+#define PAGE_SIZE	1024		/* bytes per page */
+#endif /* !CONFIG_MMU */
+
+#define PRIO_DFLT	200		/* default user priority */
+
+#ifndef	NULL
+#if !defined(__cplusplus)
+#define	NULL	((void *)0)
+#else
+#define	NULL	0
+#endif
+#endif
 
 /* More types and definitions used throughout the kernel. */
 #ifdef KERNEL
 #include <sys/cdefs.h>
-#include <sys/errno.h>
 #endif
 
 #ifndef KERNEL
@@ -90,18 +98,19 @@
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
- * data types (int, long, ...).   The result is u_int and must be cast to
+ * data types (int, long, ...).   The result is u_long and must be cast to
  * any desired pointer type.
  */
 #define	ALIGNBYTES	3
-#define	ALIGN(p)	(((u_int)(p) + ALIGNBYTES) &~ ALIGNBYTES)
+#define	ALIGN(p)	(((vaddr_t)(p) + ALIGNBYTES) &~ ALIGNBYTES)
 
 /*
  * Memory page
  */
 #define PAGE_MASK	(PAGE_SIZE-1)
-#define PAGE_ALIGN(n)	((((u_long)(n)) + PAGE_MASK) & ~PAGE_MASK)
-#define PAGE_TRUNC(n)	(((u_long)(n)) & ~PAGE_MASK)
+
+#define PAGE_ALIGN(n)	((((vaddr_t)(n)) + PAGE_MASK) & (vaddr_t)~PAGE_MASK)
+#define PAGE_TRUNC(n)	(((vaddr_t)(n)) & (vaddr_t)~PAGE_MASK)
 
 /*
  * MAXPATHLEN defines the longest permissable path length after expanding

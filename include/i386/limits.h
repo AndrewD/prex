@@ -65,13 +65,7 @@
 					/* min value for a long */
 #define	LONG_MIN	(-2147483647L-1L)
 
-#if !defined(_ANSI_SOURCE)
 #define	SSIZE_MAX	INT_MAX		/* max value for a ssize_t */
-
-#if !defined(_POSIX_SOURCE)
 #define	SIZE_T_MAX	UINT_MAX	/* max value for a size_t */
-
-#endif /* !_POSIX_SOURCE */
-#endif /* !_ANSI_SOURCE */
 
 #endif	/* _I386_LIMITS_H */

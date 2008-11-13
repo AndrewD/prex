@@ -30,12 +30,12 @@
 #ifndef _VFS_H
 #define _VFS_H
 
+#include <sys/cdefs.h>
 #include <prex/prex.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/mount.h>
 #include <sys/dirent.h>
-#include <sys/syslog.h>
 
 #include <assert.h>
 
@@ -45,26 +45,19 @@
 #define PRIO_FS		128		/* priority of file system server */
 #define FSMAXNAMES	16		/* max length of 'file system' name */
 
-#ifdef DEBUG
-/* #define DEBUG_VFS	1 */
-/* #define DEBUG_VNODE	1 */
-/* #define DEBUG_BIO	1 */
-#endif
+/* #define DEBUG_VFS 1 */
 
 #ifdef DEBUG_VFS
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "vfs: "fmt, ## args)
+extern int vfs_debug;
+
+#define	VFSDB_CORE	0x00000001
+#define	VFSDB_SYSCALL	0x00000002
+#define	VFSDB_VNODE	0x00000004
+#define	VFSDB_BIO	0x00000008
+
+#define	DPRINTF(_m,X)	if (vfs_debug & (_m)) dprintf X
 #else
-#define dprintf(fmt...)		do {} while (0)
-#endif
-#ifdef DEBUG_VNODE
-#define vn_printf(fmt, args...)	syslog(LOG_DEBUG, fmt, ## args)
-#else
-#define vn_printf(fmt...)	do {} while (0)
-#endif
-#ifdef DEBUG_BIO
-#define bio_printf(fmt, args...) syslog(LOG_DEBUG, fmt, ## args)
-#else
-#define bio_printf(fmt...)	 do {} while (0)
+#define	DPRINTF(_m, X)
 #endif
 
 #ifdef DEBUG
@@ -91,75 +84,66 @@ struct task {
 	struct list	link;		/* hash link */
 	task_t		task;		/* task id */
 	char 		cwd[PATH_MAX];	/* current working directory */
-	file_t		cwd_fp;		/* directory for cwd */
+	file_t		cwdfp;		/* directory for cwd */
 	file_t		file[OPEN_MAX];	/* array of file pointers */
-	int		nr_open;	/* number of opening files */
+	int		nopens;		/* number of opening files */
 	mutex_t		lock;		/* lock for this task */
 	cap_t		cap;		/* task capabilities */
 };
 
 extern const struct vfssw vfssw_table[];
 
-extern struct task *task_lookup(task_t task);
-extern int task_alloc(task_t task, struct task **pt);
-extern void task_free(struct task *t);
-extern void task_update(struct task *t, task_t task);
-extern void task_unlock(struct task *t);
-extern file_t task_getfp(struct task *t, int fd);
-extern int task_conv(struct task *t, char *path, char *full);
-extern void task_dump(void);
-extern void task_init(void);
+__BEGIN_DECLS
+struct task *task_lookup(task_t task);
+int	 task_alloc(task_t task, struct task **pt);
+void	 task_free(struct task *t);
+void	 task_update(struct task *t, task_t task);
+void	 task_unlock(struct task *t);
+file_t	 task_getfp(struct task *t, int fd);
+int	 task_newfd(struct task *t);
+int	 task_conv(struct task *t, char *path, char *full);
+void	 task_dump(void);
+void	 task_init(void);
 
-extern int namei(char *path, vnode_t *vpp);
-extern int lookup(char *path, vnode_t *vpp, char **name);
-
-extern vnode_t vn_lookup(mount_t mp, char *path);
-extern void vn_lock(vnode_t vp);
-extern void vn_unlock(vnode_t vp);
-extern vnode_t vget(mount_t mp, char *path);
-extern void vput(vnode_t vp);
-extern void vgone(vnode_t vp);
-extern void vref(vnode_t vp);
-extern void vrele(vnode_t vp);
-extern int vcount(vnode_t vp);
-extern void vflush(mount_t mp);
-extern void vnode_init(void);
+int	 namei(char *path, vnode_t *vpp);
+int	 lookup(char *path, vnode_t *vpp, char **name);
+void	 vnode_init(void);
 #ifdef DEBUG
-extern void vnode_dump(void);
+void	 vnode_dump(void);
+#endif
+int	 vfs_findroot(char *path, mount_t *mp, char **root);
+void	 vfs_busy(mount_t mp);
+void	 vfs_unbusy(mount_t mp);
+#ifdef DEBUG
+void	 mount_dump(void);
 #endif
 
-extern void bio_init(void);
+int	 sys_open(char *path, int flags, mode_t mode, file_t *pfp);
+int	 sys_close(file_t fp);
+int	 sys_read(file_t fp, void *buf, size_t size, size_t *result);
+int	 sys_write(file_t fp, void *buf, size_t size, size_t *result);
+int	 sys_lseek(file_t fp, off_t off, int type, off_t * cur_off);
+int	 sys_ioctl(file_t fp, u_long request, void *buf);
+int	 sys_fstat(file_t fp, struct stat *st);
+int	 sys_fsync(file_t fp);
 
-extern int sys_mount(char *dev, char *dir, char *fsname, int flags, void *data);
-extern int sys_umount(char *path);
-extern int sys_sync(void);
-extern int vfs_findroot(char *path, mount_t *mp, char **root);
-extern void vfs_busy(mount_t mp);
-extern void vfs_unbusy(mount_t mp);
-#ifdef DEBUG
-extern void mount_dump(void);
-#endif
+int	 sys_opendir(char *path, file_t * file);
+int	 sys_closedir(file_t fp);
+int	 sys_readdir(file_t fp, struct dirent *dirent);
+int	 sys_rewinddir(file_t fp);
+int	 sys_seekdir(file_t fp, long loc);
+int	 sys_telldir(file_t fp, long *loc);
+int	 sys_mkdir(char *path, mode_t mode);
+int	 sys_rmdir(char *path);
+int	 sys_mknod(char *path, mode_t mode);
+int	 sys_rename(char *src, char *dest);
+int	 sys_unlink(char *path);
+int	 sys_access(char *path, int mode);
+int	 sys_stat(char *path, struct stat *st);
 
-extern int sys_open(char *path, int flags, mode_t mode, file_t * file);
-extern int sys_close(file_t fl);
-extern int sys_read(file_t fl, void *buf, size_t size, size_t *result);
-extern int sys_write(file_t fl, void *buf, size_t size, size_t *result);
-extern int sys_lseek(file_t fl, off_t off, int type, off_t * cur_off);
-extern int sys_ioctl(file_t fl, int request, char *buf);
-extern int sys_fstat(file_t fl, struct stat *st);
-extern int sys_fsync(file_t fl);
-
-extern int sys_opendir(char *path, file_t * file);
-extern int sys_closedir(file_t fl);
-extern int sys_readdir(file_t fl, struct dirent *dirent);
-extern int sys_rewinddir(file_t fl);
-extern int sys_seekdir(file_t fl, long loc);
-extern int sys_telldir(file_t fl, long *loc);
-extern int sys_mkdir(char *path, mode_t mode);
-extern int sys_rmdir(char *path);
-extern int sys_mknod(char *path, mode_t mode);
-extern int sys_rename(char *src, char *dest);
-extern int sys_unlink(char *path);
-extern int sys_access(char *path, int mode);
+int	 sys_mount(char *dev, char *dir, char *fsname, int flags, void *data);
+int	 sys_umount(char *path);
+int	 sys_sync(void);
+__END_DECLS
 
 #endif /* !_VFS_H */

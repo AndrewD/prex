@@ -38,7 +38,6 @@
 #define	_SYS_TYPES_H_
 
 /* Machine type dependent parameters. */
-#include <machine/ansi.h>
 #include <machine/types.h>
 #include <prex/types.h>
 
@@ -46,8 +45,6 @@ typedef	unsigned char	u_char;
 typedef	unsigned short	u_short;
 typedef	unsigned int	u_int;
 typedef	unsigned long	u_long;
-typedef	unsigned short	ushort;		/* Sys V compatibility */
-typedef	unsigned int	uint;		/* Sys V compatibility */
 
 typedef	uint32_t	dev_t;		/* device number */
 typedef	uint32_t	gid_t;		/* group id */
@@ -61,29 +58,29 @@ typedef unsigned long	rlim_t;		/* resource limit */
 
 #include <sys/endian.h>
 
-#ifdef	_BSD_CLOCK_T_
-typedef	_BSD_CLOCK_T_	clock_t;
-#undef	_BSD_CLOCK_T_
+#if !defined(_CLOCK_T)
+#define _CLOCK_T
+typedef	unsigned long	clock_t;	/* relative time in a specified resolution */
 #endif
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#if !defined(_SIZE_T)
+#define _SIZE_T
+typedef	unsigned int	size_t;		/* size of something in bytes */
 #endif
 
-#ifdef	_BSD_SSIZE_T_
-typedef	_BSD_SSIZE_T_	ssize_t;
-#undef	_BSD_SSIZE_T_
+#if !defined(_SSIZE_T)
+#define _SSIZE_T
+typedef	int		ssize_t;	/* size of something in bytes */
 #endif
 
-#ifdef	_BSD_TIME_T_
-typedef	_BSD_TIME_T_	time_t;
-#undef	_BSD_TIME_T_
+#if !defined(_TIME_T)
+#define _TIME_T
+typedef	long		time_t;		/* time of day in seconds */
 #endif
 
-#ifndef _POSIX_SOURCE
 #define	NBBY	8		/* number of bits in a byte */
 
+#ifndef KERNEL
 /*
  * Select uses bit masks of file descriptors in longs.  These macros
  * manipulate such bit fields (the filesystem macros use chars).
@@ -110,19 +107,6 @@ typedef	struct fd_set {
 #define	FD_ISSET(n, p)	((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
 #define	FD_COPY(f, t)	bcopy(f, t, sizeof(*(f)))
 #define	FD_ZERO(p)	bzero(p, sizeof(*(p)))
+#endif /* !KERNEL */
 
-#if defined(__STDC__) && defined(KERNEL)
-/*
- * Forward structure declarations for function prototypes.  We include the
- * common structures that cross subsystem boundaries here; others are mostly
- * used in the same place that the structure is defined.
- */
-struct	pgrp;
-struct	rusage;
-struct	file;
-struct	buf;
-struct	tty;
-#endif
-
-#endif /* !_POSIX_SOURCE */
 #endif /* !_SYS_TYPES_H_ */

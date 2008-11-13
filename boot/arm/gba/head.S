@@ -48,14 +48,14 @@
  */
 
 #include <conf/config.h>
-#include <platform.h>
+#include <syspage.h>
 
 #define ENTRY(x) .global x; .align; x##:
 
 	.section ".text","ax"
 	.code 32
 /*
- * Kernel start point
+ * Loader start point
  */
 ENTRY(boot_entry)
 	b	rom_header_end
@@ -122,12 +122,12 @@ __slave_number:
 
 	.align
 	.code 32
-stack_end:	.word	BOOT_STACK+0xf00
+stack_top:	.word	BOOT_STACKTOP
 
 start_vector:
 	mov	r0, #0xd3		/* Enter SVC mode, Disable IRQ,FIQ */
 	msr	cpsr_c, r0
-	ldr	sp, stack_end
+	ldr	sp, stack_top
 
 	adr	r0, thumb_mode + 1
 	bx	r0
@@ -141,7 +141,7 @@ thumb_mode:
 	lsl	r3, #7	    /* r3 = 0x2000 (8K) */
 	mov	r2, #3
 	lsl	r2, #24     /* r2 = 0x3000000 */
-	lsl	r1, r2, #2  /* r1 = 0x8000000 */
+	lsl	r1, r3, #14 /* r1 = 0x8000000 */
 
 copy_loop:
 	ldmia	r1!, {r0}
@@ -160,7 +160,27 @@ copy_loop:
 ENTRY(start_kernel)
 	bx	r0
 
-		.section .tail,"ax"
+/*
+ * Put one character to Visual Boy Advance (VBA) emulator console.
+ *
+ * Important:
+ * This BIOS call is not supported by actual GBA BIOS. So, you must
+ * disable this function when you run it on actual GBA H/W.
+ * Otherwise, it will hang.
+ */
+putbuf:
+	.long	0
+
+ENTRY(machine_putc)
+#if defined(DEBUG) && defined(CONFIG_DIAG_VBA)
+	ldr	r1, =putbuf
+	str	r0, [r1]
+	mov	r0, r1
+	swi	$0xff0000
+#endif
+	mov	pc, lr
+
+	.section .tail,"ax"
 dummy:
 	.byte	0xff
 

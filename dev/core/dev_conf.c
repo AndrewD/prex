@@ -42,6 +42,7 @@ extern struct driver ramdisk_drv;
 extern struct driver rtc_drv;
 extern struct driver tty_drv;
 extern struct driver zero_drv;
+extern struct driver serial_drv;
 
 /*
  * Driver table
@@ -83,6 +84,9 @@ struct driver *driver_table[] = {
 #endif
 #ifdef CONFIG_ZERO
 	&zero_drv,
+#endif
+#ifdef CONFIG_SERIAL
+	&serial_drv,
 #endif
 	NULL
 };

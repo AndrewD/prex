@@ -32,10 +32,11 @@
  */
 
 /*
- * This is a memory allocator optimized for the low foot print kernel.
- * It works on top of the underlying page allocator, and manages more
- * smaller memory than page size. It will divide one page into two or
- * more blocks, and each page is linked as a kernel page.
+ * This is a memory allocator optimized for the low foot print
+ * kernel. It works on top of the underlying page allocator, and
+ * manages more smaller memory than page size. It will divide one
+ * page into two or more blocks, and each page is linked as a
+ * kernel page.
  *
  * There are following 3 linked lists to manage used/free blocks.
  *  1) All pages allocated for the kernel memory are linked.
@@ -45,16 +46,18 @@
  * Currently, it can not handle the memory size exceeding one page.
  * Instead, a driver can use page_alloc() to allocate larger memory.
  *
- * The kmem functions are used by not only the kernel core but also
- * by the buggy drivers. If such kernel code illegally writes data in
- * exceeding the allocated area, the system will crash easily. In order
- * to detect the memory over run, each free block has a magic ID.
+ * The kmem functions are used by not only the kernel core but
+ * also by the buggy drivers. If such kernel code illegally
+ * writes data in exceeding the allocated area, the system will
+ * crash easily. In order to detect the memory over run, each
+ * free block has a magic ID.
  */
 
 #include <kernel.h>
 #include <page.h>
 #include <sched.h>
 #include <vm.h>
+#include <kmem.h>
 
 /*
  * Block header
@@ -72,10 +75,10 @@ struct block_hdr {
 /*
  * Page header
  *
- * The page header is placed at the top of each page.  This header is
- * used in order to free the page when there are no used block left in
- * the page. If nr_alloc value becomes zero, that page can be removed
- * from kernel page.
+ * The page header is placed at the top of each page. This
+ * header is used in order to free the page when there are no
+ * used block left in the page. If nr_alloc value becomes zero,
+ * that page can be removed from kernel page.
  */
 struct page_hdr {
 	u_short	magic;			/* magic number */
@@ -85,24 +88,24 @@ struct page_hdr {
 
 #define ALIGN_SIZE	16
 #define ALIGN_MASK	(ALIGN_SIZE - 1)
-#define ALLOC_ALIGN(n)	(((n) + ALIGN_MASK) & ~ALIGN_MASK)
+#define ALLOC_ALIGN(n)	(((vaddr_t)(n) + ALIGN_MASK) & (vaddr_t)~ALIGN_MASK)
 
 #define BLOCK_MAGIC	0xdead
 #define PAGE_MAGIC	0xbeef
 
 #define BLKHDR_SIZE	(sizeof(struct block_hdr))
 #define PGHDR_SIZE	(sizeof(struct page_hdr))
-#define MAX_ALLOC_SIZE	(PAGE_SIZE - PGHDR_SIZE)
+#define MAX_ALLOC_SIZE	(size_t)(PAGE_SIZE - PGHDR_SIZE)
 
 #define MIN_BLOCK_SIZE	(BLKHDR_SIZE + 16)
 #define MAX_BLOCK_SIZE	(u_short)(PAGE_SIZE - (PGHDR_SIZE - BLKHDR_SIZE))
 
 /* macro to point the page header from specific address */
 #define PAGE_TOP(n)	(struct page_hdr *) \
-				    ((u_long)(n) & ~(PAGE_SIZE - 1))
+			    ((vaddr_t)(n) & (vaddr_t)~(PAGE_SIZE - 1))
 
 /* index of free block list */
-#define BLKIDX(b)	((int)((b)->size) >> 4)
+#define BLKIDX(b)	((u_int)((b)->size) >> 4)
 
 /* number of free block list */
 #define NR_BLOCK_LIST	(PAGE_SIZE / ALIGN_SIZE)
@@ -121,29 +124,18 @@ struct page_hdr {
  *     free_blocks[255] = list for 4096 byte block
  *
  * Generally, only one list is used to search the free block with
- * a first fit algorithm. Basically, this allocator also uses a first
- * fit method. However it uses multiple lists corresponding to each
- * block size.
- * A search is started from the list of the requested size. So, it is
- * not necessary to search smaller block's list wastefully.
+ * a first fit algorithm. Basically, this allocator also uses a
+ * first fit method. However it uses multiple lists corresponding
+ * to each block size. A search is started from the list of the
+ * requested size. So, it is not necessary to search smaller
+ * block's list wastefully.
  *
- * Most of kernel memory allocator is using 2^n as block size. But,
- * these implementation will throw away much memory that the block
- * size is not fit. This is not suitable for the embedded system with
- * low foot print.
+ * Most of kernel memory allocator is using 2^n as block size.
+ * But, these implementation will throw away much memory that
+ * the block size is not fit. This is not suitable for the
+ * embedded system with low foot print.
  */
 static struct list free_blocks[NR_BLOCK_LIST];
-
-static int kmem_bytes;		/* number of bytes currently allocated */
-
-#ifdef DEBUG
-/*
- * profiling data
- */
-static int nr_pages;			/* number of pages currently used */
-static int nr_blocks[NR_BLOCK_LIST];	/* number of blocks currently used */
-
-#endif	/* DEBUG */
 
 /*
  * Find the free block for the specified size.
@@ -160,7 +152,7 @@ block_find(size_t size)
 	int i;
 	list_t n;
 
-	for (i = (int)size >> 4; i < NR_BLOCK_LIST; i++) {
+	for (i = (int)((u_int)size >> 4); i < NR_BLOCK_LIST; i++) {
 		if (!list_empty(&free_blocks[i]))
 			break;
 	}
@@ -180,7 +172,7 @@ block_find(size_t size)
 void *
 kmem_alloc(size_t size)
 {
-	struct block_hdr *blk, *new_blk;
+	struct block_hdr *blk, *newblk;
 	struct page_hdr *pg;
 	void *p;
 
@@ -192,7 +184,7 @@ kmem_alloc(size_t size)
 	 * from the page already used. If it does not exist,
 	 * new page is allocated for free block.
 	 */
-	size = ALLOC_ALIGN(size + BLKHDR_SIZE);
+	size = (size_t)ALLOC_ALIGN(size + BLKHDR_SIZE);
 
 	ASSERT(size && size <= MAX_ALLOC_SIZE);
 
@@ -207,7 +199,7 @@ kmem_alloc(size_t size)
 			sched_unlock();
 			return NULL;
 		}
-		pg = phys_to_virt(pg);
+		pg = (struct page_hdr *)phys_to_virt(pg);
 		pg->nallocs = 0;
 		pg->magic = PAGE_MAGIC;
 
@@ -216,36 +208,29 @@ kmem_alloc(size_t size)
 		blk->magic = BLOCK_MAGIC;
 		blk->size = MAX_BLOCK_SIZE;
 		blk->pg_next = NULL;
-#ifdef DEBUG
-		nr_pages++;
-#endif
 	}
 	/* Sanity check */
 	if (pg->magic != PAGE_MAGIC || blk->magic != BLOCK_MAGIC)
-		panic("kmem overrun: addr=%x", blk);
+		panic("kmem_alloc: overrun");
 	/*
 	 * If the found block is large enough, split it.
 	 */
 	if (blk->size - size >= MIN_BLOCK_SIZE) {
 		/* Make new block */
-		new_blk = (struct block_hdr *)((u_long)blk + size);
-		new_blk->magic = BLOCK_MAGIC;
-		new_blk->size = (u_short)(blk->size - size);
-		list_insert(&free_blocks[BLKIDX(new_blk)], &new_blk->link);
+		newblk = (struct block_hdr *)((char *)blk + size);
+		newblk->magic = BLOCK_MAGIC;
+		newblk->size = (u_short)(blk->size - size);
+		list_insert(&free_blocks[BLKIDX(newblk)], &newblk->link);
 
 		/* Update page list */
-		new_blk->pg_next = blk->pg_next;
-		blk->pg_next = new_blk;
+		newblk->pg_next = blk->pg_next;
+		blk->pg_next = newblk;
 
 		blk->size = (u_short)size;
 	}
 	/* Increment allocation count of this page */
 	pg->nallocs++;
-	kmem_bytes += blk->size;
-#ifdef DEBUG
-	nr_blocks[BLKIDX(blk)]++;
-#endif
-	p = (void *)((u_long)blk + BLKHDR_SIZE);
+	p = (char *)blk + BLKHDR_SIZE;
 	sched_unlock();
 	return p;
 }
@@ -273,19 +258,14 @@ kmem_free(void *ptr)
 	sched_lock();
 
 	/* Get the block header */
-	blk = (struct block_hdr *)((u_long)ptr - BLKHDR_SIZE);
+	blk = (struct block_hdr *)((char *)ptr - BLKHDR_SIZE);
 	if (blk->magic != BLOCK_MAGIC)
-		panic("kmem_free");
+		panic("kmem_free: invalid address");
 
-	kmem_bytes -= blk->size;
-
-#ifdef DEBUG
-	nr_blocks[BLKIDX(blk)]--;
-#endif
 	/*
-	 * Return the block to free list.
-	 * Since kernel code will request fixed size of memory block,
-	 * we don't merge the blocks to use it as cache.
+	 * Return the block to free list. Since kernel code will
+	 * request fixed size of memory block, we don't merge the
+	 * blocks to use it as cache.
 	 */
 	list_insert(&free_blocks[BLKIDX(blk)], &blk->link);
 
@@ -298,15 +278,9 @@ kmem_free(void *ptr)
 		 */
 		for (blk = &(pg->first_blk); blk != NULL; blk = blk->pg_next) {
 			list_remove(&blk->link); /* Remove from free list */
-#ifdef DEBUG
-			nr_blocks[BLKIDX(blk)]--;
-#endif
 		}
 		pg->magic = 0;
 		page_free(virt_to_phys(pg), PAGE_SIZE);
-#ifdef DEBUG
-		nr_pages--;
-#endif
 	}
 	sched_unlock();
 }
@@ -325,52 +299,6 @@ kmem_map(void *addr, size_t size)
 		return NULL;
 	return phys_to_virt(phys);
 }
-
-void
-kmem_info(size_t *size)
-{
-
-	*size = (size_t)kmem_bytes;
-}
-
-#if defined(DEBUG) && defined(CONFIG_KDUMP)
-void
-kmem_dump(void)
-{
-	list_t head, n;
-	int i, cnt;
-	struct block_hdr *blk;
-
-	printk("\nKernel memory dump:\n");
-
-	printk(" allocated blocks:\n");
-	printk(" block size count\n");
-	printk(" ---------- --------\n");
-
-	for (i = 0; i < NR_BLOCK_LIST; i++) {
-		if (nr_blocks[i])
-			printk("       %4d %8d\n", i << 4, nr_blocks[i]);
-	}
-	printk("\n free blocks:\n");
-	printk(" block size count\n");
-	printk(" ---------- --------\n");
-
-	for (i = 0; i < NR_BLOCK_LIST; i++) {
-		cnt = 0;
-		head = &free_blocks[i];
-		for (n = list_first(head); n != head; n = list_next(n)) {
-			cnt++;
-
-			blk = list_entry(n, struct block_hdr, link);
-		}
-		if (cnt > 0)
-			printk("       %4d %8d\n", i << 4, cnt);
-	}
-	printk(" Total: page=%d (%dKbyte) alloc=%dbyte unused=%dbyte\n",
-	     nr_pages, nr_pages * 4, kmem_bytes,
-	     nr_pages * PAGE_SIZE - kmem_bytes);
-}
-#endif
 
 void
 kmem_init(void)

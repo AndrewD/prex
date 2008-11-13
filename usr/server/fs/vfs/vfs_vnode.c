@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ static mutex_t vnode_lock = MUTEX_INITIALIZER;
 
 
 /*
- * Get the hash value from path name and mount point.
+ * Get the hash value from the mount point and path name.
  */
 static u_int
 vn_hash(mount_t mp, char *path)
@@ -94,11 +94,12 @@ vn_hash(mount_t mp, char *path)
 		while (*path)
 			val = ((val << 5) + val) + *path++;
 	}
-	return (val ^ (u_int) mp) & (VNODE_BUCKETS - 1);
+	return (val ^ (u_int)mp) & (VNODE_BUCKETS - 1);
 }
 
 /*
  * Returns locked vnode for specified mount point and path.
+ * vn_lock() will increment the reference count of vnode.
  */
 vnode_t
 vn_lookup(mount_t mp, char *path)
@@ -112,9 +113,10 @@ vn_lookup(mount_t mp, char *path)
 		vp = list_entry(n, struct vnode, v_link);
 		if (vp->v_mount == mp &&
 		    !strncmp(vp->v_path, path, PATH_MAX)) {
+			vp->v_refcnt++;
+			VNODE_UNLOCK();
 			mutex_lock(&vp->v_lock);
 			vp->v_nrlocks++;
-			VNODE_UNLOCK();
 			return vp;
 		}
 	}
@@ -129,12 +131,11 @@ void
 vn_lock(vnode_t vp)
 {
 	ASSERT(vp);
+	ASSERT(vp->v_refcnt > 0);
 
-	VNODE_LOCK();
-	vn_printf("vn_lock:   %s\n", vp->v_path);
 	mutex_lock(&vp->v_lock);
 	vp->v_nrlocks++;
-	VNODE_UNLOCK();
+	DPRINTF(VFSDB_VNODE, ("vn_lock:   %s\n", vp->v_path));
 }
 
 /*
@@ -144,13 +145,12 @@ void
 vn_unlock(vnode_t vp)
 {
 	ASSERT(vp);
+	ASSERT(vp->v_refcnt > 0);
 	ASSERT(vp->v_nrlocks > 0);
 
-	VNODE_LOCK();
-	vn_printf("vn_unlock: %s\n", vp->v_path);
+	DPRINTF(VFSDB_VNODE, ("vn_unlock: %s\n", vp->v_path));
 	vp->v_nrlocks--;
 	mutex_unlock(&vp->v_lock);
-	VNODE_UNLOCK();
 }
 
 /*
@@ -163,7 +163,7 @@ vget(mount_t mp, char *path)
 	vnode_t vp;
 	int err;
 
-	vn_printf("vget: %s\n", path);
+	DPRINTF(VFSDB_VNODE, ("vget: %s\n", path));
 
 	if (!(vp = malloc(sizeof(struct vnode))))
 		return NULL;
@@ -174,8 +174,8 @@ vget(mount_t mp, char *path)
 		return NULL;
 	}
 	vp->v_mount = mp;
-	vp->v_refcount = 1;
-	vp->v_op = mp->m_op->vnops;
+	vp->v_refcnt = 1;
+	vp->v_op = mp->m_op->vfs_vnops;
 	strcpy(vp->v_path, path);
 	mutex_init(&vp->v_lock);
 	vp->v_nrlocks = 0;
@@ -207,11 +207,12 @@ vput(vnode_t vp)
 {
 	ASSERT(vp);
 	ASSERT(vp->v_nrlocks > 0);
-	ASSERT(vp->v_refcount > 0);
-	vn_printf("vput: ref=%d %s\n", vp->v_refcount, vp->v_path);
+	ASSERT(vp->v_refcnt > 0);
+	DPRINTF(VFSDB_VNODE, ("vput: ref=%d %s\n", vp->v_refcnt,
+			      vp->v_path));
 
-	vp->v_refcount--;
-	if (vp->v_refcount > 0) {
+	vp->v_refcnt--;
+	if (vp->v_refcnt > 0) {
 		vn_unlock(vp);
 		return;
 	}
@@ -239,11 +240,12 @@ void
 vref(vnode_t vp)
 {
 	ASSERT(vp);
-	ASSERT(vp->v_refcount > 0);	/* Need vget */
+	ASSERT(vp->v_refcnt > 0);	/* Need vget */
 
 	VNODE_LOCK();
-	vn_printf("vref: ref=%d %s\n", vp->v_refcount, vp->v_path);
-	vp->v_refcount++;
+	DPRINTF(VFSDB_VNODE, ("vref: ref=%d %s\n", vp->v_refcnt,
+			      vp->v_path));
+	vp->v_refcnt++;
 	VNODE_UNLOCK();
 }
 
@@ -258,12 +260,13 @@ vrele(vnode_t vp)
 {
 	ASSERT(vp);
 	ASSERT(vp->v_nrlocks == 0);
-	ASSERT(vp->v_refcount > 0);
+	ASSERT(vp->v_refcnt > 0);
 
 	VNODE_LOCK();
-	vn_printf("vrele: ref=%d %s\n", vp->v_refcount, vp->v_path);
-	vp->v_refcount--;
-	if (vp->v_refcount > 0) {
+	DPRINTF(VFSDB_VNODE, ("vrele: ref=%d %s\n", vp->v_refcnt,
+			      vp->v_path));
+	vp->v_refcnt--;
+	if (vp->v_refcnt > 0) {
 		VNODE_UNLOCK();
 		return;
 	}
@@ -289,7 +292,7 @@ vgone(vnode_t vp)
 	ASSERT(vp->v_nrlocks == 0);
 
 	VNODE_LOCK();
-	vn_printf("vgone: %s\n", vp->v_path);
+	DPRINTF(VFSDB_VNODE, ("vgone: %s\n", vp->v_path));
 	list_remove(&vp->v_link);
 	vfs_unbusy(vp->v_mount);
 	mutex_destroy(&vp->v_lock);
@@ -307,7 +310,7 @@ vcount(vnode_t vp)
 	int count;
 
 	vn_lock(vp);
-	count = vp->v_refcount;
+	count = vp->v_refcnt;
 	vn_unlock(vp);
 	return count;
 }
@@ -335,6 +338,52 @@ vflush(mount_t mp)
 	VNODE_UNLOCK();
 }
 
+int
+vn_stat(vnode_t vp, struct stat *st)
+{
+	mode_t mode;
+
+	memset(st, 0, sizeof(struct stat));
+
+	st->st_ino = (ino_t)vp;
+	st->st_size = vp->v_size;
+	mode = vp->v_mode;
+	switch (vp->v_type) {
+	case VREG:
+		mode |= S_IFREG;
+		break;
+	case VDIR:
+		mode |= S_IFDIR;
+		break;
+	case VBLK:
+		mode |= S_IFBLK;
+		break;
+	case VCHR:
+		mode |= S_IFCHR;
+		break;
+	case VLNK:
+		mode |= S_IFLNK;
+		break;
+	case VSOCK:
+		mode |= S_IFSOCK;
+		break;
+	case VFIFO:
+		mode |= S_IFIFO;
+		break;
+	default:
+		return EBADF;
+	};
+	st->st_mode = mode;
+	st->st_blksize = BSIZE;
+	st->st_blocks = vp->v_size / S_BLKSIZE;
+	st->st_uid = 0;
+	st->st_gid = 0;
+	if (vp->v_type == VCHR || vp->v_type == VBLK)
+		st->st_rdev = (dev_t)vp->v_data;
+
+	return 0;
+}
+
 #ifdef DEBUG
 /*
  * Dump all all vnode.
@@ -350,22 +399,24 @@ vnode_dump(void)
 			   "VLNK ", "VSOCK", "VFIFO" };
 
 	VNODE_LOCK();
-	printf("Dump vnode\n");
-	printf(" vnode    mount    type  refcnt blkno    path\n");
-	printf(" -------- -------- ----- ------ -------- ------------------------------\n");
+	dprintf("Dump vnode\n");
+	dprintf(" vnode    mount    type  refcnt blkno    path\n");
+	dprintf(" -------- -------- ----- ------ -------- ------------------------------\n");
+
 	for (i = 0; i < VNODE_BUCKETS; i++) {
 		head = &vnode_table[i];
 		for (n = list_first(head); n != head; n = list_next(n)) {
 			vp = list_entry(n, struct vnode, v_link);
 			mp = vp->v_mount;
-			printf(" %08x %08x %s %6d %8d %s%s\n", (u_int)vp,
-			       (u_int)mp, type[vp->v_type], vp->v_refcount,
-			       (u_int)vp->v_blkno,
-			       (strlen(mp->m_path) == 1) ? "\0" : mp->m_path,
-			       vp->v_path);
+
+			dprintf(" %08x %08x %s %6d %8d %s%s\n", (u_int)vp,
+				(u_int)mp, type[vp->v_type], vp->v_refcnt,
+				(u_int)vp->v_blkno,
+				(strlen(mp->m_path) == 1) ? "\0" : mp->m_path,
+				vp->v_path);
 		}
 	}
-	printf("\n");
+	dprintf("\n");
 	VNODE_UNLOCK();
 }
 #endif
@@ -373,12 +424,14 @@ vnode_dump(void)
 int
 vop_nullop(void)
 {
+
 	return 0;
 }
 
 int
 vop_einval(void)
 {
+
 	return EINVAL;
 }
 

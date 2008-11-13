@@ -33,5 +33,6 @@
 int
 setpgrp(pid_t pid, pid_t pgrp)
 {
+
 	return setpgid(0, 0);
 }

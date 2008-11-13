@@ -32,19 +32,16 @@
 
 #include <prex/prex.h>
 #include <sys/types.h>
-#include <sys/syslog.h>
 
 #include <assert.h>
 
-#ifdef DEBUG
 /* #define DEBUG_DEVFS 1 */
-#endif
 
 #ifdef DEBUG_DEVFS
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "devfs: " fmt, ## args)
-#define ASSERT(e)		assert(e)
+#define DPRINTF(a)	dprintf a
+#define ASSERT(e)	assert(e)
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define DPRINTF(a)	do {} while (0)
 #define ASSERT(e)
 #endif
 

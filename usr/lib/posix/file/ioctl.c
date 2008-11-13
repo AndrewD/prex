@@ -64,7 +64,7 @@ ioctl(int fd, unsigned long request, ...)
 		 * poniter type arguent for ioctl(). So, we have to
 		 * invoke the ioctl here if the target file is a device.
 		 */
-		err = device_ioctl(st.st_rdev, request, (u_long)argp);
+		err = device_ioctl(st.st_rdev, request, argp);
 		if (err != 0) {
 			errno = err;
 			return -1;

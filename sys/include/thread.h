@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 #ifndef _THREAD_H
 #define _THREAD_H
 
+#include <sys/cdefs.h>
 #include <queue.h>
 #include <event.h>
 #include <timer.h>
@@ -48,28 +49,28 @@ struct thread {
 	int		state;		/* thread state */
 	int		policy;		/* scheduling policy */
 	int		prio;		/* current priority */
-	int		base_prio;	/* base priority */
-	int		ticks_left;	/* remaining ticks to run */
-	u_int		total_ticks;	/* total running ticks */
-	int		need_resched;	/* true if rescheduling is needed */
-	int		lock_count;	/* schedule lock counter */
-	int		suspend_count;	/* suspend counter */
-	struct event	*sleep_event;	/* sleep event */
-	int		sleep_result;	/* sleep result */
+	int		baseprio;	/* base priority */
+	int		timeleft;	/* remaining ticks to run */
+	u_int		time;		/* total running time */
+	int		resched;	/* true if rescheduling is needed */
+	int		locks;		/* schedule lock counter */
+	int		suscnt;		/* suspend counter */
+	struct event	*slpevt;	/* sleep event */
+	int		slpret;		/* sleep result code */
 	struct timer 	timeout;	/* thread timer */
 	struct timer	*periodic;	/* pointer to periodic timer */
+	uint32_t 	excbits;	/* bitmap of pending exceptions */
 	struct queue 	ipc_link;	/* linkage on IPC queue */
-	void		*msg_addr;	/* kernel address of IPC message */
-	size_t		msg_size;	/* size of IPC message */
-	struct thread 	*sender;	/* thread that sends IPC message */
-	struct thread 	*receiver;	/* thread that receives IPC message */
-	object_t 	send_obj;	/* IPC object sending to */
-	object_t 	recv_obj;	/* IPC object receiving from */
-	uint32_t 	exc_bitmap;	/* bitmap of pending exceptions */
+	void		*msgaddr;	/* kernel address of IPC message */
+	size_t		msgsize;	/* size of IPC message */
+	thread_t	sender;		/* thread that sends IPC message */
+	thread_t	receiver;	/* thread that receives IPC message */
+	object_t 	sendobj;	/* IPC object sending to */
+	object_t 	recvobj;	/* IPC object receiving from */
 	struct list 	mutexes;	/* mutexes locked by this thread */
 	struct mutex 	*wait_mutex;	/* mutex pointer currently waiting */
 	void		*kstack;	/* base address of kernel stack */
-	struct context 	context;	/* machine specific context */
+	struct context 	ctx;		/* machine specific context */
 };
 
 #define thread_valid(th) (kern_area(th) && ((th)->magic == THREAD_MAGIC))
@@ -93,16 +94,17 @@ struct thread {
 
 /*
  * Priorities
+ * Probably should not be altered too much.
  */
 #define PRIO_TIMER	15	/* priority for timer thread */
 #define PRIO_IST	16	/* top priority for interrupt threads */
 #define PRIO_DPC	33	/* priority for Deferred Procedure Call */
 #define PRIO_IDLE	255	/* priority for idle thread */
-#define PRIO_USER	CONFIG_USER_PRIO
+#define PRIO_USER	PRIO_DFLT	/* default priority for user thread */
 
 #define MAX_PRIO	0
 #define MIN_PRIO	255
-#define NR_PRIOS	256	/* number of thread priority */
+#define NPRIO		256	/* number of thread priority */
 
 /*
  * Scheduling operations for thread_schedparam().
@@ -112,19 +114,22 @@ struct thread {
 #define OP_GETPOLICY	2	/* get scheduling policy */
 #define OP_SETPOLICY	3	/* set scheduling policy */
 
-extern int	 thread_create(task_t, thread_t *);
-extern int	 thread_terminate(thread_t);
-extern int	 thread_kill(thread_t);
-extern int	 thread_load(thread_t, void (*)(void), void *);
-extern thread_t	 thread_self(void);
-extern void	 thread_yield(void);
-extern int	 thread_suspend(thread_t);
-extern int	 thread_resume(thread_t);
-extern int	 thread_schedparam(thread_t, int, int *);
-extern void	 thread_idle(void);
-extern int	 thread_info(struct info_thread *);
-extern thread_t	 kernel_thread(int, void (*)(u_long), u_long);
-extern void	 thread_dump(void);
-extern void	 thread_init(void);
+__BEGIN_DECLS
+int	 thread_create(task_t, thread_t *);
+int	 thread_terminate(thread_t);
+int	 thread_load(thread_t, void (*)(void), void *);
+thread_t thread_self(void);
+void	 thread_yield(void);
+int	 thread_suspend(thread_t);
+int	 thread_resume(thread_t);
+int	 thread_schedparam(thread_t, int, int *);
+void	 thread_idle(void);
+int	 thread_info(struct info_thread *);
+void	 thread_dump(void);
+void	 thread_init(void);
+/* for kernel thread */
+thread_t kthread_create(void (*)(void *), void *, int);
+void	 kthread_terminate(thread_t);
+__END_DECLS
 
 #endif /* !_THREAD_H */

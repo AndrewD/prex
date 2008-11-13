@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,28 +40,33 @@
 #include <sync.h>
 #include <system.h>
 
-struct thread idle_thread;
+/* forward declarations */
+static void do_terminate(thread_t);
+
+static struct thread	idle_thread;
+static thread_t		zombie;
+
+/* global variable */
 thread_t cur_thread = &idle_thread;
-static thread_t zombie;
 
 /*
- * Allocate a new thread and attach kernel stack for it.
+ * Allocate a new thread and attach a kernel stack to it.
  * Returns thread pointer on success, or NULL on failure.
  */
 static thread_t
 thread_alloc(void)
 {
-	thread_t th;
+	struct thread *th;
 	void *stack;
 
-	if ((th = kmem_alloc(sizeof(struct thread))) == NULL)
+	if ((th = kmem_alloc(sizeof(*th))) == NULL)
 		return NULL;
-	memset(th, 0, sizeof(struct thread));
 
 	if ((stack = kmem_alloc(KSTACK_SIZE)) == NULL) {
 		kmem_free(th);
 		return NULL;
 	}
+	memset(th, 0, sizeof(*th));
 	th->kstack = stack;
 	th->magic = THREAD_MAGIC;
 	list_init(&th->mutexes);
@@ -77,27 +82,23 @@ thread_free(thread_t th)
 }
 
 /*
- * Create a new thread within the specified task.
+ * Create a new thread.
  *
- * The context of a current thread will be copied to the new thread.
- * The new thread will start from the return address of thread_create()
- * call in user mode code. Since a new thread will share the user
- * mode stack with a current thread, user mode applications are
- * responsible to allocate stack for it. The new thread is initially
- * set to suspend state, and so, thread_resume() must be called to
- * start it.
- *
- * The following scheduling parameters are reset to default values
- * in the created thread.
- *  - Thread State
- *  - Scheduling Policy
- *  - Scheduling Priority
+ * The context of a current thread will be copied to the
+ * new thread. The new thread will start from the return
+ * address of thread_create() call in user mode code.
+ * Since a new thread will share the user mode stack with
+ * a current thread, user mode applications are
+ * responsible to allocate stack for it. The new thread is
+ * initially set to suspend state, and so, thread_resume()
+ * must be called to start it.
  */
 int
 thread_create(task_t task, thread_t *thp)
 {
 	thread_t th;
 	int err = 0;
+	void *sp;
 
 	sched_lock();
 	if (!task_valid(task)) {
@@ -113,14 +114,14 @@ thread_create(task_t task, thread_t *thp)
 		goto out;
 	}
 	/*
-	 * At first, we copy a new thread id as return value.
+	 * First, we copy a new thread id as return value.
 	 * This is done here to simplify all error recoveries
 	 * of the subsequent code.
 	 */
 	if (cur_task() == &kern_task)
 		*thp = th;
 	else {
-		if (umem_copyout(&th, thp, sizeof(thread_t))) {
+		if (umem_copyout(&th, thp, sizeof(th))) {
 			thread_free(th);
 			err = EFAULT;
 			goto out;
@@ -130,9 +131,11 @@ thread_create(task_t task, thread_t *thp)
 	 * Initialize thread state.
 	 */
 	th->task = task;
-	th->suspend_count = task->suspend_count + 1;
+	th->suscnt = task->suscnt + 1;
 	memcpy(th->kstack, cur_thread->kstack, KSTACK_SIZE);
-	context_init(&th->context, (u_long)th->kstack + KSTACK_SIZE);
+	sp = (char *)th->kstack + KSTACK_SIZE;
+	context_set(&th->ctx, CTX_KSTACK, (vaddr_t)sp);
+	context_set(&th->ctx, CTX_KENTRY, (vaddr_t)&syscall_ret);
 	list_insert(&task->threads, &th->task_link);
 	sched_start(th);
  out:
@@ -142,35 +145,32 @@ thread_create(task_t task, thread_t *thp)
 
 /*
  * Permanently stop execution of the specified thread.
- * If given thread is a current thread, this routine never returns.
+ * If given thread is a current thread, this routine
+ * never returns.
  */
 int
 thread_terminate(thread_t th)
 {
-	int err;
 
 	sched_lock();
 	if (!thread_valid(th)) {
-		err = ESRCH;
-	} else if (!task_access(th->task)) {
-		err = EPERM;
-	} else {
-		err = thread_kill(th);
+		sched_unlock();
+		return ESRCH;
 	}
+	if (!task_access(th->task)) {
+		sched_unlock();
+		return EPERM;
+	}
+	do_terminate(th);
 	sched_unlock();
-	return err;
+	return 0;
 }
 
 /*
- * Kill a thread regardless of the current task state.
- *
- * This may be used to terminate a kernel thread under the non-context
- * condition. For example, a device driver may terminate its interrupt
- * thread even if a current task does not have the capability to
- * terminate it.
+ * Terminate thread-- the internal version of thread_terminate.
  */
-int
-thread_kill(thread_t th)
+static void
+do_terminate(thread_t th)
 {
 	/*
 	 * Clean up thread state.
@@ -180,14 +180,15 @@ thread_kill(thread_t th)
 	mutex_cleanup(th);
 	list_remove(&th->task_link);
 	sched_stop(th);
-	th->exc_bitmap = 0;
+	th->excbits = 0;
 	th->magic = 0;
 
 	/*
-	 * We can not release the context of the "current" thread
-	 * because our thread switching always requires the current
-	 * context. So, the resource deallocation is deferred until
-	 * another thread calls thread_kill().
+	 * We can not release the context of the "current"
+	 * thread because our thread switching always
+	 * requires the current context. So, the resource
+	 * deallocation is deferred until another thread
+	 * calls thread_terminate().
 	 */
 	if (zombie != NULL) {
 		/*
@@ -201,13 +202,13 @@ thread_kill(thread_t th)
 	if (th == cur_thread) {
 		/*
 		 * If the current thread is being terminated,
-		 * enter zombie state and wait for sombody
+		 * enter zombie state and wait for somebody
 		 * to be killed us.
 		 */
 		zombie = th;
-	} else
+	} else {
 		thread_free(th);
-	return 0;
+	}
 }
 
 /*
@@ -219,23 +220,26 @@ thread_kill(thread_t th)
 int
 thread_load(thread_t th, void (*entry)(void), void *stack)
 {
-	int err = 0;
 
-	if ((entry != NULL && !user_area(entry)) ||
-	    (stack != NULL && !user_area(stack)))
+	if (entry != NULL && !user_area(entry))
+		return EINVAL;
+	if (stack != NULL && !user_area(stack))
 		return EINVAL;
 
 	sched_lock();
 	if (!thread_valid(th)) {
-		err = ESRCH;
-	} else if (!task_access(th->task)) {
-		err = EPERM;
-	} else {
-		if (entry != NULL)
-			context_set(&th->context, CTX_UENTRY, (u_long)entry);
-		if (stack != NULL)
-			context_set(&th->context, CTX_USTACK, (u_long)stack);
+		sched_unlock();
+		return ESRCH;
 	}
+	if (!task_access(th->task)) {
+		sched_unlock();
+		return EPERM;
+	}
+	if (entry != NULL)
+		context_set(&th->ctx, CTX_UENTRY, (vaddr_t)entry);
+	if (stack != NULL)
+		context_set(&th->ctx, CTX_USTACK, (vaddr_t)stack);
+
 	sched_unlock();
 	return 0;
 }
@@ -260,24 +264,27 @@ thread_yield(void)
 /*
  * Suspend thread.
  *
- * A thread can be suspended any number of times. And, it does
- * not start to run again unless the thread is resumed by the
- * same count of suspend request.
+ * A thread can be suspended any number of times.
+ * And, it does not start to run again unless the
+ * thread is resumed by the same count of suspend
+ * request.
  */
 int
 thread_suspend(thread_t th)
 {
-	int err = 0;
 
 	sched_lock();
 	if (!thread_valid(th)) {
-		err = ESRCH;
-	} else if (!task_access(th->task)) {
-		err = EPERM;
-	} else {
-		if (++th->suspend_count == 1)
-			sched_suspend(th);
+		sched_unlock();
+		return ESRCH;
 	}
+	if (!task_access(th->task)) {
+		sched_unlock();
+		return EPERM;
+	}
+	if (++th->suscnt == 1)
+		sched_suspend(th);
+
 	sched_unlock();
 	return 0;
 }
@@ -298,66 +305,70 @@ thread_resume(thread_t th)
 	sched_lock();
 	if (!thread_valid(th)) {
 		err = ESRCH;
-	} else if (!task_access(th->task)) {
-		err= EPERM;
-	} else if (th->suspend_count == 0) {
-		err = EINVAL;
-	} else {
-		th->suspend_count--;
-		if (th->suspend_count == 0 && th->task->suspend_count == 0)
-			sched_resume(th);
+		goto out;
 	}
+	if (!task_access(th->task)) {
+		err = EPERM;
+		goto out;
+	}
+	if (th->suscnt == 0) {
+		err = EINVAL;
+		goto out;
+	}
+
+	th->suscnt--;
+	if (th->suscnt == 0 && th->task->suscnt == 0)
+		sched_resume(th);
+out:
 	sched_unlock();
 	return err;
 }
 
 /*
  * thread_schedparam - get/set scheduling parameter.
- * @th:    target thread
- * @op:    operation ID
- * @param: pointer to parameter
  *
- * If the caller has CAP_NICE capability, all operations are allowed.
- * Otherwise, the caller can change the parameter for the threads in
- * the same task, and it can not set the priority to higher value.
+ * If the caller has CAP_NICE capability, all operations are
+ * allowed.  Otherwise, the caller can change the parameter
+ * for the threads in the same task, and it can not set the
+ * priority to higher value.
  */
 int
 thread_schedparam(thread_t th, int op, int *param)
 {
 	int prio, policy, err = 0;
-	int capable = 0;
 
 	sched_lock();
 	if (!thread_valid(th)) {
-		sched_unlock();
-		return ESRCH;
+		err = ESRCH;
+		goto out;
 	}
-	if (task_capable(CAP_NICE))
-		capable = 1;
+	if (th->task == &kern_task) {
+		err = EPERM;
+		goto out;
+	}
+	if (th->task != cur_task() && !task_capable(CAP_NICE)) {
+		err = EPERM;
+		goto out;
+	}
 
-	if (th->task != cur_task() && !capable) {
-		sched_unlock();
-		return EPERM;
-	}
-	if ((th->task == &kern_task) &&
-	    (op == OP_SETPRIO || op == OP_SETPOLICY)) {
-		sched_unlock();
-		return EPERM;
-	}
 	switch (op) {
 	case OP_GETPRIO:
 		prio = sched_getprio(th);
-		err = umem_copyout(&prio, param, sizeof(int));
+		err = umem_copyout(&prio, param, sizeof(prio));
 		break;
-	case OP_SETPRIO:
-		if ((err = umem_copyin(param, &prio, sizeof(int))))
-			break;
-		if (prio < 0)
-			prio = 0;
-		else if (prio >= PRIO_IDLE)
-			prio = PRIO_IDLE - 1;
 
-		if (prio < th->prio && !capable) {
+	case OP_SETPRIO:
+		if ((err = umem_copyin(param, &prio, sizeof(prio))))
+			break;
+		if (prio < 0) {
+			prio = 0;
+		} else if (prio >= PRIO_IDLE) {
+			prio = PRIO_IDLE - 1;
+		} else {
+			/* DO NOTHING */
+		}
+
+		if (prio < th->prio && !task_capable(CAP_NICE)) {
 			err = EPERM;
 			break;
 		}
@@ -365,29 +376,33 @@ thread_schedparam(thread_t th, int op, int *param)
 		 * If a current priority is inherited for mutex,
 		 * we can not change the priority to lower value.
 		 * In this case, only the base priority is changed,
-		 * and a current priority will be adjusted to correct
-		 * value, later.
+		 * and a current priority will be adjusted to
+		 * correct value, later.
 		 */
-		if (th->prio != th->base_prio && prio > th->prio)
+		if (th->prio != th->baseprio && prio > th->prio)
 			prio = th->prio;
 
 		mutex_setprio(th, prio);
 		sched_setprio(th, prio, prio);
 		break;
+
 	case OP_GETPOLICY:
 		policy = sched_getpolicy(th);
-		err = umem_copyout(&policy, param, sizeof(int));
+		err = umem_copyout(&policy, param, sizeof(policy));
 		break;
+
 	case OP_SETPOLICY:
-		if ((err = umem_copyin(param, &policy, sizeof(int))))
+		if ((err = umem_copyin(param, &policy, sizeof(policy))))
 			break;
 		if (sched_setpolicy(th, policy))
 			err = EINVAL;
 		break;
+
 	default:
 		err = EINVAL;
 		break;
 	}
+ out:
 	sched_unlock();
 	return err;
 }
@@ -395,9 +410,10 @@ thread_schedparam(thread_t th, int op, int *param)
 /*
  * Idle thread.
  *
- * This routine is called only once after kernel initialization
- * is completed. An idle thread has the role of cutting down the power
- * consumption of a system. An idle thread has FIFO scheduling policy
+ * This routine is called only once after kernel
+ * initialization is completed. An idle thread has the
+ * role of cutting down the power consumption of a
+ * system. An idle thread has FIFO scheduling policy
  * because it does not have time quantum.
  */
 void
@@ -415,35 +431,62 @@ thread_idle(void)
  * Create a thread running in the kernel address space.
  *
  * A kernel thread does not have user mode context, and its
- * scheduling policy is set to SCHED_FIFO. kernel_thread() returns
- * thread ID on success, or NULL on failure. We assume scheduler
- * is already locked.
+ * scheduling policy is set to SCHED_FIFO. kthread_create()
+ * returns thread ID on success, or NULL on failure.
  *
- * Important: Since sched_switch() will disable interrupts in CPU,
- * the interrupt is always disabled at the entry point of the kernel
- * thread. So, the kernel thread must enable the interrupt first when
- * it gets control.
+ * Important: Since sched_switch() will disable interrupts in
+ * CPU, the interrupt is always disabled at the entry point of
+ * the kernel thread. So, the kernel thread must enable the
+ * interrupt first when it gets control.
+ *
+ * This routine assumes the scheduler is already locked.
  */
 thread_t
-kernel_thread(int prio, void (*entry)(u_long), u_long arg)
+kthread_create(void (*entry)(void *), void *arg, int prio)
 {
 	thread_t th;
+	void *sp;
 
+	ASSERT(cur_thread->locks > 0);
+
+	/*
+	 * If there is not enough core for the new thread,
+	 * just drop to panic().
+	 */
 	if ((th = thread_alloc()) == NULL)
 		return NULL;
 
 	th->task = &kern_task;
 	memset(th->kstack, 0, KSTACK_SIZE);
-	context_init(&th->context, (u_long)th->kstack + KSTACK_SIZE);
-	context_set(&th->context, CTX_KENTRY, (u_long)entry);
-	context_set(&th->context, CTX_KARG, arg);
+	sp = (char *)th->kstack + KSTACK_SIZE;
+	context_set(&th->ctx, CTX_KSTACK, (vaddr_t)sp);
+	context_set(&th->ctx, CTX_KENTRY, (vaddr_t)entry);
+	context_set(&th->ctx, CTX_KARG, (vaddr_t)arg);
 	list_insert(&kern_task.threads, &th->task_link);
 
+	/*
+	 * Start scheduling of this thread.
+	 */
 	sched_start(th);
 	sched_setpolicy(th, SCHED_FIFO);
 	sched_setprio(th, prio, prio);
 	sched_resume(th);
 	return th;
+}
+
+/*
+ * Terminate kernel thread.
+ */
+void
+kthread_terminate(thread_t th)
+{
+
+	ASSERT(th);
+	ASSERT(th->task == &kern_task);
+
+	sched_lock();
+	do_terminate(th);
+	sched_unlock();
 }
 
 /*
@@ -456,43 +499,45 @@ thread_info(struct info_thread *info)
 	list_t i, j;
 	thread_t th;
 	task_t task;
+	int err = 0, found = 0;
 
 	sched_lock();
+
+	/*
+	 * Search a target thread from the given index.
+	 */
 	index = 0;
 	i = &kern_task.link;
 	do {
 		task = list_entry(i, struct task, link);
-		j = &task->threads;
-		j = list_first(j);
+		j = list_first(&task->threads);
 		do {
 			th = list_entry(j, struct thread, task_link);
-			if (index++ == target)
-				goto found;
+			if (index++ == target) {
+				found = 1;
+				goto done;
+			}
 			j = list_next(j);
 		} while (j != &task->threads);
 		i = list_next(i);
 	} while (i != &kern_task.link);
-
+ done:
+	if (found) {
+		info->policy = th->policy;
+		info->prio = th->prio;
+		info->time = th->time;
+		info->task = th->task;
+		strlcpy(info->taskname, task->name, MAXTASKNAME);
+		strlcpy(info->slpevt,
+			th->slpevt ? th->slpevt->name : "-", MAXEVTNAME);
+	} else {
+		err = ESRCH;
+	}
 	sched_unlock();
-	return ESRCH;
- found:
-	info->state = th->state;
-	info->policy = th->policy;
-	info->prio = th->prio;
-	info->base_prio = th->base_prio;
-	info->suspend_count = th->suspend_count;
-	info->total_ticks = th->total_ticks;
-	info->id = th;
-	info->task = th->task;
-	strlcpy(info->task_name, task->name, MAXTASKNAME);
-	strlcpy(info->sleep_event,
-		th->sleep_event ? th->sleep_event->name : "-", 12);
-
-	sched_unlock();
-	return 0;
+	return err;
 }
 
-#if defined(DEBUG) && defined(CONFIG_KDUMP)
+#ifdef DEBUG
 void
 thread_dump(void)
 {
@@ -503,26 +548,27 @@ thread_dump(void)
 	thread_t th;
 	task_t task;
 
-	printk("Thread dump:\n");
-	printk(" mod thread   task     stat pol  prio base ticks    "
+	printf("\nThread dump:\n");
+	printf(" mod thread   task     stat pol  prio base time     "
 	       "susp sleep event\n");
-	printk(" --- -------- -------- ---- ---- ---- ---- -------- "
+	printf(" --- -------- -------- ---- ---- ---- ---- -------- "
 	       "---- ------------\n");
 
 	i = &kern_task.link;
 	do {
 		task = list_entry(i, struct task, link);
-		j = &task->threads;
-		j = list_first(j);
+		j = list_first(&task->threads);
 		do {
 			th = list_entry(j, struct thread, task_link);
-			printk(" %s %08x %8s %s%c %s  %3d  %3d %8d %4d %s\n",
+
+			printf(" %s %08x %8s %s%c %s  %3d  %3d %8d %4d %s\n",
 			       (task == &kern_task) ? "Knl" : "Usr", th,
 			       task->name, state[th->state],
 			       (th == cur_thread) ? '*' : ' ',
-			       pol[th->policy], th->prio, th->base_prio,
-			       th->total_ticks, th->suspend_count,
-			       th->sleep_event ? th->sleep_event->name : "-");
+			       pol[th->policy], th->prio, th->baseprio,
+			       th->time, th->suscnt,
+			       th->slpevt != NULL ? th->slpevt->name : "-");
+
 			j = list_next(j);
 		} while (j != &task->threads);
 		i = list_next(i);
@@ -531,16 +577,17 @@ thread_dump(void)
 #endif
 
 /*
- * The first thread in system is created here by hand. This thread
- * will become an idle thread when thread_idle() is called later.
+ * The first thread in system is created here by hand.
+ * This thread will become an idle thread when thread_idle()
+ * is called later in main().
  */
 void
 thread_init(void)
 {
-	void *stack;
+	void *stack, *sp;
 
 	if ((stack = kmem_alloc(KSTACK_SIZE)) == NULL)
-		panic("thread_init");
+		panic("thread_init: out of memory");
 
 	memset(stack, 0, KSTACK_SIZE);
 	idle_thread.kstack = stack;
@@ -549,9 +596,10 @@ thread_init(void)
 	idle_thread.state = TH_RUN;
 	idle_thread.policy = SCHED_FIFO;
 	idle_thread.prio = PRIO_IDLE;
-	idle_thread.base_prio = PRIO_IDLE;
-	idle_thread.lock_count = 1;
+	idle_thread.baseprio = PRIO_IDLE;
+	idle_thread.locks = 1;
 
-	context_init(&idle_thread.context, (u_long)stack + KSTACK_SIZE);
+	sp = (char *)stack + KSTACK_SIZE;
+	context_set(&idle_thread.ctx, CTX_KSTACK, (vaddr_t)sp);
 	list_insert(&kern_task.threads, &idle_thread.task_link);
 }

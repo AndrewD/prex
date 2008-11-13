@@ -29,6 +29,7 @@
 
 #include <sys/cdefs.h>
 #include <prex/prex.h>
+#include <unistd.h>
 
 void
 _exit(int status)

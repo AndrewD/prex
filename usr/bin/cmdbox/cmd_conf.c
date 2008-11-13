@@ -31,6 +31,7 @@
 #include "cmdbox.h"
 
 extern int help_main(int argc, char *argv[]);
+extern int cal_main(int argc, char *argv[]);
 extern int cat_main(int argc, char *argv[]);
 extern int clear_main(int argc, char *argv[]);
 extern int cp_main(int argc, char *argv[]);
@@ -38,6 +39,7 @@ extern int date_main(int argc, char *argv[]);
 extern int dmesg_main(int argc, char *argv[]);
 extern int echo_main(int argc, char *argv[]);
 extern int free_main(int argc, char *argv[]);
+extern int head_main(int argc, char *argv[]);
 extern int hostname_main(int argc, char *argv[]);
 extern int kill_main(int argc, char *argv[]);
 extern int ls_main(int argc, char *argv[]);
@@ -64,6 +66,9 @@ extern int uname_main(int argc, char *argv[]);
  */
 const struct cmd_entry builtin_cmds[] = {
 	{ "help"     ,help_main       },
+#ifdef CONFIG_CMD_CAL
+	{ "cal"      ,cal_main        },
+#endif
 #ifdef CONFIG_CMD_CAT
 	{ "cat"      ,cat_main        },
 #endif
@@ -84,6 +89,9 @@ const struct cmd_entry builtin_cmds[] = {
 #endif
 #ifdef CONFIG_CMD_FREE
 	{ "free"     ,free_main       },
+#endif
+#ifdef CONFIG_CMD_HEAD
+	{ "head"     ,head_main   },
 #endif
 #ifdef CONFIG_CMD_HOSTNAME
 	{ "hostname" ,hostname_main   },

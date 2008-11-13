@@ -46,7 +46,7 @@ get_time(void)
 	if (err) {
 		printf("error to open rtc device!\n");
 		return 0;
-	}		
+	}
 	len = sizeof(sec);
 	err = device_read(rtc_dev, &sec, &len, 0);
 	if (err) {
@@ -65,7 +65,7 @@ main(int argc, char *argv[])
 	unsigned int sec, min, hour;
 
 	printf("Time test program\n");
-	
+
 	sys_time = get_time();
 	if (sys_time == 0)
 		return 0;

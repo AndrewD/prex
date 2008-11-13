@@ -41,12 +41,8 @@ setpgid(pid_t pid, pid_t pgid)
 {
 	struct msg m;
 
-	if (pgid < 0) {
-		errno = EINVAL;
-		return -1;
-	}
 	m.hdr.code = PS_SETPGID;
-	m.data[0] = pid ? pid : getpid();
-	m.data[1] = pgid ? pgid : m.data[0];
+	m.data[0] = pid;
+	m.data[1] = pgid;
 	return __posix_call(__proc_obj, &m, sizeof(m), 1);
 }

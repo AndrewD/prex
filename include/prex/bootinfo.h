@@ -40,35 +40,9 @@
 #include <sys/types.h>
 
 /*
- * Module information for kernel, driver, and boot tasks.
- * An OS loader will build this structure regardless of its file format.
- */
-struct module
-{
-	char	name[16];	/* name of image */
-	u_long	phys;		/* physical address */
-	size_t	size;		/* size of image */
-	u_long	entry;		/* entry address */
-	u_long	text;		/* text address */
-	u_long	data;		/* data address */
-	size_t	textsz;		/* text size */
-	size_t	datasz;		/* data size */
-	size_t	bsssz;		/* bss size */
-};
-
-/*
- * Memory map
- */
-struct mem_map
-{
-	u_long	start;		/* start address */
-	size_t	size;		/* size in bytes */
-};
-
-/*
  * Video information
  */
-struct video_cfg
+struct vidinfo
 {
 	int	pixel_x;	/* screen pixels */
 	int	pixel_y;
@@ -76,23 +50,56 @@ struct video_cfg
 	int	text_y;
 };
 
-#define NRESMEM		8	/* number of reserved memory */
+/*
+ * Module information for kernel, driver, and boot tasks.
+ * An OS loader will build this structure regardless of its file format.
+ */
+struct module
+{
+	char	name[16];	/* name of image */
+	paddr_t	phys;		/* physical address */
+	size_t	size;		/* size of image */
+	vaddr_t	entry;		/* entry address */
+	vaddr_t	text;		/* text address */
+	vaddr_t	data;		/* data address */
+	size_t	textsz;		/* text size */
+	size_t	datasz;		/* data size */
+	size_t	bsssz;		/* bss size */
+};
+
+/*
+ * Physical memory
+ */
+struct physmem
+{
+	paddr_t	base;		/* start address */
+	size_t	size;		/* size in bytes */
+	int	type;		/* type */
+};
+
+/* memory types */
+#define MT_USABLE	1
+#define MT_MEMHOLE	2
+#define MT_RESERVED	3
+#define MT_BOOTDISK	4
+
+#define NMEMS		16	/* max number of memory slots */
 
 /*
  * Boot information
  */
-struct boot_info
+struct bootinfo
 {
-	struct video_cfg video;
-	struct mem_map	main_mem;	/* main memory */
-	struct mem_map	reserved[NRESMEM];	/* system reserved memory */
-	struct mem_map	ram_disk;	/* ram disk image in memory */
-	struct mem_map	modules;	/* boot modules (kernel, driver, boot tasks) */
-	u_long		archive;	/* archive offset in memory */
+	struct vidinfo	video;
+	struct physmem	ram[NMEMS];	/* physical ram table */
+	int		nr_rams;	/* number of ram blocks */
+	struct physmem	bootdisk;	/* boot disk in memory */
 	int		nr_tasks;	/* number of boot tasks */
 	struct module	kernel;		/* kernel image */
 	struct module	driver;		/* driver image */
 	struct module	tasks[1];	/* boot tasks image */
 };
+
+#define BOOTINFO_SIZE	1024	/* max size of boot information */
 
 #endif /* !_PREX_BOOTINFO_H */

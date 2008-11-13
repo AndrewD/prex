@@ -35,7 +35,7 @@
 int
 vscanf(fmt, ap)
 	const char *fmt;
-	_BSD_VA_LIST_ ap;
+	va_list ap;
 {
 
 	return (__svfscanf(stdin, fmt, ap));

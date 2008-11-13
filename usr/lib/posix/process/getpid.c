@@ -44,7 +44,7 @@ getpid(void)
 	m.hdr.code = PS_GETPID;
 	__posix_call(__proc_obj, &m, sizeof(m), 1);
 
-	/* XXX: getpid does not return error. */
+	/* XXX: getpid can not return any error. */
 
 	return m.data[0];
 }

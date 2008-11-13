@@ -56,8 +56,8 @@ proc_find(pid_t pid)
 	head = &pid_hash[IDHASH(pid)];
 	n = list_first(head);
 	while (n != head) {
-		p = list_entry(n, struct proc, pid_link);
-		if (p->pid == pid)
+		p = list_entry(n, struct proc, p_pid_link);
+		if (p->p_pid == pid)
 			return p;
 		n = list_next(n);
 	}
@@ -76,8 +76,8 @@ pgrp_find(pid_t pgid)
 	head = &pgid_hash[IDHASH(pgid)];
 	n = list_first(head);
 	while (n != head) {
-		g = list_entry(n, struct pgrp, pgid_link);
-		if (g->pgid == pgid)
+		g = list_entry(n, struct pgrp, pg_link);
+		if (g->pg_pgid == pgid)
 			return g;
 		n = list_next(n);
 	}
@@ -95,9 +95,10 @@ task_to_proc(task_t task)
 
 	head = &task_hash[IDHASH(task)];
 	n = list_first(head);
+
 	while (n != head) {
-		p = list_entry(n, struct proc, task_link);
-		if (p->task == task)
+		p = list_entry(n, struct proc, p_task_link);
+		if (p->p_task == task)
 			return p;
 		n = list_next(n);
 	}
@@ -109,22 +110,22 @@ task_to_proc(task_t task)
  * This routine assumes pid and task data has been already initialized.
  */
 void
-proc_add(struct proc *proc)
+proc_add(struct proc *p)
 {
 
-	list_insert(&pid_hash[IDHASH(proc->pid)], &proc->pid_link);
-	list_insert(&task_hash[IDHASH(proc->task)], &proc->task_link);
+	list_insert(&pid_hash[IDHASH(p->p_pid)], &p->p_pid_link);
+	list_insert(&task_hash[IDHASH(p->p_task)], &p->p_task_link);
 }
 
 /*
  * Remove process from both of pid table and task table.
  */
 void
-proc_remove(struct proc *proc)
+proc_remove(struct proc *p)
 {
 
-	list_remove(&proc->pid_link);
-	list_remove(&proc->task_link);
+	list_remove(&p->p_pid_link);
+	list_remove(&p->p_task_link);
 }
 
 /*
@@ -135,7 +136,7 @@ void
 pgrp_add(struct pgrp *pgrp)
 {
 
-	list_insert(&pgid_hash[IDHASH(pgrp->pgid)], &pgrp->pgid_link);
+	list_insert(&pgid_hash[IDHASH(pgrp->pg_pgid)], &pgrp->pg_link);
 }
 
 /*
@@ -145,7 +146,7 @@ void
 pgrp_remove(struct pgrp *pgrp)
 {
 
-	list_remove(&pgrp->pgid_link);
+	list_remove(&pgrp->pg_link);
 }
 
 /*

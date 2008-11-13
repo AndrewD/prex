@@ -37,7 +37,9 @@
 extern object_t __proc_obj;
 extern object_t __fs_obj;
 
-extern int __posix_call(object_t obj, void *msg, size_t size, int restart);
+__BEGIN_DECLS
+int __posix_call(object_t obj, void *msg, size_t size, int restart);
+__END_DECLS
 
 #endif	/* KERNEL */
 #endif	/* !_PREX_POSIX_H */

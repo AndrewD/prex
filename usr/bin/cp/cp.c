@@ -140,7 +140,7 @@ copy(char *from, char *to, int dirflag)
 
 	if ((fold = open(from, 0)) == -1) {
 		warn("%s", from);
-		return (1);
+		return 1;
 	}
 	fstat(fold, &stbuf);
 	mode = stbuf.st_mode;
@@ -148,14 +148,14 @@ copy(char *from, char *to, int dirflag)
 	if ((fnew = creat(to, mode)) == -1) {
 		warn("%s", to);
 		close(fold);
-		return (1);
+		return 1;
 	}
 	while ((n = read(fold, iobuf, BUFSIZ)) > 0) {
 		if (write(fnew, iobuf, n) != n) {
 			warn("%s", to);
 			close(fold);
 			close(fnew);
-			return (1);
+			return 1;
 		}
 	}
 	close(fold);

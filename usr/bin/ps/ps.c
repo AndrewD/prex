@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 		exit(1);
 
 	if (ps_flag & PSFL)
-		printf("  PID  PPID PRI STAT POL  SUS     TIME WCHAN       CMD\n");
+		printf("  PID  PPID PRI STAT POL      TIME WCHAN       CMD\n");
 	else
 		printf("  PID     TIME CMD\n");
 
@@ -132,12 +132,11 @@ main(int argc, char *argv[])
 				else
 					printf("%5d %5d", ip.pid, ip.ppid);
 
-				printf(" %3d %s    %s %3d %8d "
+				printf(" %3d %s    %s %8d "
 				       "%-11s %-11s\n",
 				       it.prio, stat[ip.stat-1],
-				       pol[it.policy], it.suspend_count,
-				       it.total_ticks, it.sleep_event,
-				       it.task_name);
+				       pol[it.policy],
+				       it.time, it.slpevt, it.taskname);
 			} else {
 				if (!(ps_flag & PSFX) && (ip.pid == last_pid))
 					continue;
@@ -146,8 +145,7 @@ main(int argc, char *argv[])
 				else
 					printf("%5d", ip.pid);
 
-				printf(" %8d %-11s\n", it.total_ticks,
-				       it.task_name);
+				printf(" %8d %-11s\n", it.time, it.taskname);
 				last_pid = ip.pid;
 			}
 		}

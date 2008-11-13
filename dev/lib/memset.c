@@ -28,6 +28,7 @@
  */
 
 #include <sys/types.h>
+#include <drvlib.h>
 
 void *
 memset(void *dest, int ch, size_t count)

@@ -40,15 +40,14 @@ typedef unsigned long	device_t;
 typedef unsigned long	mutex_t;
 typedef unsigned long	cond_t;
 typedef unsigned long	sem_t;
-typedef uint32_t	cap_t;
 
 #define OBJECT_NULL	((object_t)0)
-#define TASK_NULL	((task_t)0)
+#define TASK_NULL	  ((task_t)0)
 #define THREAD_NULL	((thread_t)0)
 #define DEVICE_NULL	((device_t)0)
-#define MUTEX_NULL	((mutex_t)0)
-#define COND_NULL	((cond_t)0)
-#define SEM_NULL	((sem_t)0)
+#define MUTEX_NULL	 ((mutex_t)0)
+#define COND_NULL	  ((cond_t)0)
+#define SEM_NULL	   ((sem_t)0)
 
 #endif /* KERNEL */
-#endif /* !_PREX_H */
+#endif /* !_PREX_TYPES_H */

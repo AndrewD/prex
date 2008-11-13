@@ -36,9 +36,8 @@
 unsigned int
 sleep(unsigned int seconds)
 {
-	int err;
 	unsigned int remain = 0;
 
-	err = timer_sleep(seconds * 1000, (u_long *)&remain);
+	timer_sleep(seconds * 1000, (u_long *)&remain);
 	return remain;
 }

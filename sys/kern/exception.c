@@ -83,19 +83,20 @@ static struct event exception_event;
 
 /*
  * Install an exception handler for the current task.
+ *
  * NULL can be specified as handler to remove current handler.
  * If handler is removed, all pending exceptions are discarded
- * immediately. In this case, all threads blocked in exception_wait()
- * are unblocked.
+ * immediately. In this case, all threads blocked in
+ * exception_wait() are unblocked.
  *
- * Only one exception handler can be set per task. If the previous
- * handler exists in task, exception_setup() just override that
- * handler.
+ * Only one exception handler can be set per task. If the
+ * previous handler exists in task, exception_setup() just
+ * override that handler.
  */
 int
-exception_setup(void (*handler)(int, u_long))
+exception_setup(void (*handler)(int))
 {
-	task_t self;
+	task_t self = cur_task();
 	list_t head, n;
 	thread_t th;
 
@@ -103,8 +104,7 @@ exception_setup(void (*handler)(int, u_long))
 		return EFAULT;
 
 	sched_lock();
-	self = cur_task();
-	if (self->exc_handler && handler == NULL) {
+	if (self->handler && handler == NULL) {
 		/*
 		 * Remove existing exception handler. Do clean up
 		 * job for all threads in the target task.
@@ -116,31 +116,31 @@ exception_setup(void (*handler)(int, u_long))
 			 */
 			th = list_entry(n, struct thread, task_link);
 			irq_lock();
-			th->exc_bitmap = 0;
+			th->excbits = 0;
 			irq_unlock();
+
 			/*
 			 * If the thread is waiting for an exception,
 			 * cancel it.
 			 */
-			if (th->sleep_event == &exception_event)
+			if (th->slpevt == &exception_event)
 				sched_unsleep(th, SLP_BREAK);
 		}
 	}
-	self->exc_handler = handler;
+	self->handler = handler;
 	sched_unlock();
 	return 0;
 }
 
 /*
- * exception_raise - raise an exception for specified task.
- * @task: task id
- * @exc:  exception code
+ * exception_raise - system call to raise an exception.
  *
- * The exception pending flag is marked here, and it is processed
- * by exception_deliver() later. If the task want to raise an
- * exception to another task, the caller task must have CAP_KILL
- * capability. If the exception is sent to the kernel task, this
- * routine just returns error.
+ * The exception pending flag is marked here, and it is
+ * processed by exception_deliver() later. If the task
+ * want to raise an exception to another task, the caller
+ * task must have CAP_KILL capability. If the exception
+ * is sent to the kernel task, this routine just returns
+ * error.
  */
 int
 exception_raise(task_t task, int exc)
@@ -151,20 +151,25 @@ exception_raise(task_t task, int exc)
 
 	if (!task_valid(task)) {
 		err = ESRCH;
-	} else if (task != cur_task() && !task_capable(CAP_KILL)) {
-		err = EPERM;
-	} else if (task == &kern_task || task->exc_handler == NULL ||
-		 list_empty(&task->threads)) {
-		err = EPERM;
-	} else {
-		err = exception_post(task, exc);
+		goto out;
 	}
+	if (task != cur_task() && !task_capable(CAP_KILL)) {
+		err = EPERM;
+		goto out;
+	}
+	if (task == &kern_task || task->handler == NULL ||
+	    list_empty(&task->threads)) {
+		err = EPERM;
+		goto out;
+	}
+	err = exception_post(task, exc);
+ out:
 	sched_unlock();
 	return err;
 }
 
 /*
- * Post an exception to the specified task.
+ * exception_post-- the internal version of exception_raise().
  */
 int
 exception_post(task_t task, int exc)
@@ -172,19 +177,20 @@ exception_post(task_t task, int exc)
 	list_t head, n;
 	thread_t th;
 
-	if (exc < 0 || exc >= NR_EXCS)
+	if (exc < 0 || exc >= NEXC)
 		return EINVAL;
 
 	/*
 	 * Determine which thread should we send an exception.
-	 * First, search the thread that is waiting an exception by
-	 * calling exception_wait(). Then, if no thread is waiting
-	 * exceptions, it is sent to the master thread in task.
+	 * First, search the thread that is waiting an exception
+	 * by calling exception_wait(). Then, if no thread is
+	 * waiting exceptions, it is sent to the master thread in
+	 * task.
 	 */
 	head = &task->threads;
 	for (n = list_first(head); n != head; n = list_next(n)) {
 		th = list_entry(n, struct thread, task_link);
-		if (th->sleep_event == &exception_event)
+		if (th->slpevt == &exception_event)
 			break;
 	}
 	if (n == head) {
@@ -195,12 +201,12 @@ exception_post(task_t task, int exc)
 	 * Mark pending bit for this exception.
 	 */
 	irq_lock();
-	th->exc_bitmap |= (1 << exc);
+	th->excbits |= (1 << exc);
 	irq_unlock();
 
 	/*
-	 * Wakeup the target thread regardless of its waiting
-	 * event.
+	 * Wakeup the target thread regardless of its
+	 * waiting event.
 	 */
 	sched_unsleep(th, SLP_INTR);
 
@@ -208,18 +214,19 @@ exception_post(task_t task, int exc)
 }
 
 /*
- * exception_wait - block a current thread until some exceptions are
- * raised to the current thread.
- * @exc: exception code returned.
+ * exception_wait - block a current thread until some exceptions
+ * are raised to the current thread.
  *
  * The routine returns EINTR on success.
  */
 int
 exception_wait(int *exc)
 {
+	task_t self = cur_task();
 	int i, rc;
 
-	if (cur_task()->exc_handler == NULL)
+	self = cur_task();
+	if (self->handler == NULL)
 		return EINVAL;
 	if (!user_area(exc))
 		return EFAULT;
@@ -235,15 +242,15 @@ exception_wait(int *exc)
 		return EINVAL;
 	}
 	irq_lock();
-	for (i = 0; i < NR_EXCS; i++) {
-		if (cur_thread->exc_bitmap & (1 << i))
+	for (i = 0; i < NEXC; i++) {
+		if (cur_thread->excbits & (1 << i))
 			break;
 	}
 	irq_unlock();
-	ASSERT(i != NR_EXCS);
+	ASSERT(i != NEXC);
 	sched_unlock();
 
-	if (umem_copyout(&i, exc, sizeof(int)))
+	if (umem_copyout(&i, exc, sizeof(i)))
 		return EFAULT;
 	return EINTR;
 }
@@ -251,69 +258,75 @@ exception_wait(int *exc)
 /*
  * Mark an exception flag for the current thread.
  *
- * This is called from architecture dependent code when H/W trap is
- * occurred. If current task does not have exception handler, then
- * current task will be terminated.
- * This routine may be called at interrupt level.
+ * This is called from architecture dependent code when H/W
+ * trap is occurred. If current task does not have exception
+ * handler, then current task will be terminated. This routine
+ * may be called at interrupt level.
  */
 void
 exception_mark(int exc)
 {
-	ASSERT(exc > 0 && exc < NR_EXCS);
+	ASSERT(exc > 0 && exc < NEXC);
 
 	/* Mark pending bit */
 	irq_lock();
-	cur_thread->exc_bitmap |= (1 << exc);
+	cur_thread->excbits |= (1 << exc);
 	irq_unlock();
 }
 
 /*
- * Check if pending exception exists for current task, and deliver
- * it to the exception handler if needed.
- * All exception is delivered at the time when the control goes back
- * to the user mode.
- * This routine is called from architecture dependent code.
- * Some application may use longjmp() during its signal handler.
- * So, current context must be saved to user mode stack.
+ * exception_deliver - deliver pending exception to the task.
+ *
+ * Check if pending exception exists for current task, and
+ * deliver it to the exception handler if needed. All
+ * exception is delivered at the time when the control goes
+ * back to the user mode. This routine is called from
+ * architecture dependent code. Some application may use
+ * longjmp() during its signal handler. So, current context
+ * must be saved to user mode stack.
  */
 void
 exception_deliver(void)
 {
 	thread_t th = cur_thread;
 	task_t self = cur_task();
-	void (*handler)(int, u_long);
+	void (*handler)(int);
 	uint32_t bitmap;
 	int exc;
 
 	sched_lock();
 	irq_lock();
-	bitmap = th->exc_bitmap;
+	bitmap = th->excbits;
 	irq_unlock();
 
 	if (bitmap != 0) {
 		/*
 		 * Find a pending exception.
 		 */
-		for (exc = 0; exc < NR_EXCS; exc++) {
+		for (exc = 0; exc < NEXC; exc++) {
 			if (bitmap & (1 << exc))
 				break;
 		}
-		handler = self->exc_handler;
+		handler = self->handler;
 		if (handler == NULL) {
-			printk("Exception #%d is not handled by task.\n", exc);
-			printk("Terminate task:%s (id:%x)\n",
-			       self->name ? self->name : "no name", self);
+			DPRINTF(("Exception #%d is not handled by task.\n",
+				exc));
+			DPRINTF(("Terminate task:%s (id:%x)\n",
+				 self->name != NULL ? self->name : "no name",
+				 self));
+
 			task_terminate(self);
 			goto out;
 		}
 		/*
 		 * Transfer control to an exception handler.
 		 */
-		context_save(&th->context, exc);
-		context_set(&th->context, CTX_UENTRY, (u_long)handler);
+		context_save(&th->ctx);
+		context_set(&th->ctx, CTX_UENTRY, (vaddr_t)handler);
+		context_set(&th->ctx, CTX_UARG, (vaddr_t)exc);
 
 		irq_lock();
-		th->exc_bitmap &= ~(1 << exc);
+		th->excbits &= ~(1 << exc);
 		irq_unlock();
 	}
  out:
@@ -321,20 +334,14 @@ exception_deliver(void)
 }
 
 /*
- * exception_return() is called from exception handler to restore
- * the original context.
- * @regs: context pointer which is passed to exception handler.
- *
- * TODO: should validate passed data area.
+ * exception_return() is called from exception handler to
+ * restore the original context.
  */
 int
-exception_return(void *regs)
+exception_return(void)
 {
 
-	if ((regs == NULL) || !user_area(regs))
-		return EFAULT;
-
-	context_restore(&cur_thread->context, regs);
+	context_restore(&cur_thread->ctx);
 	return 0;
 }
 

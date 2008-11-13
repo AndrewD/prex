@@ -30,6 +30,7 @@
 #ifndef _SYNC_H
 #define _SYNC_H
 
+#include <sys/cdefs.h>
 #include <event.h>
 #include <task.h>
 
@@ -47,7 +48,7 @@ struct mutex {
 	struct list	link;		/* linkage on locked mutex list */
 	thread_t	owner;		/* owner thread locking this mutex */
 	int		prio;		/* highest prio in waiting threads */
-	int		lock_count;	/* counter for recursive lock */
+	int		locks;		/* counter for recursive lock */
 };
 
 struct cond {
@@ -72,25 +73,25 @@ struct cond {
 #define MUTEX_INITIALIZER	(mutex_t)0x4d496e69	/* 'MIni' */
 #define COND_INITIALIZER	(cond_t)0x43496e69	/* 'CIni' */
 
-extern int	 sem_init(sem_t *, u_int);
-extern int	 sem_destroy(sem_t *);
-extern int	 sem_wait(sem_t *, u_long);
-extern int	 sem_trywait(sem_t *);
-extern int	 sem_post(sem_t *);
-extern int	 sem_getvalue(sem_t *, u_int *);
-
-extern int	 mutex_init(mutex_t *);
-extern int	 mutex_destroy(mutex_t *);
-extern int	 mutex_lock(mutex_t *);
-extern int	 mutex_trylock(mutex_t *);
-extern int	 mutex_unlock(mutex_t *);
-extern void	 mutex_cleanup(thread_t);
-extern void	 mutex_setprio(thread_t, int);
-
-extern int	 cond_init(cond_t *);
-extern int	 cond_destroy(cond_t *);
-extern int	 cond_wait(cond_t *, mutex_t *);
-extern int	 cond_signal(cond_t *);
-extern int	 cond_broadcast(cond_t *);
+__BEGIN_DECLS
+int	 sem_init(sem_t *, u_int);
+int	 sem_destroy(sem_t *);
+int	 sem_wait(sem_t *, u_long);
+int	 sem_trywait(sem_t *);
+int	 sem_post(sem_t *);
+int	 sem_getvalue(sem_t *, u_int *);
+int	 mutex_init(mutex_t *);
+int	 mutex_destroy(mutex_t *);
+int	 mutex_lock(mutex_t *);
+int	 mutex_trylock(mutex_t *);
+int	 mutex_unlock(mutex_t *);
+void	 mutex_cleanup(thread_t);
+void	 mutex_setprio(thread_t, int);
+int	 cond_init(cond_t *);
+int	 cond_destroy(cond_t *);
+int	 cond_wait(cond_t *, mutex_t *);
+int	 cond_signal(cond_t *);
+int	 cond_broadcast(cond_t *);
+__END_DECLS
 
 #endif /* !_SYNC_H */

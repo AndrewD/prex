@@ -28,6 +28,7 @@
  */
 
 #include <sys/types.h>
+#include <drvlib.h>
 
 size_t
 strnlen(const char *str, size_t count)

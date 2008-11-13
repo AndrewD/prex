@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,14 +28,13 @@
  */
 
 /*
- * diag.c - GBA screen management
+ * diag.c - diagnostic message support
  */
+
 #include <kernel.h>
 
 #ifdef DEBUG
-/*
- * Warning: Enabling CONFIG_DIAG_VBA will cause hang on actual GBA h/w.
- */
+
 #ifdef CONFIG_DIAG_SCREEN
 #include "font.h"
 
@@ -81,7 +80,7 @@ new_line(void)
 }
 
 static void
-put_char(char ch)
+screen_putc(char ch)
 {
 
 	switch (ch) {
@@ -111,17 +110,6 @@ put_char(char ch)
 }
 
 /*
- * Write
- */
-void
-diag_print(char *buf)
-{
-
-	while (*buf)
-		put_char(*buf++);
-}
-
-/*
  * Init font
  */
 static void
@@ -133,12 +121,15 @@ init_font(void)
 	for (i = 0; i < 256; i++) {
 		for (row = 0; row < 8; row++) {
 			for (col = 7; col >= 0; col--) {
-				bit = (font_bitmap[i][row] & (1 << col)) ? 2 : 1;
+				bit = (font_bitmap[i][row] &
+				       (1 << col)) ? 2 : 1;
 				if (col % 2)
 					val = bit;
-				else
-					tile[(i * 32) + (row * 4) + ((7 - col) / 2)] =
+				else {
+					tile[(i * 32) +
+					     (row * 4) + ((7 - col) / 2)] =
 						val + (bit << 8);
+				}
 			}
 		}
 	}
@@ -163,6 +154,18 @@ init_screen(void)
 }
 #endif /* CONFIG_DIAG_SCREEN */
 
+
+void
+diag_print(char *buf)
+{
+#ifdef CONFIG_DIAG_SCREEN
+	char *p = buf;
+
+	while (*p)
+		screen_putc(*p++);
+#endif
+}
+
 #endif /* DEBUG */
 
 /*
@@ -179,4 +182,3 @@ diag_init(void)
 #endif
 #endif
 }
-

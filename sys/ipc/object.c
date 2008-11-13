@@ -32,21 +32,24 @@
  */
 
 /*
- * An object represents service, state, or policies etc. To manipulate
- * objects, kernel provide 3 functions: create, delete, lookup.
- * Prex task will create an object to provide its interface to other
- * tasks. The tasks will communicate by sending a message to the object
- * each other. For example, a server task creates some objects and client
- * task will send a request message to it.
+ * General Design:
  *
- * A substance of object is stored in kernel space, and it is protected
- * from user mode code. Each object data is managed with the hash table
- * by using its name string. Usually, an object has a unique name within
- * a system. Before a task sends a message to the specific object, it must
- * obtain the object ID by looking up the name of the target object.
+ * An object represents service, state, or policies etc. To
+ * manipulate objects, kernel provide 3 functions: create, delete,
+ * lookup. Prex task will create an object to provide its interface
+ * to other tasks. The tasks will communicate by sending a message
+ * to the object each other. For example, a server task creates some
+ * objects and client task will send a request message to it.
  *
- * An object can be created without its name. These object can be used as
- * private objects that are used by threads in same task.
+ * A substance of object is stored in kernel space, and it is
+ * protected from user mode code. Each object data is managed with
+ * the hash table by using its name string. Usually, an object has
+ * a unique name within a system. Before a task sends a message to
+ * the specific object, it must obtain the object ID by looking up
+ * the name of the target object.
+ *
+ * An object can be created without its name. These object can be
+ * used as private objects that are used by threads in same task.
  */
 
 #include <kernel.h>
@@ -61,15 +64,16 @@
 /*
  * Object hash table
  *
- * All objects are hashed by its name string. If an object has no
- * name, it is linked to index zero.
- * The scheduler must be locked when this table is touched.
+ * All objects are hashed by its name string. If an object
+ * has no name, it is linked to index zero. The scheduler
+ * must be locked when this table is touched.
  */
 static struct list obj_table[OBJ_MAXBUCKETS];
 
 /*
  * Calculate the hash index for specified name string.
- * The name can be NULL if the object does not have name.
+ * The name can be NULL if the object does not have its
+ * name.
  */
 static u_int
 object_hash(const char *name)
@@ -94,9 +98,9 @@ object_find(const char *name)
 	object_t obj = NULL;
 
 	head = &obj_table[object_hash(name)];
+
 	for (n = list_first(head); n != head; n = list_next(n)) {
-		obj = list_entry(n, struct object, name_link);
-		ASSERT(obj->magic == OBJECT_MAGIC);
+		obj = list_entry(n, struct object, hash_link);
 		if (!strncmp(obj->name, name, MAXOBJNAME))
 			break;
 	}
@@ -106,9 +110,9 @@ object_find(const char *name)
 }
 
 /*
- * Search an object in the object name space. The object name must
- * be null-terminated string. The object ID is returned in obj
- * on success.
+ * Search an object in the object name space. The object
+ * name must be null-terminated string. The object ID is
+ * returned in obj on success.
  */
 int
 object_lookup(const char *name, object_t *objp)
@@ -121,7 +125,7 @@ object_lookup(const char *name, object_t *objp)
 		return EFAULT;
 	if (len == 0 || len >= MAXOBJNAME)
 		return ESRCH;
-	if (umem_copyin((void *)name, str, len + 1))
+	if (umem_copyin(name, str, len + 1))
 		return EFAULT;
 
 	sched_lock();
@@ -130,7 +134,7 @@ object_lookup(const char *name, object_t *objp)
 
 	if (obj == NULL)
 		return ENOENT;
-	if (umem_copyout(&obj, objp, sizeof(object_t)))
+	if (umem_copyout(&obj, objp, sizeof(obj)))
 		return EFAULT;
 	return 0;
 }
@@ -139,34 +143,36 @@ object_lookup(const char *name, object_t *objp)
  * Create a new object.
  *
  * The ID of the new object is stored in pobj on success.
- * The name of the object must be unique in the system. Or, the
- * object can be created without name by setting NULL as name
- * argument. This object can be used as a private object which
- * can be accessed only by threads in same task.
+ * The name of the object must be unique in the system.
+ * Or, the object can be created without name by setting
+ * NULL as name argument. This object can be used as a
+ * private object which can be accessed only by threads in
+ * same task.
  */
 int
 object_create(const char *name, object_t *objp)
 {
-	object_t obj = 0;
+	struct object *obj = 0;
 	char str[MAXOBJNAME];
-	size_t len;
+	task_t self;
+	size_t len = 0;
 
 	if (name != NULL) {
 		if (umem_strnlen(name, MAXOBJNAME, &len))
 			return EFAULT;
 		if (len >= MAXOBJNAME)
 			return ENAMETOOLONG;
-		if (umem_copyin((void *)name, str, len + 1))
+		if (umem_copyin(name, str, len + 1))
 			return EFAULT;
-		str[len] = '\0';
 	}
+	str[len] = '\0';
 	sched_lock();
 
 	/*
 	 * Check user buffer first. This can reduce the error
 	 * recovery for the subsequence resource allocations.
 	 */
-	if (umem_copyout(&obj, objp, sizeof(object_t))) {
+	if (umem_copyout(&obj, objp, sizeof(obj))) {
 		sched_unlock();
 		return EFAULT;
 	}
@@ -174,21 +180,22 @@ object_create(const char *name, object_t *objp)
 		sched_unlock();
 		return EEXIST;
 	}
-	if ((obj = kmem_alloc(sizeof(struct object))) == NULL) {
+	if ((obj = kmem_alloc(sizeof(*obj))) == NULL) {
 		sched_unlock();
 		return ENOMEM;
 	}
 	if (name != NULL)
 		strlcpy(obj->name, str, len + 1);
 
+	self = cur_task();
+	obj->owner = self;
+	obj->magic = OBJECT_MAGIC;
 	queue_init(&obj->sendq);
 	queue_init(&obj->recvq);
-	obj->owner = cur_task();
-	obj->magic = OBJECT_MAGIC;
-	list_insert(&obj_table[object_hash(name)], &obj->name_link);
-	list_insert(&(cur_task()->objects), &obj->task_link);
+	list_insert(&obj_table[object_hash(name)], &obj->hash_link);
+	list_insert(&self->objects, &obj->task_link);
 
-	umem_copyout(&obj, objp, sizeof(object_t));
+	umem_copyout(&obj, objp, sizeof(obj));
 	sched_unlock();
 	return 0;
 }
@@ -196,9 +203,9 @@ object_create(const char *name, object_t *objp)
 /*
  * Destroy an object.
  *
- * A thread can delete the object only when the target object is
- * created by the thread of the same task.
- * All pending messages related to the deleted object are
+ * A thread can delete the object only when the target
+ * object is created by the thread of the same task.  All
+ * pending messages related to the deleted object are
  * automatically canceled.
  */
 int
@@ -209,43 +216,18 @@ object_destroy(object_t obj)
 	sched_lock();
 	if (!object_valid(obj)) {
 		err = EINVAL;
-	}
-	else if (obj->owner != cur_task()) {
+	} else if (obj->owner != cur_task()) {
 		err = EACCES;
-	}
-	else {
+	} else {
 		obj->magic = 0;
 		msg_cancel(obj);
 		list_remove(&obj->task_link);
-		list_remove(&obj->name_link);
+		list_remove(&obj->hash_link);
 		kmem_free(obj);
 	}
 	sched_unlock();
 	return err;
 }
-
-#if defined(DEBUG) && defined(CONFIG_KDUMP)
-void
-object_dump(void)
-{
-	int i;
-	list_t head, n;
-	object_t obj;
-
-	printk("Object dump:\n");
-	printk(" object   owner task name\n");
-	printk(" -------- ---------- ----------------\n");
-
-	for (i = 0; i < OBJ_MAXBUCKETS; i++) {
-		head = &obj_table[i];
-		for (n = list_first(head); n != head; n = list_next(n)) {
-			obj = list_entry(n, struct object, name_link);
-			printk(" %08x %08x   %s\n", obj, obj->owner,
-			       (obj->name ? obj->name : "NoName"));
-		}
-	}
-}
-#endif
 
 void
 object_init(void)

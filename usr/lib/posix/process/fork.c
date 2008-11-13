@@ -37,6 +37,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <errno.h>
+#include <unistd.h>
 
 static void __child_entry(void);
 

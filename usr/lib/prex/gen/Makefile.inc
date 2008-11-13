@@ -1,3 +1,3 @@
 VPATH:=	$(SRCDIR)/usr/lib/prex/gen:$(VPATH)
 
-SRCS+=	panic.c reboot.c shutdown.c
+SRCS+=	panic.c dprintf.c

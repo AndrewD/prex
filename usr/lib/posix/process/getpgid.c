@@ -41,10 +41,9 @@ getpgid(pid_t pid)
 	struct msg m;
 
 	m.hdr.code = PS_GETPGID;
-	m.data[0] = pid ? pid : getpid();
-	__posix_call(__proc_obj, &m, sizeof(m), 1);
-
-	/* XXX: getpigid() does not return error */
+	m.data[0] = pid;
+	if (__posix_call(__proc_obj, &m, sizeof(m), 1))
+		return -1;
 
 	return m.data[0];
 }

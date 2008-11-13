@@ -30,21 +30,14 @@
 #ifndef _SYSTEM_H
 #define _SYSTEM_H
 
-#include <version.h>
+#include <sys/cdefs.h>
 
-#define KERNEL_INFO(ki) \
-{ \
-	"Prex", \
-	VERSION, \
-	__DATE__, \
-	MACHINE, \
-	"preky" \
-}
-
-extern int	 sys_log(const char *);
-extern int	 sys_panic(const char *);
-extern int	 sys_info(int, void *);
-extern int	 sys_time(u_long *);
-extern int	 sys_debug(int, u_long);
+__BEGIN_DECLS
+int	 sys_log(const char *);
+int	 sys_panic(const char *);
+int	 sys_info(int, void *);
+int	 sys_time(u_long *);
+int	 sys_debug(int, void *);
+__END_DECLS
 
 #endif /* !_SYSTEM_H */

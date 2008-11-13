@@ -28,7 +28,7 @@
  */
 
 #ifndef _ARM_ELF_H
-#define _ARN_ELF_H
+#define _ARM_ELF_H
 
 /*
  * Relocation type for arm

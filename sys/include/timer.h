@@ -30,6 +30,7 @@
 #ifndef _TIMER_H
 #define _TIMER_H
 
+#include <sys/cdefs.h>
 #include <event.h>
 
 struct timer {
@@ -61,20 +62,20 @@ struct timer {
 #define tick_to_msec(tick)	(((tick) * 1000) / HZ)
 
 
-extern void	 timer_callout(struct timer *, void (*)(void *), void *,
-			       u_long);
-extern void	 timer_stop(struct timer *);
-extern u_long	 timer_delay(u_long);
-extern int	 timer_sleep(u_long, u_long *);
-extern int	 timer_alarm(u_long, u_long *);
-extern int	 timer_periodic(struct thread *, u_long, u_long);
-extern int	 timer_waitperiod(void);
-extern void	 timer_cleanup(struct thread *);
-extern int	 timer_hook(void (*)(int));
-extern void	 timer_tick(void);
-extern u_long	 timer_count(void);
-extern void	 timer_info(struct info_timer *);
-extern void	 timer_dump(void);
-extern void	 timer_init(void);
+__BEGIN_DECLS
+void	 timer_callout(struct timer *, u_long, void (*)(void *), void *);
+void	 timer_stop(struct timer *);
+u_long	 timer_delay(u_long);
+int	 timer_sleep(u_long, u_long *);
+int	 timer_alarm(u_long, u_long *);
+int	 timer_periodic(struct thread *, u_long, u_long);
+int	 timer_waitperiod(void);
+void	 timer_cleanup(struct thread *);
+int	 timer_hook(void (*)(int));
+void	 timer_tick(void);
+u_long	 timer_count(void);
+void	 timer_info(struct info_timer *);
+void	 timer_init(void);
+__END_DECLS
 
 #endif /* !_TIMER_H */

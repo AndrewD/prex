@@ -28,7 +28,7 @@
  */
 
 /*
- * vm_nommu.c - virtual memory functions for no MMU systems
+ * vm_nommu.c - virtual memory alloctor for no MMU systems
  */
 
 /*
@@ -47,19 +47,10 @@
 #include <sched.h>
 #include <vm.h>
 
-#ifdef CONFIG_VMTRACE
-static void vm_error(const char *, int);
-#define LOG(x)		printk x
-#define CHK(fn,x)	do { if (x) vm_error(fn, x); } while (0)
-#else
-#define LOG(x)
-#define CHK(fn,x)
-#endif
-
 /* forward declarations */
-static struct region *region_create(struct region *, u_long, size_t);
+static struct region *region_create(struct region *, void *, size_t);
 static void region_delete(struct region *, struct region *);
-static struct region *region_find(struct region *, u_long, size_t);
+static struct region *region_find(struct region *, void *, size_t);
 static void region_free(struct region *, struct region *);
 static void region_init(struct region *);
 static int do_allocate(vm_map_t, void **, size_t, int);
@@ -67,20 +58,20 @@ static int do_free(vm_map_t, void *);
 static int do_attribute(vm_map_t, void *, int);
 static int do_map(vm_map_t, void *, size_t, void **);
 
+
 /* vm mapping for kernel task */
 static struct vm_map kern_map;
 
 /**
  * vm_allocate - allocate zero-filled memory for specified address
- * @task:     task id to allocate memory
- * @addr:     required address. set an allocated address in return.
- * @size:     allocation size
- * @anywhere: if it is true, the "addr" argument will be ignored.
- *            In this case, the address of free space will be found
- *            automatically.
  *
- * The allocated area has writable, user-access attribute by default.
- * The "addr" and "size" argument will be adjusted to page boundary.
+ * If "anywhere" argument is true, the "addr" argument will be
+ * ignored.  In this case, the address of free space will be
+ * found automatically.
+ *
+ * The allocated area has writable, user-access attribute by
+ * default.  The "addr" and "size" argument will be adjusted
+ * to page boundary.
  */
 int
 vm_allocate(task_t task, void **addr, size_t size, int anywhere)
@@ -88,28 +79,32 @@ vm_allocate(task_t task, void **addr, size_t size, int anywhere)
 	int err;
 	void *uaddr;
 
-	LOG(("vm_aloc: task=%s addr=%x size=%x anywhere=%d\n",
-	     task->name ? task->name : "no name", *addr, size, anywhere));
-
 	sched_lock();
 
 	if (!task_valid(task)) {
 		err = ESRCH;
-	} else if (task != cur_task() && !task_capable(CAP_MEMORY)) {
-		err = EPERM;
-	} else if (umem_copyin(addr, &uaddr, sizeof(void *))) {
-		err = EFAULT;
-	} else if (anywhere == 0 && !user_area(*addr)) {
-		err = EACCES;
-	} else {
-		err = do_allocate(task->map, &uaddr, size, anywhere);
-		if (err == 0) {
-			if (umem_copyout(&uaddr, addr, sizeof(void *)))
-				err = EFAULT;
-		}
+		goto out;
 	}
+	if (task != cur_task() && !task_capable(CAP_MEMORY)) {
+		err = EPERM;
+		goto out;
+	}
+	if (umem_copyin(addr, &uaddr, sizeof(*addr))) {
+		err = EFAULT;
+		goto out;
+	}
+	if (anywhere == 0 && !user_area(*addr)) {
+		err = EACCES;
+		goto out;
+	}
+
+	err = do_allocate(task->map, &uaddr, size, anywhere);
+	if (err == 0) {
+		if (umem_copyout(&uaddr, addr, sizeof(uaddr)))
+			err = EFAULT;
+	}
+ out:
 	sched_unlock();
-	CHK("vm_allocate", err);
 	return err;
 }
 
@@ -117,7 +112,7 @@ static int
 do_allocate(vm_map_t map, void **addr, size_t size, int anywhere)
 {
 	struct region *reg;
-	u_long start, end;
+	char *start, *end;
 
 	if (size == 0)
 		return EINVAL;
@@ -127,26 +122,26 @@ do_allocate(vm_map_t map, void **addr, size_t size, int anywhere)
 	 */
 	if (anywhere) {
 		size = (size_t)PAGE_ALIGN(size);
-		if ((start = (u_long)page_alloc(size)) == 0)
+		if ((start = page_alloc(size)) == 0)
 			return ENOMEM;
 	} else {
-		start = PAGE_TRUNC(*addr);
-		end = PAGE_ALIGN(start + size);
+		start = (char *)PAGE_TRUNC(*addr);
+		end = (char *)PAGE_ALIGN(start + size);
 		size = (size_t)(end - start);
 
-		if (page_reserve((void *)start, size))
+		if (page_reserve(start, size))
 			return EINVAL;
 	}
 	reg = region_create(&map->head, start, size);
 	if (reg == NULL) {
-     		page_free((void *)start, size);
+     		page_free(start, size);
 		return ENOMEM;
 	}
 	reg->flags = REG_READ | REG_WRITE;
 
 	/* Zero fill */
-	memset((void *)start, 0, size);
-	*addr = (void *)reg->addr;
+	memset(start, 0, size);
+	*addr = reg->addr;
 	return 0;
 }
 
@@ -154,31 +149,34 @@ do_allocate(vm_map_t map, void **addr, size_t size, int anywhere)
  * Deallocate memory region for specified address.
  *
  * The "addr" argument points to a memory region previously
- * allocated through a call to vm_allocate() or vm_map(). The number
- * of bytes freed is the number of bytes of the allocated region.
- * If one of the region of previous and next are free, it combines
- * with them, and larger free region is created.
+ * allocated through a call to vm_allocate() or vm_map(). The
+ * number of bytes freed is the number of bytes of the
+ * allocated region.  If one of the region of previous and
+ * next are free, it combines with them, and larger free
+ * region is created.
  */
 int
 vm_free(task_t task, void *addr)
 {
 	int err;
 
-	LOG(("vm_free: task=%s addr=%x\n",
-	     task->name ? task->name : "no name", addr));
-
 	sched_lock();
 	if (!task_valid(task)) {
 		err = ESRCH;
-	} else if (task != cur_task() && !task_capable(CAP_MEMORY)) {
-		err = EPERM;
-	} else if (!user_area(addr)) {
-		err = EFAULT;
-	} else {
-		err = do_free(task->map, addr);
+		goto out;
 	}
+	if (task != cur_task() && !task_capable(CAP_MEMORY)) {
+		err = EPERM;
+		goto out;
+	}
+	if (!user_area(addr)) {
+		err = EFAULT;
+		goto out;
+	}
+
+	err = do_free(task->map, addr);
+ out:
 	sched_unlock();
-	CHK("vm_free", err);
 	return err;
 }
 
@@ -192,16 +190,15 @@ do_free(vm_map_t map, void *addr)
 	/*
 	 * Find the target region.
 	 */
-	reg = region_find(&map->head, (u_long)addr, 1);
-	if (reg == NULL || reg->addr != (u_long)addr ||
-	    (reg->flags & REG_FREE))
+	reg = region_find(&map->head, addr, 1);
+	if (reg == NULL || reg->addr != addr || (reg->flags & REG_FREE))
 		return EINVAL;	/* not allocated */
 
 	/*
 	 * Free pages if it is not shared and mapped.
 	 */
 	if (!(reg->flags & REG_SHARED) && !(reg->flags & REG_MAPPED))
-		page_free((void *)reg->addr, reg->size);
+		page_free(reg->addr, reg->size);
 
 	region_free(&map->head, reg);
 	return 0;
@@ -210,9 +207,9 @@ do_free(vm_map_t map, void *addr)
 /*
  * Change attribute of specified virtual address.
  *
- * The "addr" argument points to a memory region previously allocated
- * through a call to vm_allocate(). The attribute type can be chosen
- * a combination of VMA_READ, VMA_WRITE.
+ * The "addr" argument points to a memory region previously
+ * allocated through a call to vm_allocate(). The attribute
+ * type can be chosen a combination of VMA_READ, VMA_WRITE.
  * Note: VMA_EXEC is not supported, yet.
  */
 int
@@ -220,23 +217,27 @@ vm_attribute(task_t task, void *addr, int attr)
 {
 	int err;
 
-	LOG(("vm_attr: task=%s addr=%x attr=%x\n",
-	     task->name ? task->name : "no name", addr, attr));
-
 	sched_lock();
 	if (attr == 0 || attr & ~(VMA_READ | VMA_WRITE)) {
 		err = EINVAL;
-	} else if (!task_valid(task)) {
-		err = ESRCH;
-	} else if (task != cur_task() && !task_capable(CAP_MEMORY)) {
-		err = EPERM;
-	} else if (!user_area(addr)) {
-		err = EFAULT;
-	} else {
-		err = do_attribute(task->map, addr, attr);
+		goto out;
 	}
+	if (!task_valid(task)) {
+		err = ESRCH;
+		goto out;
+	}
+	if (task != cur_task() && !task_capable(CAP_MEMORY)) {
+		err = EPERM;
+		goto out;
+	}
+	if (!user_area(addr)) {
+		err = EFAULT;
+		goto out;
+	}
+
+	err = do_attribute(task->map, addr, attr);
+ out:
 	sched_unlock();
-	CHK("vm_attribute", err);
 	return err;
 }
 
@@ -251,9 +252,8 @@ do_attribute(vm_map_t map, void *addr, int attr)
 	/*
 	 * Find the target region.
 	 */
-	reg = region_find(&map->head, (u_long)addr, 1);
-	if (reg == NULL || reg->addr != (u_long)addr ||
-	    (reg->flags & REG_FREE)) {
+	reg = region_find(&map->head, addr, 1);
+	if (reg == NULL || reg->addr != addr || (reg->flags & REG_FREE)) {
 		return EINVAL;	/* not allocated */
 	}
 	/*
@@ -280,35 +280,36 @@ do_attribute(vm_map_t map, void *addr, int attr)
 
 /**
  * vm_map - map another task's memory to current task.
- * @target: memory owner
- * @addr:   target address
- * @size:   map size
- * @alloc:  map address returned
  *
- * Note: This routine does not support mapping to the specific address.
+ * Note: This routine does not support mapping to the specific
+ * address.
  */
 int
 vm_map(task_t target, void *addr, size_t size, void **alloc)
 {
 	int err;
 
-	LOG(("vm_map : task=%s addr=%x size=%x\n",
-	     target->name ? target->name : "no name", addr, size));
-
 	sched_lock();
 	if (!task_valid(target)) {
 		err = ESRCH;
-	} else if (target == cur_task()) {
-		err = EINVAL;
-	} else if (!task_capable(CAP_MEMORY)) {
-		err = EPERM;
-	} else if (!user_area(addr)) {
-		err = EFAULT;
-	} else {
-		err = do_map(target->map, addr, size, alloc);
+		goto out;
 	}
+	if (target == cur_task()) {
+		err = EINVAL;
+		goto out;
+	}
+	if (!task_capable(CAP_MEMORY)) {
+		err = EPERM;
+		goto out;
+	}
+	if (!user_area(addr)) {
+		err = EFAULT;
+		goto out;
+	}
+
+	err = do_map(target->map, addr, size, alloc);
+ out:
 	sched_unlock();
-	CHK("vm_map", err);
 	return err;
 }
 
@@ -316,7 +317,8 @@ static int
 do_map(vm_map_t map, void *addr, size_t size, void **alloc)
 {
 	vm_map_t curmap;
-	u_long start, end;
+	task_t self;
+	char *start, *end;
 	struct region *reg, *tgt;
 	void *tmp;
 
@@ -325,11 +327,11 @@ do_map(vm_map_t map, void *addr, size_t size, void **alloc)
 
 	/* check fault */
 	tmp = NULL;
-	if (umem_copyout(&tmp, alloc, sizeof(void *)))
+	if (umem_copyout(&tmp, alloc, sizeof(tmp)))
 		return EFAULT;
 
-	start = PAGE_TRUNC(addr);
-	end = PAGE_ALIGN((u_long)addr + size);
+	start = (char *)PAGE_TRUNC(addr);
+	end = (char *)PAGE_ALIGN((char *)addr + size);
 	size = (size_t)(end - start);
 
 	/*
@@ -343,13 +345,14 @@ do_map(vm_map_t map, void *addr, size_t size, void **alloc)
 	/*
 	 * Create new region to map
 	 */
-	curmap = cur_task()->map;
+	self = cur_task();
+	curmap = self->map;
 	reg = region_create(&curmap->head, start, size);
 	if (reg == NULL)
 		return ENOMEM;
 	reg->flags = tgt->flags | REG_MAPPED;
 
-	umem_copyout(&addr, alloc, sizeof(void *));
+	umem_copyout(&addr, alloc, sizeof(addr));
 	return 0;
 }
 
@@ -361,13 +364,13 @@ do_map(vm_map_t map, void *addr, size_t size, void **alloc)
 vm_map_t
 vm_create(void)
 {
-	vm_map_t map;
+	struct vm_map *map;
 
 	/* Allocate new map structure */
-	if ((map = kmem_alloc(sizeof(struct vm_map))) == NULL)
+	if ((map = kmem_alloc(sizeof(*map))) == NULL)
 		return NULL;
 
-	map->ref_count = 1;
+	map->refcnt = 1;
 	region_init(&map->head);
 	return map;
 }
@@ -381,7 +384,7 @@ vm_terminate(vm_map_t map)
 {
 	struct region *reg, *tmp;
 
-	if (--map->ref_count >= 1)
+	if (--map->refcnt >= 1)
 		return;
 
 	sched_lock();
@@ -391,7 +394,7 @@ vm_terminate(vm_map_t map)
 			/* Free region if it is not shared and mapped */
 			if (!(reg->flags & REG_SHARED) &&
 			    !(reg->flags & REG_MAPPED)) {
-				page_free((void *)reg->addr, reg->size);
+				page_free(reg->addr, reg->size);
 			}
 		}
 		tmp = reg;
@@ -430,7 +433,7 @@ int
 vm_reference(vm_map_t map)
 {
 
-	map->ref_count++;
+	map->refcnt++;
 	return 0;
 }
 
@@ -441,36 +444,8 @@ vm_reference(vm_map_t map)
 void *
 vm_translate(void *addr, size_t size)
 {
+
 	return addr;
-}
-
-/*
- * Check if specified access can be allowed.
- * return 0 on success, or EFAULT on failure.
- */
-int
-vm_access(void *addr, size_t size, int type)
-{
-	u_long start, end;
-	int err;
-	char tmp;
-
-	ASSERT(size);
-	start = (u_long)addr;
-	end = (u_long)addr + size - 1;
-	if ((err = umem_copyin((void *)start, &tmp, 1)))
-		return EFAULT;
-	if (type == VMA_WRITE) {
-		if ((err = umem_copyout(&tmp, (void *)start, 1)))
-			return EFAULT;
-	}
-	if ((err = umem_copyin((void *)end, &tmp, 1)))
-		return EFAULT;
-	if (type == VMA_WRITE) {
-		if ((err = umem_copyout(&tmp, (void *)end, 1)))
-			return EFAULT;
-	}
-	return 0;
 }
 
 /*
@@ -480,20 +455,20 @@ static int
 do_reserve(vm_map_t map, void **addr, size_t size)
 {
 	struct region *reg;
-	u_long start, end;
+	char *start, *end;
 
 	if (size == 0)
 		return EINVAL;
 
-	start = PAGE_TRUNC(*addr);
-	end = PAGE_ALIGN(start + size);
+	start = (char *)PAGE_TRUNC(*addr);
+	end = (char *)PAGE_ALIGN(start + size);
 	size = (size_t)(end - start);
 
 	reg = region_create(&map->head, start, size);
 	if (reg == NULL)
 		return ENOMEM;
 	reg->flags = REG_READ | REG_WRITE;
-	*addr = (void *)reg->addr;
+	*addr = reg->addr;
 	return 0;
 }
 
@@ -505,22 +480,22 @@ do_reserve(vm_map_t map, void **addr, size_t size)
  * the proper address by a boot loader.
  */
 int
-vm_load(vm_map_t map, struct module *m, void **stack)
+vm_load(vm_map_t map, struct module *mod, void **stack)
 {
 	void *base;
 	size_t size;
 
-	printk("Loading task:\'%s\'\n", m->name);
+	DPRINTF(("Loading task:\'%s\'\n", mod->name));
 
 	/*
 	 * Reserve text & data area
 	 */
-	base = (void *)m->text;
-	size = m->textsz + m->datasz + m->bsssz;
+	base = (void *)mod->text;
+	size = mod->textsz + mod->datasz + mod->bsssz;
 	if (do_reserve(map, &base, size))
 		return -1;
-	if (m->bsssz != 0)
-		memset((void *)(m->data + m->datasz), 0, m->bsssz);
+	if (mod->bsssz != 0)
+		memset((void *)(mod->data + mod->datasz), 0, mod->bsssz);
 
 	/*
 	 * Create stack
@@ -535,11 +510,11 @@ vm_load(vm_map_t map, struct module *m, void **stack)
  * Returns region on success, or NULL on failure.
  */
 static struct region *
-region_create(struct region *prev, u_long addr, size_t size)
+region_create(struct region *prev, void *addr, size_t size)
 {
 	struct region *reg;
 
-	if ((reg = kmem_alloc(sizeof(struct region))) == NULL)
+	if ((reg = kmem_alloc(sizeof(*reg))) == NULL)
 		return NULL;
 
 	reg->addr = addr;
@@ -578,14 +553,14 @@ region_delete(struct region *head, struct region *reg)
  * Find the region at the specified area.
  */
 static struct region *
-region_find(struct region *head, u_long addr, size_t size)
+region_find(struct region *head, void *addr, size_t size)
 {
 	struct region *reg;
 
 	reg = head;
 	do {
 		if (reg->addr <= addr &&
-		    reg->addr + reg->size >= addr + size) {
+		    (char *)reg->addr + reg->size >= (char *)addr + size) {
 			return reg;
 		}
 		reg = reg->next;
@@ -624,24 +599,24 @@ region_init(struct region *reg)
 
 	reg->next = reg->prev = reg;
 	reg->sh_next = reg->sh_prev = reg;
-	reg->addr = 0;
+	reg->addr = NULL;
 	reg->size = 0;
 	reg->flags = REG_FREE;
 }
 
-#if defined(DEBUG) && defined(CONFIG_KDUMP)
-void
+#ifdef DEBUG
+static void
 vm_dump_one(task_t task)
 {
 	vm_map_t map;
 	struct region *reg;
 	char flags[6];
-	u_long total = 0;
+	size_t total = 0;
 
-	printk("task=%x map=%x name=%s\n", task, task->map,
+	printf("task=%x map=%x name=%s\n", task, task->map,
 	       task->name ? task->name : "no name");
-	printk(" region   virtual  size     flags\n");
-	printk(" -------- -------- -------- -----\n");
+	printf(" region   virtual  size     flags\n");
+	printf(" -------- -------- -------- -----\n");
 
 	map = task->map;
 	reg = &map->head;
@@ -659,14 +634,14 @@ vm_dump_one(task_t task)
 			if (reg->flags & REG_MAPPED)
 				flags[4] = 'M';
 
-			printk(" %08x %08x %08x %s\n", reg,
+			printf(" %08x %08x %08x %s\n", reg,
 			       reg->addr, reg->size, flags);
 			if ((reg->flags & REG_MAPPED) == 0)
 				total += reg->size;
 		}
 		reg = reg->next;
 	} while (reg != &map->head);	/* Process all regions */
-	printk(" *total=%dK bytes\n\n", total / 1024);
+	printf(" *total=%dK bytes\n\n", total / 1024);
 }
 
 void
@@ -675,23 +650,13 @@ vm_dump(void)
 	list_t n;
 	task_t task;
 
-	printk("\nVM dump:\n");
-	n = &kern_task.link;
-	do {
+	printf("\nVM dump:\n");
+	n = list_first(&kern_task.link);
+	while (n != &kern_task.link) {
 		task = list_entry(n, struct task, link);
-		ASSERT(task_valid(task));
 		vm_dump_one(task);
 		n = list_next(n);
-	} while (n != &kern_task.link);
-}
-#endif
-
-
-#ifdef CONFIG_VMTRACE
-static void
-vm_error(const char *func, int err)
-{
-	printk("Error!!: %s returns err=%x\n", func, err);
+	}
 }
 #endif
 

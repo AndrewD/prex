@@ -9,10 +9,7 @@
   <link rel="stylesheet" type="text/css" href="../print.css" media="print">
 </head>
 <body>
-<div id="top">
-</div>
 <div id="middle">
-
 <table id="content" cellpadding="0" cellspacing="0">
   <tbody>
 
@@ -23,7 +20,7 @@
           <td id="logo">
             <a href="http://prex.sourceforge.net/">
             <img alt="Prex logo" src="../img/logo.gif" border="0"
-            style="width: 281px; height: 56px;"></a>
+            style="width: 250px; height: 54px;"></a>
           </td>
           <td id="brief" align="right" valign="bottom">
             An Open Source, Royalty-free,<br>
@@ -35,67 +32,299 @@
     </tr>
 
     <tr>
-      <td id="directory" style="vertical-align: top;">
+      <td id="directory" colspan="2" style="vertical-align: top;">
       <a href="http://prex.sourceforge.net/">Prex Home</a> >
       Document Index
     </tr>
     <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
-
     <tr>
-      <td id="main" style="vertical-align: top;">
+
+      <td id="doc" style="vertical-align: top;">
       <h1>Prex Documentation</h1>
 
-      <h3>Technical Papers</h3>
-      <ul>
-        <li><a href="overview.html">Technology Overview</a></li>
-        <li><a href="kernel.html">Kernel Internals</a></li>
-        <li>Power Management</li>
-        <li>Boot Sequence</li>
-        <li>Data Sheet</li>
-      </ul>
 
-      <h3>Reference Manuals</h3>
-      <ul>
-        <li><a href="kapi.html">Kernel API Reference</a></li>
-        <li><a href="arch.html">Architecture Dependent Interface</a></li>
-        <li><a href="dki.html">Driver Kernel Interface</a></li>
-        <li>POSIX Compatibility List</li>
-      </ul>
+      <h2>Technical Papers</h2>
 
-      <h3>Developer's Guide</h3>
-      <ul>
-        <li><a href="standard.html">Coding Standard</a>
-            <font color=red size="-1">(Draft)</font></li>
-        <li><a href="build.html">Prex Build Guide</a></li>
-        <li><a href="debug.html">Kernel Debugging Tips and Tricks</a></li>
-        <li><a href="driver.html">Driver Development Guide</a>
-            <font color=red size="-1">(gomi)</font></li>
-        <li>Kernel Porting Guide</li>
-      </ul>
+        <table border="0" cellspacing="0">
+        <tbody>
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="overview.html">Technology Overview</a></font><br>
+            Gives a quick introduction to the Prex's OS components.
+            <br><br>
+          </td>
+        </tr>
 
-      <h3>User's Guide</h3>
-      <ul>
-        <li><a href="license.html">License</a></li>
-        <li><a href="sample.html">Sample Codes</a></li>
-        <li>Application Programming Guide</li>
-      </ul>
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="kernel.html">Kernel Internals</a></font><br>
+            Describes the design and implementation of the Prex microkernel.
+            <br><br>
+          </td>
+        </tr>
 
-      <h3>Platform Specific Documents</h3>
-      <ul>
-        <li><a href="pc.html">i386 PC</a></li>
-        <li><a href="gba.html">Game Boy Advance</a>
-            <font color=red size="-1">(Draft)</font></li>
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="prex_datasheet.pdf">Data Sheet (pdf)</a></font><br>
+            Summarizes the key features and technical specifications.
+            <br><br>
+          </td>
+        </tr>
 
-      </ul>
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="power.html">Power Management</a></font>
+            <font color=red><b>New!</b></font><br>
+            Describes the Prex's power management framework and driver interfaces.<br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1" color="#999999">
+            File System Internals</font><br>
+            <font color="#999999">
+            Describes the file system architecture for developers who wish
+            to write new file system.
+            </font>
+          </td>
+        </tr>
+
+        </tbody>
+        </table>
+
+
+
+      <h2>Reference Manuals</h2>
+
+        <table border="0" cellspacing="0">
+        <tbody>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="kapi.html">Kernel API Reference</a>
+            </font><br>
+            Describes the programming interface for the Prex applications.
+            <br><br>
+          </td>
+        </tr>
+
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="arch.html">Architecture Dependent Interface</a>
+            </font><br>
+            Describes the interface to abstract processor and hardware in the Prex kernel.
+            <br><br>
+          </td>
+        </tr>
+
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="dki.html">Driver Kernel Interface</a>
+            </font><br>
+            Describes the driver helper functions provided by the Prex kernel.
+            <br><br>
+          </td>
+        </tr>
+
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="posix.html">POSIX Compliance</a>
+            </font><br>
+            Provides the list of the POSIX features supported by Prex.
+          </td>
+        </tr>
+
+        </tbody>
+        </table>
+
+
+
+      <h2>Developer's Guide</h2>
+
+        <table border="0" cellspacing="0">
+        <tbody>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="standard.html">Coding Standard</a>
+            </font><br>
+            Describes the coding guidelines for developers.
+          <br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="build.html">Prex Build Guide</a>
+            </font><br>
+            Tells you how to build Prex.
+            <br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="appguide.html">Applications Programming Guide</a></font><br>
+            Tells you how to get started writing Prex programs, including
+            some sample codes.
+            <br><br>
+          </td>
+
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="sample.html">Sample Applications</a></font><br>
+            Explains the sample application included in Prex.
+            <br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="debug.html">Kernel Debugging Tips and Tricks</a>
+            </font><br>
+            Describes how to use the Prex debugging functions.
+            <br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1" color="#999999">
+            Driver Development Guide
+            </font><br>
+            <font color="#999999">
+            Coming soon!
+            </font>
+            <br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1" color="#999999">
+            Prex Porting Guide
+            </font><br>
+            <font color="#999999">
+            Not available...
+            </font>
+          </td>
+        </tr>
+
+        </tbody>
+        </table>
+
+
+
+      <h2>User's Guide</h2>
+
+
+        <table border="0" cellspacing="0">
+        <tbody>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="license.html">Prex License</a>
+            </font><br>
+            Explains the license of Prex.<br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="cmdbox.html">CmdBox User's Guide</a></font><br>
+            Describes how to use the Unix commands supported in CmdBox.
+            <br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="pc.html">i386 PC - HOWTO</a>
+            </font><br>
+            Provides the platform specific information for i386 PC.
+            <br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="gba.html">Game Boy Advance - HOWTO</a>
+            </font><br>
+            Provides the platform specific information for Game Boy Advance.
+            <br><br>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="right" valign="top"><img alt="*" src="img/doc_icon.gif"
+           border="0" width="24" height="24"></td>
+          <td align="left"><font size="+1">
+            <a href="integrator.html">ARM Integrator - HOWTO</a></font>
+            <font color=red><b>New!</b></font><br>
+            Provides the platform specific information for ARM Integrator.
+            <br><br>
+          </td>
+        </tr>
+
+        </tbody>
+        </table>
+
+
+
+
 
       </td>
     </tr>
+
     <tr>
       <td id="footer" colspan="2" style="vertical-align: top;">
         <a href="http://sourceforge.net">
         <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
         alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
-        Copyright&copy; 2005-2007 Kohsuke Ohtani
+        Copyright&copy; 2005-2008 Kohsuke Ohtani
       </td>
     </tr>
 
@@ -103,7 +332,6 @@
 </table>
 
 </div>
-<div id="bottom"></div>
 
 </body>
 </html>

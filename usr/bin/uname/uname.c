@@ -49,7 +49,7 @@
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: uname [-amnpsrv]\n");
+	fprintf(stderr, "usage: uname [-amnsrv]\n");
 	exit(1);
 }
 
@@ -61,7 +61,7 @@ main(int argc, char *argv[])
 	struct utsname uts;
 
 	flags = 0;
-	while ((ch = getopt(argc, argv, "amnrsvp")) != EOF) {
+	while ((ch = getopt(argc, argv, "amnrsv")) != EOF) {
 		switch(ch) {
 		case 'a':
 			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);

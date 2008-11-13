@@ -49,5 +49,5 @@ struct exec_loader loader_table[] = {
 #ifdef CONFIG_SCRIPT
 	{"script",	script_init,	script_probe,	script_load},
 #endif
-	{0, 0, 0, 0}
+	{NULL, NULL, NULL, NULL}
 };

@@ -38,13 +38,20 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 
-#include <machine/ansi.h>
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#if !defined(_SIZE_T)
+#define _SIZE_T
+typedef	unsigned int	size_t;		/* size of something in bytes */
 #endif
 
-#include <sys/null.h>
+#include <machine/stdarg.h>
+
+#ifndef	NULL
+#if !defined(__cplusplus)
+#define	NULL	((void *)0)
+#else
+#define	NULL	0
+#endif
+#endif
 
 typedef off_t fpos_t;
 
@@ -216,9 +223,9 @@ int	 sscanf(const char *, const char *, ...);
 FILE	*tmpfile(void);
 char	*tmpnam(char *);
 int	 ungetc(int, FILE *);
-int	 vfprintf(FILE *, const char *, _BSD_VA_LIST_);
-int	 vprintf(const char *, _BSD_VA_LIST_);
-int	 vsprintf(char *, const char *, _BSD_VA_LIST_);
+int	 vfprintf(FILE *, const char *, va_list);
+int	 vprintf(const char *, va_list);
+int	 vsprintf(char *, const char *, va_list);
 __END_DECLS
 
 /*
@@ -249,9 +256,9 @@ void	 setbuffer(FILE *, char *, int);
 int	 setlinebuf(FILE *);
 char	*tempnam(const char *, const char *);
 int	 snprintf(char *, size_t, const char *, ...);
-int	 vsnprintf(char *, size_t, const char *, _BSD_VA_LIST_);
-int	 vscanf(const char *, _BSD_VA_LIST_);
-int	 vsscanf(const char *, const char *, _BSD_VA_LIST_);
+int	 vsnprintf(char *, size_t, const char *, va_list);
+int	 vscanf(const char *, va_list);
+int	 vsscanf(const char *, const char *, va_list);
 FILE	*zopen(const char *, const char *, int);
 __END_DECLS
 
@@ -269,7 +276,7 @@ __END_DECLS
  */
 __BEGIN_DECLS
 int	__srget(FILE *);
-int	__svfscanf(FILE *, const char *, _BSD_VA_LIST_);
+int	__svfscanf(FILE *, const char *, va_list);
 int	__swbuf(int, FILE *);
 __END_DECLS
 

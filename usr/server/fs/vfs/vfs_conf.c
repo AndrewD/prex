@@ -43,11 +43,13 @@
 extern struct vfsops ramfs_vfsops;
 extern struct vfsops devfs_vfsops;
 extern struct vfsops arfs_vfsops;
+extern struct vfsops fifofs_vfsops;
 extern struct vfsops fatfs_vfsops;
 
 extern int ramfs_init(void);
 extern int devfs_init(void);
 extern int arfs_init(void);
+extern int fifofs_init(void);
 extern int fatfs_init(void);
 
 /*
@@ -63,8 +65,11 @@ const struct vfssw vfssw_table[] = {
 #ifdef CONFIG_ARFS
 	{"arfs",	arfs_init,	&arfs_vfsops},	/* archive fs */
 #endif
+#ifdef CONFIG_FIFOFS
+	{"fifofs",	fifofs_init,	&fifofs_vfsops}, /* FIFO & pipe */
+#endif
 #ifdef CONFIG_FATFS
 	{"fatfs",	fatfs_init,	&fatfs_vfsops},	/* DOS FAT */
 #endif
-	{0, 0, 0},
+	{NULL, NULL, NULL},
 };

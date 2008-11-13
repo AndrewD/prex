@@ -57,7 +57,9 @@ relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
 		/* dbg("R_ARM_PC24: %x -> %x\n", where, *where); */
 		break;
 	default:
-		syslog(LOG_INFO, "relocation fail type=%d\n", ELF32_R_TYPE(rel->r_info));
+#ifdef DEBUG
+		syslog(LOG_ERR, "relocation fail type=%d\n", ELF32_R_TYPE(rel->r_info));
+#endif
 		return -1;
 	}
 	return 0;

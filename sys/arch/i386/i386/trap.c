@@ -37,6 +37,7 @@
 #include <task.h>
 #include <cpu.h>
 #include <locore.h>
+#include <cpufunc.h>
 
 #ifdef DEBUG
 static void trap_dump(struct cpu_regs *);
@@ -100,6 +101,9 @@ void
 trap_handler(struct cpu_regs *regs)
 {
 	u_long trap_no = regs->trap_no;
+#ifdef DEBUG
+	task_t self = cur_task();
+#endif
 
 	if (trap_no > 18)
 		panic("Unknown trap");
@@ -108,29 +112,29 @@ trap_handler(struct cpu_regs *regs)
 
 	/*
 	 * Check whether this trap is kernel page fault caused
-	 * by known routine to access user space.
+	 * by known routine to access user space like umem_copyin().
+	 * If so, we change the return address of this exception.
 	 */
 	if (trap_no == 14 && regs->cs == KERNEL_CS &&
-	    (regs->eip == (u_long)known_fault1 ||
-	     regs->eip == (u_long)known_fault2 ||
-	     regs->eip == (u_long)known_fault3)) {
-		printk("\n*** Detect Fault! task:%s (id:%x) ***\n",
-		       cur_task()->name ? cur_task()->name : "no name",
-		       cur_task());
-
-		regs->eip = (u_long)umem_fault;
+	    (regs->eip == (uint32_t)known_fault1 ||
+	     regs->eip == (uint32_t)known_fault2 ||
+	     regs->eip == (uint32_t)known_fault3)) {
+		DPRINTF(("\n*** Detect Fault! address=%x task=%s ***\n",
+			 get_cr2(),
+			 self->name != NULL ? self->name : "no name", self));
+		regs->eip = (uint32_t)umem_fault;
 		return;
 	}
 #ifdef DEBUG
-	printk("============================\n");
-	printk("Trap %x: %s\n", trap_no, trap_name[trap_no]);
+	printf("============================\n");
+	printf("Trap %x: %s\n", (u_int)trap_no, trap_name[trap_no]);
 	if (trap_no == 14)
-		printk(" Fault address=%x\n", get_cr2());
-	printk("============================\n");
+		printf(" Fault address=%x\n", get_cr2());
+	printf("============================\n");
 	trap_dump(regs);
 	if (regs->cs == KERNEL_CS) {
 		interrupt_mask(0);
-		sti();
+		interrupt_enable();
 		for (;;) ;
 	}
 #endif
@@ -145,7 +149,8 @@ trap_handler(struct cpu_regs *regs)
 static void
 trap_dump(struct cpu_regs *r)
 {
-	u_long ss, esp, *fp;
+	task_t self = cur_task();
+	uint32_t ss, esp, *fp;
 	u_int i;
 
 	if (r->cs & 3) {
@@ -153,38 +158,35 @@ trap_dump(struct cpu_regs *r)
 		esp = r->esp;
 	} else {
 		ss = r->ds;
-		esp = (u_long)r;
+		esp = (uint32_t)r;
 	}
-	printk("Trap frame %x error %x\n", r, r->err_code);
-	printk(" eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x\n",
+	printf("Trap frame %x error %x\n", r, r->err_code);
+	printf(" eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x\n",
 	       r->eax, r->ebx, r->ecx, r->edx, r->esi, r->edi);
-	printk(" eip %08x esp %08x ebp %08x eflags %08x\n",
+	printf(" eip %08x esp %08x ebp %08x eflags %08x\n",
 	       r->eip, esp, r->ebp, r->eflags);
-	printk(" cs  %08x ss  %08x ds  %08x es  %08x esp0 %08x\n",
+	printf(" cs  %08x ss  %08x ds  %08x es  %08x esp0 %08x\n",
 	       r->cs, ss, r->ds, r->es, tss_get());
 
 	if (irq_level > 0)
-		printk(" >> trap in isr (irq_level=%d)\n", irq_level);
-	printk(" >> interrupt is %s\n",
+		printf(" >> trap in isr (irq_level=%d)\n", irq_level);
+
+	printf(" >> interrupt is %s\n",
 	       (get_eflags() & EFL_IF) ? "enabled" : "disabled");
 
-	if (r->cs == KERNEL_CS)
-		printk(" >> Oops! it's kernel mode now!!!\n");
-	else
-		printk(" >> task:%s (id:%x)\n",
-		       cur_task()->name ? cur_task()->name : "no name",
-		       cur_task());
+	printf(" >> task=%s (id:%x)\n",
+	       self->name != NULL ? self->name : "no name", self);
 
 	if (r->cs == KERNEL_CS) {
-		printk("Stack trace:\n");
-		fp = (u_long *)r->ebp;
+		printf("Stack trace:\n");
+		fp = (uint32_t *)r->ebp;
 		for (i = 0; i < 8; i++) {
 			if (fp == 0)
 				break;
-			fp = (u_long *)(*fp);	/* XXX: may cause fault */
+			fp = (uint32_t *)(*fp);	/* XXX: may cause fault */
 			if (!(*(fp + 1) && *fp))
 				break;
-			printk(" %08x\n", *(fp + 1));
+			printf(" %08x\n", *(fp + 1));
 		}
 	}
 }

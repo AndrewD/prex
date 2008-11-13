@@ -29,19 +29,16 @@
 
 #ifndef _DMA_H
 #define _DMA_H
-/*
- * dma.h - Direct Memory Access
- */
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 
-/*
- * DMA service
- */
-extern int dma_attach(int chan);
-extern void dma_detach(int handle);
-extern void dma_setup(int handle, u_long addr, u_long count, int read);
-extern void dma_stop(int handle);
-extern void *dma_alloc(size_t size);
+__BEGIN_DECLS
+int	 dma_attach(int chan);
+void	 dma_detach(int handle);
+void	 dma_setup(int handle, void *addr, u_long count, int read);
+void	 dma_stop(int handle);
+void	*dma_alloc(size_t size);
+__END_DECLS
 
 #endif /* !_DMA_H */

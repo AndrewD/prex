@@ -37,37 +37,37 @@
 #include <task.h>
 #include <irq.h>
 #include <page.h>
-#include <kmem.h>
-#include <vm.h>
 #include <device.h>
 #include <system.h>
+#include <version.h>
 
 /*
  * kernel information.
  */
-static const struct info_kernel kern_info = KERNEL_INFO(kern_info);
+static const struct info_kernel infokern = {
+	"Prex",	VERSION, __DATE__, MACHINE, "preky"
+};
 
 /*
  * Logging system call.
  *
- * Write a message to the logging device.
- * The log function is available only when kernel is built with
- * debug option.
+ * Write a message to the logging device.  The log function is
+ * available only when kernel is built with debug option.
  */
 int
 sys_log(const char *str)
 {
 #ifdef DEBUG
-	char buf[MSGBUFSZ];
+	char buf[DBGMSG_SIZE];
 	size_t len;
 
-	if (umem_strnlen(str, MSGBUFSZ, &len))
+	if (umem_strnlen(str, DBGMSG_SIZE, &len))
 		return EFAULT;
-	if (len >= MSGBUFSZ)
+	if (len >= DBGMSG_SIZE)
 		return EINVAL;
-	if (umem_copyin((void *)str, buf, len + 1))
+	if (umem_copyin(str, buf, len + 1))
 		return EFAULT;
-	printk(buf);
+	printf(buf);
 	return 0;
 #else
 	return ENOSYS;
@@ -77,26 +77,25 @@ sys_log(const char *str)
 /*
  * Panic system call.
  *
- * Kernel behavior for sys_panic() is different for its debug option.
- *  - Debug build
- *     Show a panic message and stop the entire system.
- *  - Release build
- *     Terminate the task which called sys_panic().
+ * If kernel is built with debug option, sys_panic() displays
+ * a panic message and stops the enture system. Otherwise, it
+ * terminates the task which called sys_panic().
  */
 int
 sys_panic(const char *str)
 {
 #ifdef DEBUG
+	task_t self = cur_task();
+
 	irq_lock();
-	printk("\nUser mode panic: task:%s thread:%x\n",
-	       cur_task()->name ? cur_task()->name : "no name", cur_thread);
+	printf("\nUser mode panic: task:%s thread:%x\n",
+	       self->name != NULL ? self->name : "no name", cur_thread);
 
 	sys_log(str);
-	printk("\n");
+	printf("\n");
 
 	sched_lock();
 	irq_unlock();
-	BREAKPOINT();
 
 	for (;;);
 #else
@@ -112,58 +111,64 @@ sys_panic(const char *str)
 int
 sys_info(int type, void *buf)
 {
+	struct info_memory infomem;
+	struct info_timer infotmr;
+	struct info_thread infothr;
+	struct info_device infodev;
 	int err = 0;
-	struct info_memory imem;
-	struct info_timer itmr;
-	struct info_thread ithr;
-	struct info_device idev;
 
 	if (buf == NULL || !user_area(buf))
 		return EFAULT;
 
+	sched_lock();
+
 	switch (type) {
 	case INFO_KERNEL:
-		err = umem_copyout((void *)&kern_info, buf,
-				   sizeof(kern_info));
+		err = umem_copyout(&infokern, buf, sizeof(infokern));
 		break;
 
 	case INFO_MEMORY:
-		page_info(&imem.total, &imem.free);
-		kmem_info(&imem.kernel);
-		err = umem_copyout(&imem, buf, sizeof(imem));
+		page_info(&infomem);
+		err = umem_copyout(&infomem, buf, sizeof(infomem));
 		break;
 
 	case INFO_THREAD:
-		if (umem_copyin(buf, &ithr, sizeof(ithr)))
-			return EFAULT;
-		if ((err = thread_info(&ithr)))
-			return err;
-		ithr.cookie++;
-		err = umem_copyout(&ithr, buf, sizeof(ithr));
+		if (umem_copyin(buf, &infothr, sizeof(infothr))) {
+			err = EFAULT;
+			break;
+		}
+		if ((err = thread_info(&infothr)))
+			break;
+		infothr.cookie++;
+		err = umem_copyout(&infothr, buf, sizeof(infothr));
 		break;
 
 	case INFO_DEVICE:
-		if (umem_copyin(buf, &idev, sizeof(idev)))
-			return EFAULT;
-		if ((err = device_info(&idev)))
-			return err;
-		idev.cookie++;
-		err = umem_copyout(&idev, buf, sizeof(idev));
+		if (umem_copyin(buf, &infodev, sizeof(infodev))) {
+			err = EFAULT;
+			break;
+		}
+		if ((err = device_info(&infodev)))
+			break;
+		infodev.cookie++;
+		err = umem_copyout(&infodev, buf, sizeof(infodev));
 		break;
 
 	case INFO_TIMER:
-		timer_info(&itmr);
-		err = umem_copyout(&itmr, buf, sizeof(itmr));
+		timer_info(&infotmr);
+		err = umem_copyout(&infotmr, buf, sizeof(infotmr));
 		break;
 
 	default:
 		err = EINVAL;
+		break;
 	}
+	sched_unlock();
 	return err;
 }
 
 /*
- * Get system time - return ticks from OS boot.
+ * Get system time - return ticks since OS boot.
  */
 int
 sys_time(u_long *ticks)
@@ -171,42 +176,36 @@ sys_time(u_long *ticks)
 	u_long t;
 
 	t = timer_count();
-	return umem_copyout(&t, ticks, sizeof(u_long));
+	return umem_copyout(&t, ticks, sizeof(t));
 }
 
 /*
  * Kernel debug service.
  */
 int
-sys_debug(int cmd, u_long param)
+sys_debug(int cmd, void *data)
 {
 #ifdef DEBUG
 	int err = EINVAL;
 	size_t size;
-	char *buf;
-
-	/*
-	 * Check capability for some commands.
-	 */
-	switch (cmd) {
-	case DCMD_DUMP:
-		if (!task_capable(CAP_DEBUG))
-			return EPERM;
-	}
+	int item;
 
 	switch (cmd) {
 	case DCMD_DUMP:
-		err = debug_dump(param);
+		if (umem_copyin(data, &item, sizeof(item)))
+			err = EFAULT;
+		else
+			err = debug_dump(item);
 		break;
 	case DCMD_LOGSIZE:
-		if ((err = log_get(&buf, &size)) == 0)
-			err = umem_copyout(&size, (void *)param, sizeof(size));
+		size = LOGBUF_SIZE;
+		err = umem_copyout(&size, data, sizeof(size));
 		break;
 	case DCMD_GETLOG:
-		if ((err = log_get(&buf, &size)) == 0)
-			err = umem_copyout(buf, (void *)param, size);
+		err = debug_getlog(data);
 		break;
 	default:
+		/* DO NOTHING */
 		break;
 	}
 	return err;

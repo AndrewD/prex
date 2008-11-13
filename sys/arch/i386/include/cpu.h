@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2005, Kohsuke Ohtani
  * All rights reserved.
  *
@@ -57,31 +57,32 @@
  * Segment Descriptor
  */
 struct seg_desc {
-	int limit_lo:16;	/* segment limit (lsb) */
-	int base_lo:24;		/* segment base address (lsb) */
-	int type:8;		/* type */
-	int limit_hi:4;		/* segment limit (msb) */
-	int size:4;		/* size */
-	int base_hi:8;		/* segment base address (msb) */
+	u_int limit_lo:16;	/* segment limit (lsb) */
+	u_int base_lo:16;	/* segment base address (lsb) */
+	u_int base_mid:8;	/* segment base address (middle) */
+	u_int type:8;		/* type */
+	u_int limit_hi:4;	/* segment limit (msb) */
+	u_int size:4;		/* size */
+	u_int base_hi:8;	/* segment base address (msb) */
 } __packed;
 
 /*
  * Gate Descriptor
  */
 struct gate_desc {
-	int offset_lo:16;	/* gate offset (lsb) */
-	int selector:16;	/* gate segment selector */
-	int nr_copy:8;		/* stack copy count */
-	int type:8;		/* type */
-	int offset_hi:16;	/* gate offset (msb) */
+	u_int offset_lo:16;	/* gate offset (lsb) */
+	u_int selector:16;	/* gate segment selector */
+	u_int nr_copy:8;	/* stack copy count */
+	u_int type:8;		/* type */
+	u_int offset_hi:16;	/* gate offset (msb) */
 } __packed;
 
 /*
  * Linear memory description for lgdt and lidt instructions.
  */
 struct desc_p {
-	u_short limit;
-	u_long base;
+	uint16_t limit;
+	uint32_t base;
 } __packed;
 
 /*
@@ -128,22 +129,22 @@ struct desc_p {
 #define INVALID_IO_BITMAP	0x8000
 
 struct tss {
-	u_long back_link;
-	u_long esp0, ss0;
-	u_long esp1, ss1;
-	u_long esp2, ss2;
-	u_long cr3;
-	u_long eip;
-	u_long eflags;
-	u_long eax, ecx, edx, ebx;
-	u_long esp, ebp, esi, edi;
-	u_long es, cs, ss, ds, fs, gs;
-	u_long ldt;
-	u_short dbg_trace;
-	u_short io_bitmap_offset;
+	uint32_t back_link;
+	uint32_t esp0, ss0;
+	uint32_t esp1, ss1;
+	uint32_t esp2, ss2;
+	uint32_t cr3;
+	uint32_t eip;
+	uint32_t eflags;
+	uint32_t eax, ecx, edx, ebx;
+	uint32_t esp, ebp, esi, edi;
+	uint32_t es, cs, ss, ds, fs, gs;
+	uint32_t ldt;
+	uint16_t dbg_trace;
+	uint16_t io_bitmap_offset;
 #if 0
-	u_long io_bitmap[IO_BITMAP_SIZE/4+1];
-	u_long pad[5];
+	uint32_t io_bitmap[IO_BITMAP_SIZE/4+1];
+	uint32_t pad[5];
 #endif
 } __packed;
 
@@ -185,7 +186,7 @@ struct tss {
 /*
  * Page table (PTE)
  */
-typedef long *page_table_t;
+typedef uint32_t *pte_t;
 
 /*
  * Page directory entry
@@ -216,290 +217,25 @@ typedef long *page_table_t;
 /*
  *  Virtual and physical address translation
  */
-#define PAGE_DIR(virt)      ((((u_long)(virt)) >> 22) & 0x3ff)
-#define PAGE_TABLE(virt)    ((((u_long)(virt)) >> 12) & 0x3ff)
+#define PAGE_DIR(virt)      (int)((((vaddr_t)(virt)) >> 22) & 0x3ff)
+#define PAGE_TABLE(virt)    (int)((((vaddr_t)(virt)) >> 12) & 0x3ff)
 
 #define pte_present(pgd, virt)  (pgd[PAGE_DIR(virt)] & PDE_PRESENT)
 
 #define page_present(pte, virt) (pte[PAGE_TABLE(virt)] & PTE_PRESENT)
 
 #define pgd_to_pte(pgd, virt) \
-            (page_table_t)phys_to_virt((pgd)[PAGE_DIR(virt)] & PDE_ADDRESS)
+            (pte_t)phys_to_virt(((uint32_t *)pgd)[PAGE_DIR(virt)] & PDE_ADDRESS)
 
 #define pte_to_page(pte, virt) \
             ((pte)[PAGE_TABLE(virt)] & PTE_ADDRESS)
 
-
-/*
- * Inline CPU functions
- */
-
-static __inline void
-ltr(u_int sel)
-{
-	__asm__ __volatile__(
-		"ltr %%ax\n\t"
-		"jmp 1f\n\t"
-		"1:\n\t"
-		:
-		:"a" (sel));
-}
-
-static __inline void
-lgdt(void *gdt_ptr)
-{
-	__asm__ __volatile__(
-		"lgdt (%%eax)\n\t"
-		"jmp 1f\n\t"
-		"1:\n\t"
-		:
-		:"a" (gdt_ptr));
-}
-
-static __inline void
-lidt(void *idt_ptr)
-{
-	__asm__ __volatile__(
-		"lidt (%%eax)\n\t"
-		"jmp 1f\n\t"
-		"1:\n\t"
-		:
-		:"a" (idt_ptr));
-}
-
-static __inline void
-set_cs(u_short sel)
-{
-	__asm__ __volatile__(
-		"movzx %%ax, %%eax\n\t"
-		"pushl %%eax\n\t"
-		"pushl $1f\n\t"
-		"lret\n\t"
-		"1:\n\t"
-		:
-		:"a" (sel));
-}
-
-static __inline void
-set_ds(u_short sel)
-{
-	__asm__ __volatile__(
-		"movw %0, %%ds\n\t"
-		"movw %0, %%es\n\t"
-		"movw %0, %%fs\n\t"
-		"movw %0, %%gs\n\t"
-		"movw %0, %%ss\n\t"
-		:
-		:"r" (sel));
-}
-
-static __inline void
-set_esp(u_long val)
-{
-	__asm__ __volatile__(
-		"movl %0, %%esp"
-		:
-		:"r" (val));
-}
-
-static __inline u_long
-get_esp(void)
-{
-	register u_long esp;
-	__asm__ __volatile__(
-		"movl %%esp, %0"
-		:"=r" (esp));
-	return esp;
-}
-
-static __inline u_long
-get_eflags(void)
-{
-	register u_long eflags;
-	__asm__ __volatile__(
-		"pushfl\n\t"
-		"popl %0\n\t"
-		:"=r" (eflags));
-	return eflags;
-}
-
-static __inline void
-set_eflags(u_long val)
-{
-	__asm__ __volatile__(
-		"pushl %0\n\t"
-		"popfl\n\t"
-		:
-		:"r" (val));
-}
-
-static __inline u_long
-get_cr0(void)
-{
-	register u_long _cr0;
-	__asm__ __volatile__(
-		"movl %%cr0, %0"
-		:"=r" (_cr0)
-		:);
-	return _cr0;
-}
-
-static __inline void
-set_cr0(u_long _cr0)
-{
-	__asm__ __volatile__(
-		"movl %0, %%cr0"
-		:
-		:"r" (_cr0));
-}
-
-static __inline u_long
-get_cr2(void)
-{
-	register u_long _cr2;
-	__asm__ __volatile__(
-		"movl %%cr2, %0"
-		:"=r" (_cr2)
-		:);
-	return _cr2;
-}
-
-static __inline u_long
-get_cr3(void)
-{
-	register u_long _cr3;
-	__asm__ __volatile__(
-		"movl %%cr3, %0"
-		:"=r" (_cr3)
-		:);
-	return _cr3;
-}
-
-static __inline void
-set_cr3(u_long _cr3)
-{
-	__asm__ __volatile__(
-		"movl %0, %%cr3"
-		:
-		:"r" (_cr3));
-}
-
-/*
- * Enable/disable CPU interrupt
- */
-#define sti() __asm__ ("sti"::)
-#define cli() __asm__ ("cli"::)
-
-/*
- * Flush translation lookaside buffer for
- * specified page
- */
-static __inline void
-flush_tlb_page(void *pg)
-{
-	__asm__ __volatile__(
-		"invlpg (%0)"
-		:
-		: "r" (pg)
-		: "memory");
-}
-
-/*
- * Flush translation lookaside buffer
- */
-static __inline void
-flush_tlb(void)
-{
-	__asm__ __volatile__(
-		"movl %%cr3, %%eax\n\t"
-		"movl %%eax, %%cr3\n\t"
-		:
-		:
-		: "ax");
-}
-
-/*
- * Check if CPU supports "invlpg" (TLB flush per page) function.
- * Return true if supported.
- *
- * TODO: I can not test this because I do not have 386 system. :-(
- */
-static __inline int
-check_invlpg(void)
-{
-	int _i486 = 0;
-
-	__asm__ __volatile__(
-		"pushfl\n\t"
-		"popl %%eax\n\t"
-		"movl %%eax, %%ecx\n\t"
-		"xorl $0x240000, %%eax\n\t"
-		"pushl %%eax\n\t"
-		"popfl\n\t"
-		"pushfl\n\t"
-		"popl %%eax\n\t"
-		"xorl %%ecx, %%eax\n\t"
-		"pushl %%ecx\n\t"
-		"popfl\n\t"
-		"testl $0x40000, %%eax\n\t"
-		"je 1f\n\t"
-		"movl $1, %0\n\t"
-		"1:\n\t"
-		: "=r" (_i486)
-		:);
-	return _i486;
-}
-
-/*
- * I/O instructions
- */
-static __inline void
-outb(unsigned char value, int port)
-{
-	__asm__ __volatile__(
-		"outb %b0, %w1"
-		::"a" (value),"Nd" (port));
-}
-
-static __inline unsigned char
-inb(int port)
-{
-	unsigned char _val;
-	__asm__ __volatile__(
-		"inb %w1, %b0"
-		:"=a" (_val)
-		:"Nd" (port));
-	return _val;
-}
-
-static __inline void
-outb_p(unsigned char value, int port)
-{
-	__asm__ __volatile__(
-		"outb %b0, %w1\n\t"
-		"outb %%al, $0x80\n\t"
-		::"a" (value),"Nd" (port));
-}
-
-static __inline unsigned char
-inb_p(int port)
-{
-	unsigned char _val;
-	__asm__ __volatile__(
-		"inb %w1, %b0\n\t"
-		"outb %%al, $0x80\n\t"
-		:"=a" (_val)
-		:"Nd" (port));
-	return _val;
-}
-
-extern void tss_set(u_long kstack);
-extern u_long tss_get(void);
-extern void trap_set(int vector, void *handler);
-
-extern void cpu_reset(void);
-extern void cpu_init(void);
+__BEGIN_DECLS
+void	 tss_set(uint32_t kstack);
+uint32_t tss_get(void);
+void	 trap_handler(struct cpu_regs *);
+void	 cpu_init(void);
+__END_DECLS
 
 #endif /* !__ASSEMBLY__ */
-
 #endif /* !_I386_CPU_H */

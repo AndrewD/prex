@@ -81,6 +81,7 @@ waitpid(pid_t pid, int *status, int options)
 	/* Restore priority */
 	thread_setprio(self, prio);
 
-	*status = m.data[1];
+	if (status != NULL)
+		*status = m.data[1];
 	return child;
 }

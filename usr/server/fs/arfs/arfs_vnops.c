@@ -31,6 +31,16 @@
  * arfs_vnops.c - vnode operations for archive file system.
  */
 
+/**
+ * General design:
+ *
+ * ARFS (ARchive File System) is the read-only file system which
+ * handles the generic archive (*.a) file as a file system image.
+ * The file system is typically used for the boot time file system,
+ * and it's mounted to the ram disk device mapped to the pre-loaded
+ * archive file image. All files are placed in one single directory.
+ */
+
 #include <prex/prex.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
@@ -53,13 +63,13 @@
 
 #define arfs_open	((vnop_open_t)vop_nullop)
 #define arfs_close	((vnop_close_t)vop_nullop)
-static int arfs_read(vnode_t, file_t, void *, size_t, size_t *);
+static int arfs_read	(vnode_t, file_t, void *, size_t, size_t *);
 #define arfs_write	((vnop_write_t)vop_nullop)
-static int arfs_seek(vnode_t, file_t, off_t, off_t);
+static int arfs_seek	(vnode_t, file_t, off_t, off_t);
 #define arfs_ioctl	((vnop_ioctl_t)vop_einval)
 #define arfs_fsync	((vnop_fsync_t)vop_nullop)
-static int arfs_readdir(vnode_t, file_t, struct dirent *);
-static int arfs_lookup(vnode_t, char *, vnode_t);
+static int arfs_readdir	(vnode_t, file_t, struct dirent *);
+static int arfs_lookup	(vnode_t, char *, vnode_t);
 #define arfs_create	((vnop_create_t)vop_einval)
 #define arfs_remove	((vnop_remove_t)vop_einval)
 #define arfs_rename	((vnop_rename_t)vop_einval)
@@ -101,7 +111,7 @@ const struct vnops arfs_vnops = {
 };
 
 /*
- * Read two blocks.
+ * Read blocks.
  * iobuf is filled by read data.
  */
 static int
@@ -110,7 +120,9 @@ arfs_readblk(mount_t mp, int blkno)
 	struct buf *bp;
 	int err;
 
-	/* Read two blocks for archive header */
+	/*
+	 * Read two blocks for archive header
+	 */
 	if ((err = bread(mp->m_dev, blkno, &bp)) != 0)
 		return err;
 	memcpy(iobuf, bp->b_data, BSIZE);
@@ -120,6 +132,7 @@ arfs_readblk(mount_t mp, int blkno)
 		return err;
 	memcpy(iobuf + BSIZE, bp->b_data, BSIZE);
 	brelse(bp);
+
 	return 0;
 }
 
@@ -137,7 +150,7 @@ arfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 	mount_t mp;
 	char *p;
 
-	dprintf("lookup: name=%s\n", name);
+	DPRINTF(("arfs_lookup: name=%s\n", name));
 	if (*name == '\0')
 		return ENOENT;
 
@@ -178,15 +191,14 @@ arfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 	vp->v_type = VREG;
 
 	/* No write access */
-	vp->v_mode = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP
-		| S_IROTH | S_IXOTH;
+	vp->v_mode = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 	vp->v_size = size;
 	vp->v_blkno = blkno;
 	vp->v_data = (void *)(off + sizeof(struct ar_hdr));
 	err = 0;
  out:
 	mutex_unlock(&arfs_lock);
-	dprintf("lookup: err=%d\n\n", err);
+	DPRINTF(("arfs_lookup: err=%d\n\n", err));
 	return err;
 }
 
@@ -199,7 +211,7 @@ arfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	mount_t mp;
 	struct buf *bp;
 
-	dprintf("****read: start size=%d\n", size);
+	DPRINTF(("arfs_read: start size=%d\n", size));
 	mutex_lock(&arfs_lock);
 
 	*result = 0;
@@ -219,7 +231,8 @@ arfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	off = (off_t)vp->v_data;
 	nr_read = 0;
 	for (;;) {
-		dprintf("file_pos=%d buf=%x size=%d\n", file_pos, buf, size);
+		DPRINTF(("arfs_read: file_pos=%d buf=%x size=%d\n",
+			 file_pos, buf, size));
 
 		blkno = (off + file_pos) / BSIZE;
 		buf_pos = (off + file_pos) % BSIZE;
@@ -235,7 +248,8 @@ arfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 		brelse(bp);
 
 		file_pos += nr_copy;
-		dprintf("file_pos=%d nr_copy=%d\n", file_pos, nr_copy);
+		DPRINTF(("arfs_read: file_pos=%d nr_copy=%d\n",
+			 file_pos, nr_copy));
 
 		nr_read += nr_copy;
 		size -= nr_copy;
@@ -249,7 +263,7 @@ arfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	err = 0;
  out:
 	mutex_unlock(&arfs_lock);
-	dprintf("read: err=%d\n\n", err);
+	DPRINTF(("arfs_read: err=%d\n\n", err));
 	return err;
 }
 
@@ -276,7 +290,7 @@ arfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 	mount_t mp;
 	char *p;
 
-	dprintf("readdir: start\n");
+	DPRINTF(("arfs_readdir: start\n"));
 	mutex_lock(&arfs_lock);
 
 	i = 0;

@@ -32,25 +32,18 @@
 #ifndef _ERR_H_
 #define	_ERR_H_
 
-/*
- * Don't use va_list in the err/warn prototypes.   Va_list is typedef'd in two
- * places (<machine/varargs.h> and <machine/stdarg.h>), so if we include one
- * of them here we may collide with the utility's includes.  It's unreasonable
- * for utilities to have to include one of them to include err.h, so we get
- * _BSD_VA_LIST_ from <machine/ansi.h> and use it.
- */
-#include <machine/ansi.h>
+#include <machine/stdarg.h>
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 void	err (int, const char *, ...) __noreturn;
-void	verr (int, const char *, _BSD_VA_LIST_) __noreturn;
+void	verr (int, const char *, va_list) __noreturn;
 void	errx (int, const char *, ...) __noreturn;
-void	verrx (int, const char *, _BSD_VA_LIST_) __noreturn;
-void		warn (const char *, ...);
-void		vwarn (const char *, _BSD_VA_LIST_);
-void		warnx (const char *, ...);
-void		vwarnx (const char *, _BSD_VA_LIST_);
+void	verrx (int, const char *, va_list) __noreturn;
+void	warn (const char *, ...);
+void	vwarn (const char *, va_list);
+void	warnx (const char *, ...);
+void	vwarnx (const char *, va_list);
 __END_DECLS
 
 #endif /* !_ERR_H_ */

@@ -28,6 +28,7 @@
  */
 
 #include <sys/types.h>
+#include <drvlib.h>
 
 /* Safer version of strncpy */
 size_t

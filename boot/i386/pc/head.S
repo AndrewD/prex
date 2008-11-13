@@ -32,7 +32,7 @@
  */
 
 #include <conf/config.h>
-#include "platform.h"
+#include <syspage.h>
 
 #define SCREEN_80x25 1
 /* #define SCREEN_80x50 1 */
@@ -60,7 +60,7 @@ ENTRY(boot_entry)
 	xorw	%si, %si
 	movw	%si, %es
 	movw	$0x4000, %di		/* Relocation address 0:4000 */
-	movw	$0x800, %cx		/* size 0x2000 */
+	movw	$0x800, %cx		/* size 0x2000/4 */
 	rep	movsl
 	ljmp	$0x0000, $(reset_cs)
 reset_cs:
@@ -70,7 +70,7 @@ reset_cs:
 
 	xorw	%ax, %ax		/* Reset stack */
 	movw	%ax, %ss
-	movw	$(BOOT_STACK+0x800), %sp
+	movw	$(BOOT_STACKTOP), %sp
 
 	call	setup_screen
 	call	get_memsize
@@ -99,9 +99,9 @@ go_prot:
 	/*
 	 * Relocate archive file
 	 */
-	movl	$(ARCHIVE_START), %edi	/* Relocation target */
+	movl	$(BOOTIMG_BASE - PAGE_OFFSET), %edi	/* Relocation target */
 	movl	$0x32000, %esi
-	movl	$0x1B8000, %ecx		/* size 0x6e000 */
+	movl	$0x1B800, %ecx		/* size 0x6e000 */
 	rep	movsl
 
 	jmp	loader_main		/* Jump to main routine in C */
@@ -133,39 +133,43 @@ enable_a20:
 	movb	$0xdf, %al
 	outb	%al, $0x60
 	call	empty_8042
-wait_enable:
+	call	wait_a20
 	ret
 
 /*
  * empty_8042 - Empty 8042
  */
 empty_8042:
-	pushw	%ax
-retry:
-	call	io_delay
 	inb	$0x64, %al
-	testb	$1, %al
+	testb	$0x01, %al
 	jz	no_output
-
-	call	io_delay
 	inb	$0x60, %al
-	jmp	retry
-
+	jmp	empty_8042
 no_output:
-	testb	$2, %al
-	jnz	retry
-	popw	%ax
+	testb	$0x02, %al
+	jnz	empty_8042
 	ret
 
 /*
- * io_delay - I/O delay
+ * wait_a20 - Wait A20 ready
  */
-io_delay:
-	pushw	%ax
-	inb	$0x80, %al
-	inb	$0x80, %al
-	popw	%ax
-	ret
+wait_a20:
+        xorw    %ax, %ax
+        movw    %ax, %fs
+        movw    $0xffff, %ax
+        movw    %ax, %gs
+        movw    %fs:(0x0), %ax
+        cmp     %gs:(16), %ax
+        jne     a20_ready
+        movw    %dx, %ax
+        notw    %ax
+        movw    %ax, %fs:(0x0)
+        cmp     %gs:(16), %ax
+        mov     %fs:(0), %dx
+        jne     a20_ready
+        jmp	wait_a20
+a20_ready:
+        ret
 
 /*
  * Setup screen
@@ -208,11 +212,9 @@ setup_screen:
  */
 ENTRY(start_kernel)
 	movl	4(%esp), %eax
-	movl	8(%esp), %ebx		/* Store multiboot information in EBX */
 	movl	%eax, kern_start
 	jmp	code_flush
 code_flush:
-
 					/* Prepare registers for kernel */
 	movw	$(SEL_DATA32), %ax
 	movw	%ax, %ds
@@ -226,13 +228,25 @@ code_flush:
 	movl	%eax, %esi
 	movl	%eax, %edi
 
-	movl	$0x2BADB002, %eax	/* Store multiboot magic in EAX */
-	cli
+	cli				/* Disable all interrupts */
 
 	.byte	0xea
 kern_start:
 	.long	0
 	.word	SEL_CODE32
+
+
+ENTRY(outb)
+	movl	4(%esp), %eax
+	movl	8(%esp), %edx
+	outb	%al, %dx
+	ret
+
+ENTRY(inb)
+	movl	4(%esp), %edx
+	xorl	%eax, %eax
+	inb	%dx, %al
+	ret
 
 /*
  * Data

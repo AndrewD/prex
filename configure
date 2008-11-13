@@ -22,12 +22,11 @@ usage()
 Usage: configure [options]
 
  General options:
-    --target=TARGET         target system
-    --cross-compile=PREFIX  prefix for cros-compile tools
-    --no-debug              disable all debug code
+    --target=TARGET         Target system
+    --profile=PROFILE       Target profile
+    --cross-compile=PREFIX  Prefix for cros-compile tools
+    --no-debug              Disable all debug code
 
- Supported targets:
-    i386-pc i386-nommu arm-gba
 USAGE
 	exit 1
 }
@@ -38,22 +37,26 @@ setdefaults()
 		quit "configure must be run from the top source level"
 
 	target=""
+	profile=""
 	cross=""
 	srcdir=`pwd`
 }
 
 checkpath()
 {
-	CONFIG_IN=$srcdir/conf/$arch/config.$arch-$platform
-	CMDBOX_IN=$srcdir/conf/etc/cmdbox.conf
+	CONFIG_IN=$srcdir/conf/$arch/config.$platform$profile
+	CONFIG_FILES=$srcdir/conf/etc/config.files
+	MAKEFILE_IN=$srcdir/conf/$arch/Makefile.$platform$profile
+	CMDBOX_IN=$srcdir/conf/etc/config.cmdbox
 	CONFIG_MK=$srcdir/conf/config.mk
 	CONFIG_H=$srcdir/conf/config.h
+	CONFIG_LD=$srcdir/conf/config.ld
 
 	[ -f $CONFIG_IN ] ||
 		quit "can not find $CONFIG_IN"
 }
 
-getoptions()
+parseargs()
 {
 	while [ $# != 0 ]; do
 		case $1 in
@@ -76,6 +79,9 @@ getoptions()
 		--target)
 			target=$optarg
 			;;
+		--profile)
+			profile="-$optarg"
+			;;
 		--cross-compile)
 			cross=$optarg
 			;;
@@ -94,7 +100,7 @@ gettarget()
 {
 	if [ "x$target" = x ] ; then
 		echo "Warning: '--target' option was not specified"
-		echo "The target system was set to 'i386-pc'"	
+		echo "The target system was set to 'i386-pc'"
 		target="i386-pc"
 	fi
 
@@ -124,45 +130,107 @@ gettarget()
 	cc="${cross}gcc"
 }
 
-setparm()
-{
-	echo "$1=$2"
-	echo "$1=$2" >>$CONFIG_MK
-	if [ "$2" = "n" ] ; then
-		echo "#undef $1" >>$CONFIG_H
-	else
-		echo "#define $1 $2" >>$CONFIG_H
-	fi
-}
-
 setgccoption()
 {
 	if $cc $1 -S -xc /dev/null -o /dev/null > /dev/null 2>&1; then
-		echo "CONFIG_CFLAGS+= $1" >>$CONFIG_MK
+		echo "CONFIG_CFLAGS+= $1" >> $CONFIG_MK
 	fi
+}
+
+setparm()
+{
+	echo "$1=$2"
+	echo "$1=$2" >> $CONFIG_MK
+	if [ "$2" = "n" ] ; then
+		echo "#undef $1" >> $CONFIG_H
+	else
+		echo "#define $1 $2" >> $CONFIG_H
+	fi
+}
+
+options()
+{
+	param=`expr "x$1" : 'x\([^= ]*\)'`
+	value=`expr "x$1" : 'x[^=]*=\([A-Za-z0-9]*\)'`
+	if [ "x$value" = x ] ; then
+		echo "CONFIG_$param=y"
+		echo "CONFIG_$param=y" >> $CONFIG_MK
+		echo "#define CONFIG_$param y" >> $CONFIG_H
+	else
+		echo "CONFIG_$param=$value"
+		echo "CONFIG_$param=$value" >> $CONFIG_MK
+		echo "#define CONFIG_$param $value" >> $CONFIG_H
+	fi
+}
+
+memory()
+{
+	echo "$1=$2"
+	echo "$1=$2" >> $CONFIG_MK
+	echo "$1 = $2 ;" >> $CONFIG_LD
+	echo "#define $1 $2" >> $CONFIG_H
 }
 
 parseconfig()
 {
 	while read line; do
-		word=`expr "x$line" : 'x\(CONFIG_[A-Za-z0-9_=]*\)'`
-		param=`expr "x$word" : 'x\([^=]*\)='`
-		value=`expr "x$word" : 'x[^=]*=\([A-Za-z0-9]*\)'`
-		if [ -n "$param" ] ; then
-		    setparm "$param" "$value"
-		fi
+		read cmd rest <<-END_OF_COMMAND
+			$line
+		END_OF_COMMAND
+
+		case "$cmd" in
+		options)
+			options $rest
+			;;
+		makeoptions)
+			echo "$rest" >> $CONFIG_MK
+			;;
+		memory)
+			memory $rest
+			;;
+		device)
+			# T.B.D. make device table..
+			;;
+		esac
+	done < $1
+	echo "" >> $CONFIG_MK
+	echo "" >> $CONFIG_H
+}
+
+parsefiles()
+{
+	while read line; do
+		read cmd rest <<-END_OF_COMMAND
+			$line
+		END_OF_COMMAND
+
+		case "$cmd" in
+		drivers)
+			echo "DRIVER+= $rest" >> $CONFIG_MK
+			;;
+		boottasks)
+			echo "BOOTTASKS+= $rest" >> $CONFIG_MK
+			;;
+		bootfiles)
+			echo "BOOTFILES+= $rest" >> $CONFIG_MK
+			;;
+		esac
 	done < $1
 	echo "" >> $CONFIG_MK
 }
 
 main()
 {
+	#
+	# Process input arguments
+	#
 	setdefaults
-	getoptions "$@"
+	parseargs "$@"
 	gettarget
 	checkpath
 
 	echo "Processing configuration files..."
+	echo ""
 
 	echo "#" > $CONFIG_MK
 	echo "# Automatically generated file. Don't edit" >> $CONFIG_MK
@@ -172,18 +240,26 @@ main()
 	echo " * Automatically generated file. Don't edit" >> $CONFIG_H
 	echo " */" >> $CONFIG_H
 
+	echo "/*" > $CONFIG_LD
+	echo " * Automatically generated file. Don't edit" >> $CONFIG_LD
+	echo " */" >> $CONFIG_LD
+
 	#
 	# Generate configuration parameters
 	#
+	echo "#define AUTODETECT 0" >> $CONFIG_H
+	echo "AUTODETECT = 0 ;" >> $CONFIG_LD
 	parseconfig $CONFIG_IN
 	parseconfig $CMDBOX_IN
+	parsefiles $CONFIG_FILES
 
 	#
-	# Check arch/platform setting
+	# Setup build settings
 	#
 	echo "SRCDIR=$srcdir" >> $CONFIG_MK
 	echo "ARCH=$arch" >> $CONFIG_MK
 	echo "PLATFORM=$platform" >> $CONFIG_MK
+	echo "PROFILE=$platform$profile" >> $CONFIG_MK
 	[ "x$cross" != x ] && echo "CROSS_COMPILE=$cross" >> $CONFIG_MK
 	[ "x$nodebug" != x ] && echo "NDEBUG=1" >> $CONFIG_MK
 	echo "" >> $CONFIG_MK
@@ -192,7 +268,10 @@ main()
 	# Check gcc options
 	#
 	setgccoption "-fno-stack-protector"
-	setgccoption "-Wno-variadic-macros"
+
+	echo ""
+	echo "Prex is now hopefully configured for your setup."
+	echo "Now you must run a make."
 }
 
 main "$@"

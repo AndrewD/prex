@@ -61,7 +61,7 @@ getpriority(int which, int who)
 	}
 	thread_getprio(thread_self(), &prio);
 
-	prio -= CONFIG_USER_PRIO;
+	prio -= PRIO_DFLT;
 
 	if (prio < PRIO_MIN)
 		prio = PRIO_MIN;

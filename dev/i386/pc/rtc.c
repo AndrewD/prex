@@ -30,11 +30,12 @@
 /*
  * rtc.c - Real time clock driver
  */
+
 #include <sys/time.h>
 #include <sys/ioctl.h>
 
 #include <driver.h>
-#include <cpu.h>
+#include <cpufunc.h>
 
 /* Cmos */
 #define CMOS_INDEX	0x70
@@ -56,7 +57,7 @@
 #define DAYSPERYEAR	(31+28+31+30+31+30+31+31+30+31+30+31)
 
 static int rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno);
-static int rtc_ioctl(device_t dev, int cmd, u_long arg);
+static int rtc_ioctl(device_t dev, u_long cmd, void *arg);
 static int rtc_init(void);
 
 /*
@@ -68,6 +69,9 @@ struct driver rtc_drv = {
 	/* init */	rtc_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio rtc_io = {
 	/* open */	NULL,
 	/* close */	NULL,
@@ -81,8 +85,8 @@ static const int daysinmonth[] =
     { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
 static device_t rtc_dev;	/* Device object */
-static long boot_sec;		/* Time (sec) at system boot */
-static long boot_ticks;		/* Time (sec) at system boot */
+static u_long boot_sec;		/* Time (sec) at system boot */
+static u_long boot_ticks;	/* Time (ticks) at system boot */
 
 
 static u_int
@@ -108,8 +112,8 @@ cmos_write(int index, int value)
 }
 */
 
-static int
-bcd2bin(int bcd)
+static u_int
+bcd2bin(u_int bcd)
 {
 
 	return (bcd & 0x0f) + ((bcd >> 4) & 0xf) * 10;
@@ -123,7 +127,7 @@ static int bin2bcd(int bin)
 */
 
 static int
-is_leap(int year)
+is_leap(u_int year)
 {
 
 	if ((year % 4 == 0) && (year % 100 != 0))
@@ -139,9 +143,9 @@ is_leap(int year)
 static u_long
 cmos_gettime(void)
 {
-	unsigned int sec, min, hour, day, mon, year;
-	unsigned int i;
-	unsigned int days;
+	u_int sec, min, hour, day, mon, year;
+	u_int i;
+	u_int days;
 
 	/* Wait until data ready */
 	for (i = 0; i < 1000000; i++)
@@ -167,9 +171,10 @@ cmos_gettime(void)
 		year += 2000;
 	else
 		year += 1900;
-
-	printk("rtc: system time was %d/%d/%d %d:%d:%d\n",
+#ifdef DEBUG
+	printf("rtc: system time was %d/%d/%d %d:%d:%d\n",
 		year, mon, day, hour, min, sec);
+#endif
 
 	days = 0;
 	for (i = 1970; i < year; i++)
@@ -187,20 +192,24 @@ cmos_gettime(void)
 static int
 rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
+	u_long time;
 
 	if (*nbyte < sizeof(u_long))
 		return 0;
-	*(u_long *)buf = cmos_gettime();
+
+	time = cmos_gettime();
+	if (umem_copyout(&time, buf, sizeof(u_long)))
+		return EFAULT;
 	*nbyte = sizeof(u_long);
 	return 0;
 }
 
 static int
-rtc_ioctl(device_t dev, int cmd, u_long arg)
+rtc_ioctl(device_t dev, u_long cmd, void *arg)
 {
 	struct timeval tv;
 	int err = 0;
-	long msec;
+	u_long msec;
 
 	switch (cmd) {
 	case RTCIOC_GET_TIME:
@@ -209,9 +218,9 @@ rtc_ioctl(device_t dev, int cmd, u_long arg)
 		 * boot time and current tick count.
 		 */
 		msec = tick_to_msec(timer_count() - boot_ticks);
-		tv.tv_sec = boot_sec + (msec / 1000);
-		tv.tv_usec = (msec * 1000) % 1000000;
-		if (umem_copyout(&tv, (int *)arg, sizeof(tv)))
+		tv.tv_sec = (long)(boot_sec + (msec / 1000));
+		tv.tv_usec = (long)((msec * 1000) % 1000000);
+		if (umem_copyout(&tv, arg, sizeof(tv)))
 			return EFAULT;
 		break;
 	case RTCIOC_SET_TIME:

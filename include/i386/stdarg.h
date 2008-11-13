@@ -32,31 +32,36 @@
 #ifndef _I386_STDARG_H
 #define	_I386_STDARG_H
 
-#include <machine/ansi.h>
-
-typedef _BSD_VA_LIST_	va_list;
+#include <sys/cdefs.h>
 
 #ifdef __lint__
-#define __builtin_next_arg(t)		((t) ? 0 : 0)
-#define	__builtin_stdarg_start(a, l)	((a) = ((l) ? 0 : 0))
-#define	__builtin_va_arg(a, t)		((a) ? 0 : 0)
-#define	__builtin_va_end		/* nothing */
-#define	__builtin_va_copy(d, s)		((d) = (s))
-#endif
+typedef void *			va_list;
+#define	va_start(a, l)		(0)
+#define	va_arg(a, t)		(0)
+#define	va_end			/* nothing */
+#define	va_copy(d, s)		((d) = (s))
 
-#ifdef __GNUC__
+#elif __GNUC_PREREQ__(2, 96)
+#define va_list			__builtin_va_list
 #define	va_start(ap, last)	__builtin_stdarg_start((ap), (last))
 #define	va_arg			__builtin_va_arg
 #define	va_end			__builtin_va_end
 #define	va_copy(dest, src)	__builtin_va_copy((dest), (src))
 #else
+
+typedef char *			va_list;
+
 #define	__va_size(type) \
 	(((sizeof(type) + sizeof(long) - 1) / sizeof(long)) * sizeof(long))
+
 #define	va_start(ap, last) \
-	((ap) = (va_list)__builtin_next_arg(last))
+	((ap) = (va_list)&(last) + __va_size(last))
+
 #define	va_arg(ap, type) \
 	(*(type *)(void *)((ap) += __va_size(type), (ap) - __va_size(type)))
-#define	va_end(ap)	
+
+#define	va_end(ap)
+
 #define	va_copy(dest, src)	((dest) = (src))
 #endif
 

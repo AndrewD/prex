@@ -41,4 +41,5 @@ perror(s)
 		fputs(": ", stderr);
 	}
 	fputs(strerror(errno), stderr);
+	fputs("\n", stderr);
 }

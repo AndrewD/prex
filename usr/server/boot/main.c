@@ -32,11 +32,11 @@
  */
 
 /*
- * A bootstrap server works to setup the POSIX environment for 'init'
- * process. It sends a setup message to other servers in order to let
- * them know that this task becomes 'init' process.
- * The bootstrap server is gone after it launches (exec) the 'init'
- * process.
+ * A bootstrap server works to setup the POSIX environment for
+ * 'init' process. It sends a setup message to other servers in
+ * order to let them know that this task becomes 'init' process.
+ * The bootstrap server is gone after it launches (exec) the
+ * 'init' process.
  */
 
 #include <prex/prex.h>
@@ -55,22 +55,31 @@
 #include <errno.h>
 #include <fstab.h>
 
+#ifdef DEBUG
+#define DPRINTF(a) sys_log a
+#else
+#define DPRINTF(a)
+#endif
+
 extern const struct fstab fstab[];
 extern const int fstab_size;
 
 #define PRIO_BOOT	131		/* priority of boot server */
 
 /* forward declarations */
-static void wait_server(const char *);
-static void process_init(void);
-static int run_init(char *);
-static void mount_fs(void);
+static void	wait_server(const char *);
+static void	process_init(void);
+static int	run_init(char *);
+static void	mount_fs(void);
 
 static object_t proc_obj;
 
 static char *init_argv[] = { "arg", NULL };
 static char *init_envp[] = { "HOME=/", NULL };
 
+/*
+ * Base directories
+ */
 static char *base_dir[] = {
 	"/bin",		/* essential user commands */
 	"/boot",	/* static files for boot */
@@ -79,6 +88,7 @@ static char *base_dir[] = {
 	"/mnt",		/* mount point for file systems */
 	"/mnt/floppy",	/* mount point for floppy */
 	"/mnt/cdrom",	/* mount point for cdrom */
+	"/fifo",	/* mount point for fifo */
 	"/tmp",		/* temporary files */
 	"/usr",		/* shareable read-only data */
 	"/var",		/* log files, spool data */
@@ -86,7 +96,7 @@ static char *base_dir[] = {
 };
 
 /*
- * Main routine for boot strap
+ * Main routine for boot strap.
  */
 int
 main(int argc, char *argv[])
@@ -100,7 +110,8 @@ main(int argc, char *argv[])
 	thread_setprio(thread_self(), PRIO_BOOT);
 
 	/*
-	 * Wait until required system servers become available.
+	 * Wait until required system servers
+	 * become available.
 	 */
 	wait_server(OBJNAME_PROC);
 	wait_server(OBJNAME_FS);
@@ -122,7 +133,8 @@ main(int argc, char *argv[])
 	 */
 	run_init("/boot/init");
 
-	sys_log("boot: failed to run init\n");
+	sys_panic("boot: failed to run init");
+	/* NOTREACHED */
 	return 0;
 }
 
@@ -153,13 +165,16 @@ wait_server(const char *name)
 		sys_panic("boot: server not found");
 }
 
+/*
+ * Notify the process server.
+ */
 static void
 process_init(void)
 {
 	struct msg m;
 
 	/*
-	 * This task will become an init process.
+	 * We will become an init process later.
 	 */
 	object_lookup(OBJNAME_PROC, &proc_obj);
 	m.hdr.code = PS_SETINIT;
@@ -178,23 +193,23 @@ run_init(char *path)
 	char *dest, *src;
 	object_t obj;
 
-	sys_log("boot: Run init process\n");
+	DPRINTF(("boot: Run init process\n"));
 
 	/*
 	 * Allocate a message buffer with arg/env data.
 	 */
 	bufsz = 0;
 	argc = 0;
-	while (init_argv[argc]) {
+	while (init_argv[argc] != NULL) {
 		bufsz += (strlen(init_argv[argc]) + 1);
 		argc++;
 	}
 	envc = 0;
-	while (init_envp[envc]) {
+	while (init_envp[envc] != NULL) {
 		bufsz += (strlen(init_envp[envc]) + 1);
 		envc++;
 	}
-	msg = (struct exec_msg *)malloc(sizeof(struct exec_msg) + bufsz);
+	msg = malloc(sizeof(struct exec_msg) + bufsz);
 	if (msg == NULL)
 		return -1;
 
@@ -224,9 +239,10 @@ run_init(char *path)
 		err = msg_send(obj, msg,
 			       sizeof(struct exec_msg) + bufsz);
 		/*
-		 * If exec server can execute new process properly, it
-		 * will terminate the caller task automatically. So,
-		 * the control never comes here in that case.
+		 * If exec server can execute new process
+		 * properly, it will terminate the caller task
+		 * automatically. So, the control never comes
+		 * here in that case.
 		 */
 	} while (err == EINTR);
 	return -1;
@@ -237,7 +253,7 @@ mount_fs(void)
 {
 	int i;
 
-	sys_log("boot: Mounting file systems\n");
+	DPRINTF(("boot: Mounting file systems\n"));
 
 	/*
 	 * Mount RAMFS as root file system.
@@ -248,10 +264,10 @@ mount_fs(void)
 	/*
 	 * Create some default directories on RAMFS.
 	 */
-	for (i = 0;; i++) {
-		if (base_dir[i] == NULL)
-			break;
+	i = 0;
+	while (base_dir[i] != NULL) {
 		mkdir(base_dir[i], 0);
+		i++;
 	}
 
 	/*

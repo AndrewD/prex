@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
-  <title>Prex/Game Boy Advance - Documentation</title>
+  <title>Prex Game Boy Advance - HOWTO</title>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
   <meta name="keywords" content="Prex, embedded, real-time, operating system, RTOS, open source, free">
   <meta name="author" content="Kohsuke Ohtani">
@@ -23,7 +23,7 @@
           <td id="logo">
             <a href="http://prex.sourceforge.net/">
             <img alt="Prex logo" src="../img/logo.gif" border="0"
-            style="width: 281px; height: 56px;"></a>
+            style="width: 250px; height: 54px;"></a>
           </td>
           <td id="brief" align="right" valign="bottom">
             An Open Source, Royalty-free,<br>
@@ -38,15 +38,15 @@
       <td id="directory" style="vertical-align: top;">
       <a href="http://prex.sourceforge.net/">Prex Home</a> >
       <a href="index.html">Document Index</a> >
-      Game Boy Advance
+      Game Boy Advance - HOWTO
     </tr>
     <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
-      <td id="main" style="vertical-align: top;">
-      <h1>Prex/Game Boy Advance - Documentation</h1>
+      <td id="doc" style="vertical-align: top;">
+      <h1>Prex Game Boy Advance - HOWTO</h1>
 
-<i>Version 0.2 (draft), 2005/06/29</i><br>
+<i>Version 0.8, 2008/09/24</i><br>
 
 <h3>Table of Contents</h3>
 
@@ -60,6 +60,7 @@
 
 <b>Technical Note</b>
 <ul>
+  <li><a href="#spec">Technical Specs</a></li>
   <li><a href="#mem">Memory Map</a></li>
   <li><a href="#syscall">System Call</a></li>
 </ul>
@@ -94,7 +95,10 @@ To run Prex with VBA, simply select file->open and open the prex image.
 There is no need to prepare the original GBA BIOS.
 </p>
 <p>
-The default keyboard setting of VBA is as follow:
+<b>Important:</b> You must rename the file name of the image to "prexos.gba".
+It seems VBA is checking the file extension to validate the image.
+</p>
+The default keyboard setting of VBA is as follows:
 </p>
 
 <i><b>Table 1. VBA Key Assign</b></i>
@@ -149,7 +153,6 @@ You have to download and unpack the following files.
 <pre class="terminal">$ cd /usr/src
 $ tar zxvf binitils-2.15.tar.gz
 $ tar zxvf gcc-core-3.4.3.tar.gz
-$ tar zxvf newlib-1.13.0.tar.gz</pre>
 
 <h4>Step 2. Build Binutils</h4>
 
@@ -174,20 +177,26 @@ $ cd /usr/src</pre>
 <pre class="terminal">$ mkdir gcc-3.4.3-arm-elf
 $ cd gcc-3.4.3-arm-elf
 $ ../gcc-3.4.3/configure --prefix=/usr/local/arm --target=arm-elf --with-gnu-as \
- --with-gnu-ld --with-cpu=arm7tdmi --disable-nls --enable-languages=c --with-newlib \
- --enable-interwork --with-headers=../newlib-1.13.0/newlib/libc/include/
+ --with-gnu-ld --with-cpu=arm7tdmi --disable-nls --enable-languages=c \
+ --enable-interwork
 $ make LANGUAGES="c"
 $ make LANGUAGES="c" install
 $ cd /usr/src</pre>
 
-<h4>Setp 4. Configure</h4>
-Setup target architecture and platform.
-<pre class="terminal">$ export PREX_ARCH=arm
-$ export PREX_PLATFORM=gba
-$ export PREX_SRC=/usr/src/prex-X.X.X
+
+<h4>Step 4. Unpack Sources</h4>
+Unpack the sources and move to top level directory of the source tree.
+<pre class="terminal">$ cd /usr/src
+$ tar zxvf prex-X.X.X.tar.gz
+$ cd prex-X.X.X
 </pre>
 
-<h4>Step 5. Make</h4>
+<h4>Step 5. Configure</h4>
+Setup target architecture and platform.
+<pre class="terminal">$ ./configure --target=arm-gba --cross-compile=arm-elf-
+</pre>
+
+<h4>Step 6. Make</h4>
 Run make.<br>
 <pre class="terminal">
 $ make
@@ -318,30 +327,118 @@ for each case.
 </table>
 
 
-<h2 id="mem">Memory Map</h2>
+<h2 id="spec">Technical Specs</h2>
 
-<h3>General Memory Usage</h3>
-<ul>
- <li>00000000 - 00003FFF  BIOS - System ROM
- <li>02000000 - 0203FFFF  EWRAM (256K)
- <li>03000000 - 03007FFF  EWRAM (32K)
- <li>04000000 - 040003FF  I/O Registers
- <li>05000000 - 040003FF  Palette RAM
- <li>06000000 - 06017fFF  VRAM
- <li>07000000 - 070003FF  Object Attributes
+<h3>GBA H/W Spec</h3>
+
+<i><b>Table 4. GBA Spec</b></i>
+<table width="50%" border="1" cellspacing="0">
+<tbody>
+
+  <tr>
+    <td>Processor</td>
+    <td>ARM7TDMI, 16.78MHz</td>
+  </tr>
+  <tr>
+    <td>IWRAM (Internal)</td>
+    <td>32 kB</td>
+  </tr>
+  <tr>
+    <td>EWRAM (External)</td>
+    <td>256 kB</td>
+  </tr>
+  <tr>
+    <td>VRAM</td>
+    <td>96 kB</td>
+  </tr>
+  <tr>
+    <td>LCD</td>
+    <td>2" TFT 240 x 160 pixels</td>
+  </tr>
+
+</tbody>
+</table>
+
+<h3>Memory map</h3>
+
+<i><b>Table 5. Memory map</b></i>
+<table width="50%" border="1" cellspacing="0">
+<tbody>
+<tr>
+ <td>00000000 - 00003FFF</td>
+ <td>BIOS - System ROM</td>
+</tr>
+<tr>
+ <td>02000000 - 0203FFFF</td>
+ <td>EWRAM (256K)</td>
+</tr>
+<tr>
+ <td>03000000 - 03007FFF</td>
+ <td>IWRAM (32K)</td>
+</tr>
+<tr>
+ <td>04000000 - 040003FF</td>
+ <td>I/O Registers</td>
+</tr>
+<tr>
+ <td>05000000 - 050003FF</td>
+ <td>Palette RAM</td>
+</tr>
+<tr>
+ <td>06000000 - 06017fFF</td>
+ <td>VRAM</td>
+</tr>
+<tr>
+ <td>07000000 - 070003FF</td>
+ <td>Object Attributes</td>
+</tr>
+<tr>
+
+</tbody>
+</table>
+
+
+<h3>Prex VRAM Usage</h3>
+
+<i><b>Table 6. Prex VRAM Usage</b></i>
+<table width="70%" border="1" cellspacing="0">
+<tbody>
+
+<tr>
+ <td>06000000 - 06003FFF</td>
+ <td>Tile 1 - Font</td>
+</tr>
+<tr>
+ <td>06004000 - 06005FFF</td>
+ <td>Tile 2 - Keyboard Image (non shift)</td>
+</tr>
+<tr>
+ <td>06006000 - 06007FFF</td>
+ <td>Tile 2 - Keyboard Image (shift)</td>
+</tr>
+<tr>
+ <td>06008000 - 06008FFF</td>
+ <td>Background 3 Map (Console text)</td>
+</tr>
+<tr>
+ <td>06009000 - 06009FFF</td>
+ <td>Background 1 Map (Keyboard non-shift)</td>
+</tr>
+<tr>
+ <td>0600A000 - 0600AFFF</td>
+ <td>Background 2 Map (Keyboard shift)</td>
+</tr>
+<tr>
+ <td>0600B000 - 0600FFFF</td>
+ <td>Not used
+</tr>
+<tr>
+ <td>06010000 - 0601FFFF</td>
+ <td>Cursor Data
 </ul>
 
-<h3>VRAM Usage</h3>
-<ul>
- <li>06000000 - 06003FFF  Tile 1 - Font</li>
- <li>06004000 - 06005FFF  Tile 2 - Keyboard Image (non shift)</li>
- <li>06006000 - 06007FFF  Tile 2 - Keyboard Image (shift)</li>
- <li>06008000 - 06008FFF  Background 3 Map (Console text)</li>
- <li>06009000 - 06009FFF  Background 1 Map (Keyboard non-shift)</li>
- <li>0600A000 - 0600AFFF  Background 2 Map (Keyboard shift)</li>
- <li>0600B000 - 0600FFFF  Not used
- <li>06010000 - 0601FFFF  Cursor Data
-</ul>
+</tbody>
+</table>
 
 
 <h2 id="syscall">System Call</h2>
@@ -387,7 +484,7 @@ all applications are always executed in SYS mode in Prex arm-gba port.
         <a href="http://sourceforge.net">
         <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
         alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
-        Copyright&copy; 2005-2007 Kohsuke Ohtani
+        Copyright&copy; 2005-2008 Kohsuke Ohtani
       </td>
     </tr>
 

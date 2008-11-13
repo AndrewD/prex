@@ -34,7 +34,7 @@
 #include <kernel.h>
 #include <timer.h>
 #include <irq.h>
-#include <cpu.h>
+#include <cpufunc.h>
 
 /* Interrupt vector for clock */
 #define CLOCK_IRQ	0
@@ -60,7 +60,6 @@ clock_isr(int irq)
 	irq_lock();
 	timer_tick();
 	irq_unlock();
-
 	return INT_DONE;
 }
 
@@ -71,14 +70,14 @@ clock_isr(int irq)
 void
 clock_init(void)
 {
-	int clock_irq;
+	irq_t clock_irq;
 
 	outb_p(0x34, PIT_CTRL);		/* Command to set generator mode */
 	outb_p((u_char)(PIT_LATCH & 0xff), PIT_CH0);		/* LSB */
 	outb_p((u_char)((PIT_LATCH >> 8) & 0xff), PIT_CH0);	/* MSB */
 
-	clock_irq = irq_attach(CLOCK_IRQ, IPL_CLOCK, 0, clock_isr, NULL);
-	ASSERT(clock_irq != -1);
+	clock_irq = irq_attach(CLOCK_IRQ, IPL_CLOCK, 0, &clock_isr, NULL);
+	ASSERT(clock_irq != NULL);
 
-	printk("Clock rate: %d ticks/sec\n", CONFIG_HZ);
+	DPRINTF(("Clock rate: %d ticks/sec\n", CONFIG_HZ));
 }

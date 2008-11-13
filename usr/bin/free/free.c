@@ -46,10 +46,10 @@ main(int argc, char *argv[])
 
 	sys_info(INFO_MEMORY, &info);
 
-	printf("    total     used     free   kernel\n");
-	printf(" %8d %8d %8d %8d\n", (u_int)info.total,
+	printf("        total     used     free bootdisk\n");
+	printf("Mem: %8d %8d %8d %8d\n", (u_int)info.total,
 	       (u_int)(info.total - info.free), (u_int)info.free,
-	       (u_int)info.kernel);
+	       (u_int)info.bootdisk);
 	exit(0);
 	/* NOTREACHED */
 }

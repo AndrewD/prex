@@ -74,6 +74,8 @@
 #define	O_TRUNC		0x00000400	/* truncate to zero length */
 #define	O_EXCL		0x00000800	/* error if already exists */
 
+#define	FPIPE		0x00010000	/* pipe */
+
 /* defined by POSIX 1003.1; BSD default, so no bit required */
 #define	O_NOCTTY	0		/* don't assign controlling terminal */
 

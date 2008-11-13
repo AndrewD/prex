@@ -29,6 +29,8 @@
 
 extern void __posix_init(void);
 
+void	 __libc_init(void);
+
 void
 __libc_init(void)
 {

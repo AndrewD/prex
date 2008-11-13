@@ -30,11 +30,14 @@
 #ifndef _PAGE_H
 #define _PAGE_H
 
-extern void	*page_alloc(size_t);
-extern void	 page_free(void *, size_t);
-extern int	 page_reserve(void *, size_t);
-extern void	 page_info(size_t *, size_t *);
-extern void	 page_dump(void);
-extern void	 page_init(void);
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+void	*page_alloc(size_t);
+void	 page_free(void *, size_t);
+int	 page_reserve(void *, size_t);
+void	 page_info(struct info_memory *);
+void	 page_init(void);
+__END_DECLS
 
 #endif /* !_PAGE_H */

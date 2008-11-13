@@ -32,7 +32,6 @@
  */
 
 #include <prex/prex.h>
-#include <prex/power.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
@@ -55,7 +54,6 @@ int cmd_timer(int argc, char **argv);
 int cmd_irq(int argc, char **argv);
 int cmd_device(int argc, char **argv);
 int cmd_vm(int argc, char **argv);
-int cmd_dmesg(int argc, char **argv);
 #endif
 int cmd_reboot(int argc, char **argv);
 int cmd_shutdown(int argc, char **argv);
@@ -79,12 +77,7 @@ static struct cmd_entry cmd_table[] = {
 #ifdef DEBUG
 	{ "thread"	,cmd_thread	,"thread   - Dump threads" },
 	{ "task"	,cmd_task	,"task     - Dump tasks" },
-	{ "object"	,cmd_object	,"object   - Dump objects" },
-	{ "timer"	,cmd_timer	,"timer    - Dump system timers" },
-	{ "irq"		,cmd_irq	,"irq      - Dump irq information" },
-	{ "device"	,cmd_device	,"device   - Dump devices" },
 	{ "vm"		,cmd_vm		,"vm       - Dump virtual memory information" },
-	{ "dmesg"	,cmd_dmesg	,"dmesg    - Dump kernel message log" },
 #endif
 	{ "reboot"	,cmd_reboot	,"reboot   - Reboot system" },
 	{ "shutdown"	,cmd_shutdown	,"shutdown - Shutdown system" },
@@ -124,9 +117,10 @@ cmd_mem(int argc, char **argv)
 	sys_info(INFO_MEMORY, &info);
 
 	printf("Memory usage:\n");
-	printf("    total     used     free   kernel\n");
-	printf(" %8d %8d %8d %8d\n", (u_int)info.total,
-	       (u_int)(info.total - info.free), (u_int)info.free, (u_int)info.kernel);
+	printf("    total     used     free bootdisk\n");
+	printf(" %8d %8d %8d %d\n", (u_int)info.total,
+	       (u_int)(info.total - info.free), (u_int)info.free,
+	       (u_int)info.bootdisk);
 	return 0;
 }
 
@@ -158,72 +152,57 @@ cmd_kill(int argc, char **argv)
 int
 cmd_thread(int argc, char **argv)
 {
-	sys_debug(DCMD_DUMP, DUMP_THREAD);
+	int item = DUMP_THREAD;
+
+	sys_debug(DCMD_DUMP, &item);
 	return 0;
 }
 
 int
 cmd_task(int argc, char **argv)
 {
-	sys_debug(DCMD_DUMP, DUMP_TASK);
-	return 0;
-}
+	int item = DUMP_TASK;
 
-int
-cmd_object(int argc, char **argv)
-{
-	sys_debug(DCMD_DUMP, DUMP_OBJECT);
-	return 0;
-}
-
-int
-cmd_timer(int argc, char **argv)
-{
-	sys_debug(DCMD_DUMP, DUMP_TIMER);
-	return 0;
-}
-
-int
-cmd_irq(int argc, char **argv)
-{
-	sys_debug(DCMD_DUMP, DUMP_IRQ);
-	return 0;
-}
-
-int
-cmd_device(int argc, char **argv)
-{
-	sys_debug(DCMD_DUMP, DUMP_DEVICE);
+	sys_debug(DCMD_DUMP, &item);
 	return 0;
 }
 
 int
 cmd_vm(int argc, char **argv)
 {
-	sys_debug(DCMD_DUMP, DUMP_VM);
+	int item = DUMP_VM;
+
+	sys_debug(DCMD_DUMP, &item);
 	return 0;
 }
-
-int
-cmd_dmesg(int argc, char **argv)
-{
-	sys_debug(DCMD_DUMP, DUMP_MSGLOG);
-	return 0;
-}
-
 #endif /* DEBUG */
 
 int
 cmd_reboot(int argc, char **argv)
 {
-	reboot(0);
-	return 0;
+	device_t pm_dev;
+	int err, state;
+
+	if ((err = device_open("pm", 0, &pm_dev)) == 0) {
+		state = POWER_REBOOT;
+		err = device_ioctl(pm_dev, PMIOC_SET_POWER, &state);
+		device_close(pm_dev);
+	}
+	return err;
 }
 
 int
 cmd_shutdown(int argc, char **argv)
 {
-	return shutdown(0);
+	device_t pm_dev;
+	int err, state;
+
+	if ((err = device_open("pm", 0, &pm_dev)) == 0) {
+		state = POWER_OFF;
+		err = device_ioctl(pm_dev, PMIOC_SET_POWER, &state);
+		device_close(pm_dev);
+	}
+	return err;
 }
 
 int

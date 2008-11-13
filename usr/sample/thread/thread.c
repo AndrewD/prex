@@ -133,14 +133,14 @@ main(int argc, char *argv[])
 	 * Raise this thread's priority.
 	 */
 	err = thread_setprio(main_th, 100);
-	
+
 	/*
 	 * Run threads as normal priority thread.
 	 */
 	thread_run(thread_A, stack[0]+1024);
 	thread_run(thread_B, stack[1]+1024);
 	thread_run(thread_C, stack[2]+1024);
-	
+
 	/*
 	 * Lower this thread's priority.
 	 */

@@ -38,6 +38,8 @@
 extern void __libc_init(void);
 extern int main(int argc, char **argv, char **envp);
 
+void	 __prex_main(int, char **, char **);
+
 char **environ;
 
 void

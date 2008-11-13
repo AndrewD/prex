@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,10 @@
  */
 
 #include <conf/config.h>
-#include <platform.h>
+#include <machine/asm.h>
+#include <syspage.h>
+#include <mmu.h>	/* for UMEM_MAX */
 #include <cpu.h>
-
-#define ENTRY(x) .global x; .align 4,0x90; x##:
 
 /*
  * Macro to save/restore registers
@@ -73,25 +73,6 @@
 	movl	%edx, %ds; \
 	movl	%edx, %es;
 
-/*
- * Pointer to boot infomation
- */
-	.section ".rodata"
-ENTRY(boot_info)
-	.long	PAGE_OFFSET + BOOT_INFO
-
-/*
- * Interrupt nest counter.
- *
- * This counter is incremented in the entry of interrupt handler
- * to switch the interrupt stack. Since all interrupt handlers
- * share same one interrupt stack, each handler must pay attention
- * to the stack overflow.
- */
-	.section ".bss"
-irq_nesting:
-	.long	0
-
 	.section ".text"
 
 /*
@@ -116,18 +97,18 @@ ENTRY(kernel_start)
 
 #ifdef CONFIG_MMU
 	/*
-	 * Init page table
-	 * The physical address 0-4M is mapped to virtual address 2G.
+	 * Initialize page table.
+	 * The physical address 0-4M is mapped on virtual address 2G.
 	 */
-	movl	$(KERNEL_PGD), %edi	/* Setup kernel page directory */
+	movl	$(BOOT_PGD_PHYS), %edi	/* Setup kernel page directory */
 	xorl	%eax, %eax		/* Invalidate all address */
 	movl	$0x1000, %ecx
 	rep
 	stosb
-	movl	$(KERNEL_PGD+0x800), %edi
-	movl	$(BOOT_PTE0+0x07), (%edi)
+	movl	$(BOOT_PGD_PHYS+0x800), %edi
+	movl	$(BOOT_PTE0_PHYS+0x07), (%edi)
 	movl	$1024, %ecx		/* Fill boot page table entry */
-	movl	$(BOOT_PTE0), %edi
+	movl	$(BOOT_PTE0_PHYS), %edi
 	movl	$0007, %eax
 fill_pte0:
 	stosl
@@ -135,13 +116,13 @@ fill_pte0:
 	loop	fill_pte0
 
 	/*
-	 * Enable paging
-	 * The physical address 0-4M is mapped to virtial address 0-4M
-	 * temporary. This is needed to enable paging.
+	 * Enable paging.
+	 * The physical address 0-4M is temporarily mapped to virtial
+	 * address 0-4M. This is needed to enable paging.
 	 */
-	movl	$(KERNEL_PGD), %edi	/* Map address 0-4M */
-	movl	$(BOOT_PTE0+0x07), (%edi)
-	movl	$(KERNEL_PGD), %eax	/* Set page directory pointer */
+	movl	$(BOOT_PGD_PHYS), %edi	/* Map address 0-4M */
+	movl	$(BOOT_PTE0_PHYS+0x07), (%edi)
+	movl	$(BOOT_PGD_PHYS), %eax	/* Set page directory pointer */
 	movl	%eax, %cr3
 	movl	%cr0, %eax		/* Enable paging bit */
 	orl	$0x80000000, %eax
@@ -151,7 +132,7 @@ pipeline_flush:
 	movl	$cs_reset, %eax
 	jmp	*%eax
 cs_reset:
-	movl	$(KERNEL_BASE+KERNEL_PGD), %edi	/* Unmap 0-4M */
+	movl	$(BOOT_PGD), %edi	/* Unmap 0-4M */
 	movl	$0, (%edi)
 	movl	%cr3, %eax
 	movl	%eax, %cr3
@@ -171,17 +152,17 @@ cs_reset:
 	/*
 	 * Setup boot stack
 	 */
-	movl	$(PAGE_OFFSET+BOOT_STACK), %edi
-	movl	$0x800, %ecx
+	movl	$(BOOTSTACK_BASE), %edi
+	movl	$(BOOTSTACK_SIZE), %ecx
 	rep
 	stosb
-	movl	$(PAGE_OFFSET+BOOT_STACK+0x800), %esp
+	movl	$(BOOTSTACK_TOP), %esp
 	movl	%esp, %ebp
 
 	/*
 	 * Call kernel main routine
 	 */
-	call	kernel_main
+	call	main
 	/* NOTREACHED */
 	cli
 	hlt
@@ -195,11 +176,11 @@ cs_reset:
 ENTRY(interrupt_common)
 	SAVE_ALL
 	SETUP_SEG
-	incl	irq_nesting
+	incl	irq_nesting		/* Increment nesting level */
 	cmpl	$1, irq_nesting		/* Outermost interrupt ? */
 	jne	nested_irq
 	mov	%esp, %ebp		/* Save current stack */
-	movl	$(PAGE_OFFSET+INT_STACK+0x1000), %esp	/* Switch stack */
+	movl	$(INTSTACK_TOP), %esp	/* Switch stack */
 	call	sched_lock		/* Lock scheduler */
 	pushl	%ebp			/* Push trap frame */
 	call	interrupt_handler	/* Process interrupt */
@@ -207,7 +188,7 @@ ENTRY(interrupt_common)
 	decl	irq_nesting
 	call	sched_unlock		/* Try to preempt */
 	testl	$3, 0x30(%esp)		/* Return to kernel mode ? */
-	jz	interrupt_ret
+	jz	interrupt_ret		/* Skip exception if kernel mode */
 	call	exception_deliver	/* Check exception */
 interrupt_ret:
 	RESTORE_ALL
@@ -333,22 +314,24 @@ bad_syscall:
  *
  * syntax - void cpu_switch(kern_regs *prev, kern_regs *next)
  *
- * Note: GCC assumes ebp,edi,esi registers are not changed in each routine.
+ * Note: GCC assumes ebx,ebp,edi,esi registers are not changed in each routine.
  */
 ENTRY(cpu_switch)
-	movl	4(%esp), %ebx		/* Point ebx to previous registers */
+	movl	4(%esp), %ecx		/* Point ecx to previous registers */
 	movl	(%esp), %eax		/* Get return address */
-	movl	%eax, 0(%ebx)		/* Save it as eip */
-	movl	%edi, 4(%ebx)		/* Save edi */
-	movl	%esi, 8(%ebx)		/* Save esi */
-	movl	%ebp, 12(%ebx)		/* Save ebp */
-	movl	%esp, 16(%ebx)		/* Save esp */
-	movl	8(%esp), %ebx		/* Point ebx to next registers */
-	movl	4(%ebx), %edi		/* Restore edi */
-	movl	8(%ebx), %esi		/* Restore esi */
-	movl	12(%ebx), %ebp		/* Restore ebp */
-	movl	16(%ebx), %esp		/* Restore esp */
-	movl	0(%ebx), %eax		/* Get eip */
+	movl	%eax, 0(%ecx)		/* Save it as eip */
+	movl	%ebx, 4(%ecx)		/* Save ebx */
+	movl	%edi, 8(%ecx)		/* Save edi */
+	movl	%esi, 12(%ecx)		/* Save esi */
+	movl	%ebp, 16(%ecx)		/* Save ebp */
+	movl	%esp, 20(%ecx)		/* Save esp */
+	movl	8(%esp), %ecx		/* Point ecx to next registers */
+	movl	4(%ecx), %ebx		/* Restore ebx */
+	movl	8(%ecx), %edi		/* Restore edi */
+	movl	12(%ecx), %esi		/* Restore esp */
+	movl	16(%ecx), %ebp		/* Restore ebp */
+	movl	20(%ecx), %esp		/* Restore esp */
+	movl	0(%ecx), %eax		/* Get eip */
 	movl	%eax, (%esp)		/* Restore it as return address */
 	ret
 
@@ -356,7 +339,7 @@ ENTRY(cpu_switch)
  * Copy data from user to kernel space.
  * Returns 0 on success, or EFAULT on page fault.
  *
- *  syntax - int umem_copyin(void *uaddr, void *kaddr, size_t len)
+ *  syntax - int umem_copyin(const void *uaddr, void *kaddr, size_t len)
  */
 	.global known_fault1
 ENTRY(umem_copyin)
@@ -371,7 +354,7 @@ ENTRY(umem_copyin)
 	movl	%esi, %edx		/* Check if valid user address */
 	addl	%ecx, %edx
 	jc	umem_fault
-	cmpl	$(USER_MAX), %edx
+	cmpl	$(UMEM_MAX), %edx
 	jae	umem_fault
 	cld
 known_fault1:				/* May be fault here */
@@ -388,7 +371,7 @@ known_fault1:				/* May be fault here */
  * Copy data to user from kernel space.
  * Returns 0 on success, or EFAULT on page fault.
  *
- *  syntax - int umem_copyout(void *kaddr, void *uaddr, size_t len)
+ *  syntax - int umem_copyout(const void *kaddr, void *uaddr, size_t len)
  */
 	.global known_fault2
 ENTRY(umem_copyout)
@@ -403,7 +386,7 @@ ENTRY(umem_copyout)
 	movl	%edi, %edx
 	addl	%ecx, %edx
 	jc	umem_fault
-	cmpl	$(USER_MAX), %edx
+	cmpl	$(UMEM_MAX), %edx
 	jae	umem_fault
 	cld
 known_fault2:
@@ -435,7 +418,7 @@ ENTRY(umem_strnlen)
 	movl	24(%esp), %esi
 
 	movl	%edi, %edx
-	cmpl	$(USER_MAX), %edx
+	cmpl	$(UMEM_MAX), %edx
 	jae	umem_fault
 	movl	%ecx, %edx
 	cld
@@ -478,3 +461,22 @@ null_idt:
 	.word	0
 	.long	0
 
+/*
+ * Pointer to boot infomation
+ */
+	.section ".rodata"
+.global	bootinfo
+bootinfo:
+	.long	BOOTINFO_BASE
+
+/*
+ * Interrupt nest counter.
+ *
+ * This counter is incremented in the entry of interrupt handler
+ * to switch the interrupt stack. Since all interrupt handlers
+ * share same one interrupt stack, each handler must pay attention
+ * to the stack overflow.
+ */
+	.section ".bss"
+irq_nesting:
+	.long	0

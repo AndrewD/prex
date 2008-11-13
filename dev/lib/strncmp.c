@@ -28,6 +28,7 @@
  */
 
 #include <sys/types.h>
+#include <drvlib.h>
 
 int
 strncmp(const char *src, const char *tgt, size_t count)

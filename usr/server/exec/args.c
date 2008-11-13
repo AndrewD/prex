@@ -83,7 +83,7 @@ build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
 		return ENOMEM;
 	memset((void *)mapped, 0, USTACK_SIZE);
 
-	sp = mapped + USTACK_SIZE - sizeof(int);
+	sp = mapped + USTACK_SIZE - sizeof(int) * 3;
 
 	/*
 	 * Copy items
@@ -117,21 +117,22 @@ build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
 	 * Build argument list
 	 */
 	argv[0] = (char *)((u_long)stack + (u_long)file - mapped);
+	DPRINTF(("exec: argv[0] = %s\n", argv[0]));
 
 	for (i = 1; i <= argc; i++) {
 		argv[i] = (char *)((u_long)stack + (arg_top - mapped));
-		while ((*(char *)arg_top)++ != '\0');
+		while ((*(char *)arg_top++) != '\0');
+		DPRINTF(("exec: argv[%d] = %s\n", i, argv[i]));
 	}
 	argv[argc + 1] = NULL;
 
 	for (i = 0; i < envc; i++) {
 		envp[i] = (char *)((u_long)stack + (arg_top - mapped));
-		while ((*(char *)arg_top)++ != '\0');
+		while ((*(char *)arg_top++) != '\0');
 	}
 	envp[envc] = NULL;
 
 	*new_sp = (void *)((u_long)stack + (sp - mapped));
-
 	vm_free(task_self(), (void *)mapped);
 
 	return 0;

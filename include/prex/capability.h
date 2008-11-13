@@ -31,6 +31,11 @@
 #define _PREX_CAPABILITY_H
 
 /*
+ * Type of capability
+ */
+typedef uint32_t	cap_t;
+
+/*
  * Task capabilities
  *
  * Bit 0:  Allow setting capability

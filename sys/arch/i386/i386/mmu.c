@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,15 @@
 
 #include <kernel.h>
 #include <page.h>
+#include <syspage.h>
 #include <cpu.h>
+#include <cpufunc.h>
+
+/*
+ * Boot page directory.
+ * This works as a template for all page directory.
+ */
+static pgd_t boot_pgd = (pgd_t)BOOT_PGD;
 
 /*
  * Map physical memory range into virtual address
@@ -47,66 +55,88 @@
  * Returns 0 on success, or -1 on failure.
  *
  * Map type can be one of the following type.
- *   PG_UNMAP - Remove mapping
- *   PG_READ  - Read only mapping
- *   PG_WRITE - Read/write allowed
+ *   PG_UNMAP  - Remove mapping
+ *   PG_READ   - Read only mapping
+ *   PG_WRITE  - Read/write allowed
+ *   PG_KERNEL - Kernel page
+ *   PG_IO     - I/O memory
  *
  * Setup the appropriate page tables for mapping. If there is no
- * page table for the specified address, new page table is allocated.
+ * page table for the specified address, new page table is
+ * allocated.
  *
  * This routine does not return any error even if the specified
  * address has been already mapped to other physical address.
  * In this case, it will just override the existing mapping.
  *
- * In order to unmap the page, pg_type is specified as 0.
- * But, the page tables are not released even if there is no valid
+ * In order to unmap the page, pg_type is specified as 0.  But,
+ * the page tables are not released even if there is no valid
  * page entry in it. All page tables are released when mmu_delmap()
  * is called when task is terminated.
  *
- * TODO: TLB should be flushed for specific page by invalpg in case of i486.
+ * TODO: TLB should be flushed for specific page by invalpg in
+ * case of i486.
  */
 int
 mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type)
 {
-	long pg_type;
-	page_table_t pte;
-	void *pg;	/* page */
-	u_long va, pa;
+	uint32_t pte_flag = 0;
+	uint32_t pde_flag = 0;
+	pte_t pte;
+	void *pg;
+	vaddr_t va;
+	paddr_t pa;
 
-	pa = PAGE_ALIGN(phys);
-	va = PAGE_ALIGN(virt);
-	size = PAGE_TRUNC(size);
+	pa = (paddr_t)PAGE_ALIGN(phys);
+	va = (vaddr_t)PAGE_ALIGN(virt);
+	size = (size_t)PAGE_TRUNC(size);
 
-	/* Build page type */
-	pg_type = 0;
+	/*
+	 * Set page flag
+	 */
 	switch (type) {
 	case PG_UNMAP:
+		pte_flag = 0;
+		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE | PDE_USER);
 		break;
 	case PG_READ:
-		pg_type = PTE_USER | PTE_PRESENT;
+		pte_flag = (uint32_t)(PTE_PRESENT | PTE_USER);
+		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE | PDE_USER);
 		break;
 	case PG_WRITE:
-		pg_type = PTE_USER | PTE_WRITE | PTE_PRESENT;
+		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_USER);
+		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE | PDE_USER);
 		break;
+	case PG_SYSTEM:
+		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE);
+		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE);
+		break;
+	case PG_IOMEM:
+		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE);
+		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_NCACHE);
+		break;
+	default:
+		panic("mmu_map");
 	}
-	/* Map all pages */
+	/*
+	 * Map all pages
+	 */
 	while (size > 0) {
 		if (pte_present(pgd, va)) {
 			/* Page table already exists for the address */
 			pte = pgd_to_pte(pgd, va);
 		} else {
-			ASSERT(pg_type != 0);
+			ASSERT(pte_flag != 0);
 			if ((pg = page_alloc(PAGE_SIZE)) == NULL) {
-				printk("Error: MMU mapping failed\n");
+				DPRINTF(("Error: MMU mapping failed\n"));
 				return -1;
 			}
-			pgd[PAGE_DIR(va)] =
-			    (u_long)pg | PDE_PRESENT | PDE_WRITE | PDE_USER;
-			pte = phys_to_virt(pg);
+			pgd[PAGE_DIR(va)] = (uint32_t)pg | pde_flag;
+			pte = (pte_t)phys_to_virt(pg);
 			memset(pte, 0, PAGE_SIZE);
 		}
 		/* Set new entry into page table */
-		pte[PAGE_TABLE(va)] = pa | pg_type;
+		pte[PAGE_TABLE(va)] = (uint32_t)pa | pte_flag;
 
 		/* Process next page */
 		pa += PAGE_SIZE;
@@ -119,28 +149,28 @@ mmu_map(pgd_t pgd, void *phys, void *virt, size_t size, int type)
 
 /*
  * Create new page map.
- * Returns a page directory on success, or NULL on failure.
- * This routine is called when new task is created. All page
- * map must have the same kernel page table in it. So, the kernel
- * page tables are copied to newly created map.
+ *
+ * Returns a page directory on success, or NULL on failure.  This
+ * routine is called when new task is created. All page map must
+ * have the same kernel page table in it. So, the kernel page
+ * tables are copied to newly created map.
  */
 pgd_t
 mmu_newmap(void)
 {
 	void *pg;
-	pgd_t pgd, kern_pgd;
-	u_long i;
+	pgd_t pgd;
+	int i;
 
 	/* Allocate page directory */
 	if ((pg = page_alloc(PAGE_SIZE)) == NULL)
 		return NULL;
-	pgd = phys_to_virt(pg);
+	pgd = (pgd_t)phys_to_virt(pg);
 	memset(pgd, 0, PAGE_SIZE);
 
 	/* Copy kernel page tables */
-	kern_pgd = phys_to_virt(KERNEL_PGD);
 	i = PAGE_DIR(PAGE_OFFSET);
-	memcpy(&pgd[i], &kern_pgd[i], 1024 - i);
+	memcpy(&pgd[i], &boot_pgd[i], (size_t)(1024 - i));
 	return pgd;
 }
 
@@ -150,16 +180,16 @@ mmu_newmap(void)
 void
 mmu_delmap(pgd_t pgd)
 {
-	u_long i;
-	page_table_t pte;
+	int i;
+	pte_t pte;
 
 	flush_tlb();
 
 	/* Release all user page table */
 	for (i = 0; i < PAGE_DIR(PAGE_OFFSET); i++) {
-		pte = (page_table_t)pgd[i];
+		pte = (pte_t)pgd[i];
 		if (pte != 0)
-			page_free((void *)((u_long)pte & PTE_ADDRESS),
+			page_free((void *)((paddr_t)pte & PTE_ADDRESS),
 				  PAGE_SIZE);
 	}
 	/* Release page directory */
@@ -176,7 +206,7 @@ mmu_delmap(pgd_t pgd)
 void
 mmu_switch(pgd_t pgd)
 {
-	u_long phys = (u_long)virt_to_phys(pgd);
+	uint32_t phys = (uint32_t)virt_to_phys(pgd);
 
 	if (phys != get_cr3())
 		set_cr3(phys);
@@ -190,11 +220,11 @@ mmu_switch(pgd_t pgd)
 void *
 mmu_extract(pgd_t pgd, void *virt, size_t size)
 {
-	page_table_t pte;
-	u_long start, end, pg;
+	pte_t pte;
+	vaddr_t start, end, pg;
 
 	start = PAGE_TRUNC(virt);
-	end = PAGE_TRUNC((u_long)virt + size - 1);
+	end = PAGE_TRUNC((vaddr_t)virt + size - 1);
 
 	/* Check all pages exist */
 	for (pg = start; pg <= end; pg += PAGE_SIZE) {
@@ -208,7 +238,7 @@ mmu_extract(pgd_t pgd, void *virt, size_t size)
 	/* Get physical address */
 	pte = pgd_to_pte(pgd, start);
 	pg = pte_to_page(pte, start);
-	return (void *)(pg + ((u_long)virt - start));
+	return (void *)(pg + ((vaddr_t)virt - start));
 }
 
 /*
@@ -227,45 +257,13 @@ mmu_extract(pgd_t pgd, void *virt, size_t size)
  * for 512M bytes system RAM.
  */
 void
-mmu_init(void)
+mmu_init(struct mmumap *mmumap_table)
 {
-	pgd_t kern_pgd;
-	int npages, nptes;
-	u_long pte_entry, pgd_index, *pte;
-	int i, j;
-	void *pg;
+	struct mmumap *map;
 
-	kern_pgd = phys_to_virt(KERNEL_PGD);
-	npages = boot_info->main_mem.size / PAGE_SIZE;
-	nptes = (npages + 1023) / 1024;
-	pgd_index = PAGE_DIR(PAGE_OFFSET);
-	pte_entry = 0 | PTE_PRESENT | PTE_WRITE;
-
-	/*
-	 * Build kernel page tables for whole physical pages.
-	 */
-	for (i = 0; i < nptes; i++) {
-		/* Allocate new page table */
-		if ((pg = page_alloc(PAGE_SIZE)) == NULL)
-			panic("mmu_init: out of memory");
-		pte = phys_to_virt(pg);
-		memset(pte, 0, PAGE_SIZE);
-
-		/* Fill all entries in this page table */
-		for (j = 0; j < 1024; j++) {
-			pte[j] = pte_entry;
-			pte_entry += PAGE_SIZE;
-			if (--npages <= 0)
-				break;
-		}
-		/* Set the page table address into page directory. */
-		kern_pgd[pgd_index] = (u_long)pg | PDE_PRESENT | PDE_WRITE;
-		pgd_index++;
+	for (map = mmumap_table; map->type != 0; map++) {
+		if (mmu_map(boot_pgd, (void *)map->phys, (void *)map->virt,
+			    map->size, map->type))
+			panic("mmu_init: map failed");
 	}
-	/* Unmap address 0 for NULL pointer detection in kernel mode */
-	pte = phys_to_virt(kern_pgd[PAGE_DIR(PAGE_OFFSET)] & PDE_ADDRESS);
-	pte[0] = 0;
-
-	/* Flush translation look-aside buffer */
-	flush_tlb();
 }

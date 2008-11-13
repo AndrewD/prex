@@ -30,8 +30,15 @@
 #ifndef _PM_H
 #define _PM_H
 
-extern int	pm_suspend(void);
-extern int	pm_poweroff(void);
-extern void	pm_active(void);
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+int	pm_suspend(void);
+int	pm_resume(void);
+int	pm_poweroff(void);
+int	pm_reboot(void);
+void	pm_active(void);
+int	pm_getpolicy(void);
+__END_DECLS
 
 #endif /* !_PM_H */

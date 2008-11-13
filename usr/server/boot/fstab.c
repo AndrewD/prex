@@ -33,6 +33,7 @@
 /*
  * File system table
  */
+
 const struct fstab fstab[] = {
 	/* Device     Mountpoint     VFSType    Options FStype Dump Pass# */
 #ifdef CONFIG_DEVFS
@@ -40,6 +41,9 @@ const struct fstab fstab[] = {
 #endif
 #ifdef CONFIG_RAMFS
 	{"/dev/ram0", "/boot",       "arfs",    "",     "",    0,   0},
+#endif
+#ifdef CONFIG_FIFOFS
+	{"",          "/fifo",       "fifofs",  "",     "",    0,   0},
 #endif
 #ifdef CONFIG_FATFS
 	{"/dev/fd0",  "/mnt/floppy", "fatfs",   "",     "",    0,   0},

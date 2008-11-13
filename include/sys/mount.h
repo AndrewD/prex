@@ -163,12 +163,12 @@ struct vfssw {
  * Operations supported on virtual file system.
  */
 struct vfsops {
-	int (*mount)	(mount_t mp, char *dev, int flags, void *data);
-	int (*unmount)	(mount_t mp);
-	int (*sync)	(mount_t mp);
-	int (*vget)	(mount_t mp, vnode_t vp);
-	int (*statfs)	(mount_t mp, struct statfs *sfp);
-	struct vnops	*vnops;
+	int (*vfs_mount)	(mount_t mp, char *dev, int flags, void *data);
+	int (*vfs_unmount)	(mount_t mp);
+	int (*vfs_sync)		(mount_t mp);
+	int (*vfs_vget)		(mount_t mp, vnode_t vp);
+	int (*vfs_statfs)	(mount_t mp, struct statfs *sfp);
+	struct vnops	*vfs_vnops;
 };
 
 typedef int (*vfsop_mount_t)(mount_t, char *, int, void *);
@@ -180,11 +180,11 @@ typedef int (*vfsop_statfs_t)(mount_t, struct statfs *);
 /*
  * VFS interface
  */
-#define VFS_MOUNT(MP, DEV, FL, DAT) ((MP)->m_op->mount)(MP, DEV, FL, DAT)
-#define VFS_UNMOUNT(MP)             ((MP)->m_op->unmount)(MP)
-#define VFS_SYNC(MP)                ((MP)->m_op->sync)(MP)
-#define VFS_VGET(MP, VP)            ((MP)->m_op->vget)(MP, VP)
-#define VFS_STATFS(MP, SFP)         ((MP)->m_op->statfs)(MP, SFP)
+#define VFS_MOUNT(MP, DEV, FL, DAT) ((MP)->m_op->vfs_mount)(MP, DEV, FL, DAT)
+#define VFS_UNMOUNT(MP)             ((MP)->m_op->vfs_unmount)(MP)
+#define VFS_SYNC(MP)                ((MP)->m_op->vfs_sync)(MP)
+#define VFS_VGET(MP, VP)            ((MP)->m_op->vfs_vget)(MP, VP)
+#define VFS_STATFS(MP, SFP)         ((MP)->m_op->vfs_statfs)(MP, SFP)
 
 #define VFS_NULL		    ((void *)vfs_null)
 

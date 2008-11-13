@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, Kohsuke Ohtani
+ * Copyright (c) 2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,11 +28,27 @@
  */
 
 /*
- * machdep.c - machine-dependent routines for Intel x86
+ * machdep.c - machine-dependent routines for GBA
  */
 
 #include <kernel.h>
 #include <cpu.h>
+#include <locore.h>
+
+/*
+ * Set system power
+ */
+void
+machine_setpower(int state)
+{
+
+	irq_lock();
+#ifdef DEBUG
+	printf("The system is halted. You can turn off power.");
+#endif
+	for (;;)
+		machine_idle();
+}
 
 /*
  * Machine-dependent startup code
@@ -42,14 +58,7 @@ machine_init(void)
 {
 
 	/*
-	 * Initialize GDB stub
+	 * Initialize CPU and basic hardware.
 	 */
-#ifdef CONFIG_GDB
-	gdb_init();
-#endif
-
-	/*
-	 * Initialize interrupt controller.
-	 */
-	interrupt_init();
+	cpu_init();
 }

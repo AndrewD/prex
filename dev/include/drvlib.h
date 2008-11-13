@@ -30,19 +30,25 @@
 #ifndef _DRVLIB_H
 #define _DRVLIB_H
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <machine/stdarg.h>
 
-extern long atol(char *nptr);
-extern char *strncpy(char *dest, const char *src, size_t count);
-extern int strncmp(const char *src, const char *tgt, size_t count);
-extern size_t strlcpy(char *dest, const char *src, size_t count);
-extern size_t strnlen(const char *str, size_t count);
-extern void *memcpy(void *dest, const void *src, size_t count);
-extern void *memset(void *dest, int ch, size_t count);
-extern uint32_t htonl(uint32_t);
-extern uint16_t htons(uint16_t);
-extern uint32_t ntohl(uint32_t);
-extern uint16_t ntohs(uint16_t);
+__BEGIN_DECLS
+long	 atol(const char *nptr);
+char	*strncpy(char *dest, const char *src, size_t count);
+int	 strncmp(const char *src, const char *tgt, size_t count);
+size_t	 strlcpy(char *dest, const char *src, size_t count);
+size_t	 strnlen(const char *str, size_t count);
+void	 *memcpy(void *dest, const void *src, size_t count);
+void	 *memset(void *dest, int ch, size_t count);
+uint32_t htonl(uint32_t);
+uint16_t htons(uint16_t);
+uint32_t ntohl(uint32_t);
+uint16_t ntohs(uint16_t);
+void	 delay_usec(u_long usec);
+void	 calibrate_delay(void);
+int	 drvlib_init(void);
+__END_DECLS
 
 #endif /* !_DRVLIB_H */

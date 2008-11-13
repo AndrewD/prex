@@ -46,6 +46,8 @@ main(int argc, char *argv[])
 {
 	pid_t pid;
 
+	setsid();
+
 	close(0);
 	close(1);
 	close(2);

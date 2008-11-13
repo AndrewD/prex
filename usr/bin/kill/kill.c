@@ -132,9 +132,9 @@ signame_to_signum(sig)
 		sig += 3;
 	for (n = 1; n < NSIG; n++) {
 		if (!strcasecmp(sys_signame[n], sig))
-			return (n);
+			return n;
 	}
-	return (-1);
+	return -1;
 }
 
 static void

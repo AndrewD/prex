@@ -31,11 +31,15 @@
 
 extern void	(*__cleanup)(void);	/* in exit() */
 
+void __console_write(char *, size_t);
+char __console_read(void);
+
+
 static device_t __console_dev;
 
 static int init_done = 0;
 
-void
+static void
 __stdio_exit(void)
 {
 

@@ -42,8 +42,6 @@
 #include <sync.h>
 #include <system.h>
 
-typedef void (*sysfn_t)(void);
-
 #define SYSENT(func)	(sysfn_t)(func)
 
 const sysfn_t syscall_table[] = {
@@ -108,4 +106,4 @@ const sysfn_t syscall_table[] = {
 	/* 58 */ SYSENT(sys_time),
 	/* 59 */ SYSENT(sys_debug),
 };
-const int nr_syscalls = (int)(sizeof(syscall_table) / (sizeof(sysfn_t)));
+const u_int nr_syscalls = sizeof(syscall_table) / sizeof(sysfn_t);

@@ -28,7 +28,7 @@
  */
 
 /*
- * mutex.c - test priority inheritence of mutex.
+ * mutex.c - test priority inheritance of mutex.
  */
 
 #include <prex/prex.h>

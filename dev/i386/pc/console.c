@@ -32,7 +32,8 @@
  */
 
 #include <driver.h>
-#include <cpu.h>
+#include <cpufunc.h>
+#include <console.h>
 #include <sys/tty.h>
 
 #define CRTC_INDEX	0x3d4
@@ -45,7 +46,7 @@
 static int console_init(void);
 static int console_read(device_t, char *, size_t *, int);
 static int console_write(device_t, char *, size_t *, int);
-static int console_ioctl(device_t, int, u_long);
+static int console_ioctl(device_t, u_long, void *);
 
 /*
  * Driver structure
@@ -56,6 +57,9 @@ struct driver console_drv = {
 	/* init */	console_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio console_io = {
 	/* open */	NULL,
 	/* close */	NULL,
@@ -89,7 +93,7 @@ scroll_up(void)
 {
 	int i;
 
-	memcpy(vram, vram + cols, cols * (rows - 1) * 2);
+	memcpy(vram, vram + cols, (size_t)(cols * (rows - 1) * 2));
 	for (i = 0; i < cols; i++)
 		vram[cols * (rows - 1) + i] = ' ' | (attrib << 8);
 }
@@ -101,23 +105,23 @@ move_cursor(void)
 
 	irq_lock();
 	outb(0x0e, CRTC_INDEX);
-	outb((u_char)((pos >> 8) & 0xff), CRTC_DATA);
+	outb((pos >> 8) & 0xff, CRTC_DATA);
 	outb(0x0f, CRTC_INDEX);
-	outb((u_char)(pos & 0xff), CRTC_DATA);
+	outb(pos & 0xff, CRTC_DATA);
 	irq_unlock();
 }
 
 static void
 reset_cursor(void)
 {
-	int offset;
+	u_int offset;
 
 	irq_lock();
 	outb(0x0e, CRTC_INDEX);
-	offset = inb(CRTC_DATA);
+	offset = (u_int)inb(CRTC_DATA);
 	offset <<= 8;
 	outb(0x0f, CRTC_INDEX);
-	offset += inb(CRTC_DATA);
+	offset += (u_int)inb(CRTC_DATA);
 	pos_x = offset % cols;
 	pos_y = offset / cols;
 	irq_unlock();
@@ -318,7 +322,7 @@ check_escape(char c)
 }
 
 static void
-put_char(char c)
+console_putc(char c)
 {
 
 	if (check_escape(c))
@@ -350,16 +354,19 @@ put_char(char c)
 	}
 }
 
+/*
+ * Start output operation.
+ */
 static void
-console_output(struct tty *tp)
+console_start(struct tty *tp)
 {
 	int c;
 
 	sched_lock();
 	while ((c = ttyq_getc(&tp->t_outq)) >= 0)
-		put_char(c);
+		console_putc(c);
 	move_cursor();
-	esc_index = 0;
+	tty_done(tp);
 	sched_unlock();
 }
 
@@ -387,10 +394,10 @@ console_write(device_t dev, char *buf, size_t *nbyte, int blkno)
  * I/O control
  */
 static int
-console_ioctl(device_t dev, int cmd, u_long arg)
+console_ioctl(device_t dev, u_long cmd, void *arg)
 {
 
-	return tty_ioctl(&console_tty, cmd, (void *)arg);
+	return tty_ioctl(&console_tty, cmd, arg);
 }
 
 /*
@@ -408,7 +415,7 @@ console_attach(struct tty **tpp)
  * Diag print handler
  */
 static void
-diag_print(char *str)
+console_puts(char *str)
 {
 	size_t count;
 	char c;
@@ -418,8 +425,7 @@ diag_print(char *str)
 		c = *str;
 		if (c == '\0')
 			break;
-		put_char(c);
-
+		console_putc(c);
 #if defined(CONFIG_DIAG_BOCHS)
 		if (inb(0xe9) == 0xe9) {
 			if (c == '\n')
@@ -441,11 +447,11 @@ diag_print(char *str)
 static int
 console_init(void)
 {
-	struct boot_info *boot_info;
+	struct bootinfo *bootinfo;
 
-	machine_bootinfo(&boot_info);
-	cols = boot_info->video.text_x;
-	rows = boot_info->video.text_y;
+	machine_bootinfo(&bootinfo);
+	cols = bootinfo->video.text_x;
+	rows = bootinfo->video.text_y;
 
 	esc_index = 0;
 	attrib = 0x0F;
@@ -454,10 +460,11 @@ console_init(void)
 	console_dev = device_create(&console_io, "console", DF_CHR);
 	reset_cursor();
 #if defined(DEBUG) && defined(CONFIG_DIAG_SCREEN)
-	debug_attach(diag_print);
+	debug_attach(console_puts);
 #endif
-	tty_register(&console_io, &console_tty, console_output);
-	console_tty.t_winsize.ws_row = rows;
-	console_tty.t_winsize.ws_col = cols;
+	tty_attach(&console_io, &console_tty);
+	console_tty.t_oproc = console_start;
+	console_tty.t_winsize.ws_row = (u_short)rows;
+	console_tty.t_winsize.ws_col = (u_short)cols;
 	return 0;
 }

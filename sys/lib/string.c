@@ -32,6 +32,7 @@
  */
 
 #include <sys/types.h>
+#include <kernel.h>
 
 /*
  * Safer version of strncpy
@@ -66,7 +67,7 @@ strlcpy(char *dest, const char *src, size_t count)
 int
 strncmp(const char *src, const char *tgt, size_t count)
 {
-	register signed char res = 0;
+	signed char res = 0;
 
 	while (count) {
 		if ((res = *src - *tgt++) != 0 || !*src++)

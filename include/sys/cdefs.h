@@ -35,6 +35,25 @@
 #ifndef	_SYS_CDEFS_H_
 #define	_SYS_CDEFS_H_
 
+/*
+ * Macro to test if we're using a GNU C compiler of a specific vintage
+ * or later, for e.g. features that appeared in a particular version
+ * of GNU C.  Usage:
+ *
+ *	#if __GNUC_PREREQ__(major, minor)
+ *	...cool feature...
+ *	#else
+ *	...delete feature...
+ *	#endif
+ */
+#ifdef __GNUC__
+#define	__GNUC_PREREQ__(x, y)						\
+	((__GNUC__ == (x) && __GNUC_MINOR__ >= (y)) ||			\
+	 (__GNUC__ > (x)))
+#else
+#define	__GNUC_PREREQ__(x, y)	0
+#endif
+
 #if defined(__cplusplus)
 #define	__BEGIN_DECLS	extern "C" {
 #define	__END_DECLS	};
@@ -43,19 +62,25 @@
 #define	__END_DECLS
 #endif
 
-#if defined(__STDC__) || defined(__cplusplus)
 #define	__CONCAT(x,y)	x ## y
 #define	__STRING(x)	#x
+
+#if defined(__cplusplus) || defined(__PCC__)
+#define	__inline	inline		/* convert to C++/C99 keyword */
 #else
-#define	__CONCAT(x,y)	x/**/y
-#define	__STRING(x)	"x"
+#ifndef __GNUC__
+#define	__inline			/* delete GCC keyword */
 #endif
+#endif /* !__cplusplus */
 
 #ifdef __GNUC__
 #define	__packed	__attribute__((__packed__))
 #define	__noreturn	__attribute__((__noreturn__))
 #elif defined(__lint__)
 #define	__packed	/* delete */
+#define	__noreturn	/* delete */
+#elif defined(__PCC__)
+#define	__packed	_Pragma("packed")
 #define	__noreturn	/* delete */
 #else
 #define	__packed	error: no __packed for this compiler

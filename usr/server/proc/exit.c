@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,54 +44,59 @@
 /*
  * Exit process.
  *
- * process_exit() sets the process state to zombie state, and it saves
- * the exit code for waiting process.
+ * process_exit() sets the process state to zombie state, and it
+ * saves the exit code for waiting process.
  */
 int
 proc_exit(struct msg *msg)
 {
-	int exit_code;
+	int exitcode;
 	struct proc *child, *parent;
 	list_t head, n;
 
 	if (curproc == NULL)
 		return EINVAL;
 
-	exit_code = msg->data[0];
-	dprintf("exit proc=%x task=%x code=%x\n", curproc,
-		msg->hdr.task, exit_code);
+	exitcode = msg->data[0];
+	DPRINTF(("exit pid=%d task=%x code=%x\n", curproc->p_pid,
+		 msg->hdr.task, exitcode));
 
-	if (curproc->stat == SZOMB)
+	if (curproc->p_stat == SZOMB)
 		return EBUSY;
 
-	curproc->stat = SZOMB;
-	curproc->exit_code = exit_code;
+	curproc->p_stat = SZOMB;
+	curproc->p_exitcode = exitcode;
 
 	/*
 	 * Set the parent pid of all child processes to 1 (init).
 	 */
-	head = &curproc->children;
-	for (n = list_first(head); n != head; n = list_next(n)) {
-		child = list_entry(n, struct proc, sibling);
-		child->parent = &initproc;
-		list_insert(&initproc.children, &child->sibling);
+	head = &curproc->p_children;
+	n = list_first(head);
+	while (n != head) {
+		child = list_entry(n, struct proc, p_sibling);
+		n = list_next(n);
+
+		child->p_parent = &initproc;
+		list_remove(&child->p_sibling);
+		list_insert(&initproc.p_children, &child->p_sibling);
 	}
+
 	/*
 	 * Resume parent process which is wating in vfork.
 	 */
-	parent = curproc->parent;
-	if (parent != NULL && parent->wait_vfork) {
+	parent = curproc->p_parent;
+	if (parent != NULL && parent->p_vforked) {
 		vfork_end(parent);
 
 		/*
 		 * The child task loses its stack data.
 		 * So, it can not run anymore.
 		 */
-		task_terminate(curproc->task);
+		task_terminate(curproc->p_task);
 	}
 
 	/* Send a signal to the parent process. */
-	exception_raise(curproc->parent->task, SIGCHLD);
+	exception_raise(curproc->p_parent->p_task, SIGCHLD);
 	return 0;
 }
 
@@ -110,22 +115,23 @@ proc_stop(struct msg *msg)
 		return EINVAL;
 
 	code = msg->data[0];
-	dprintf("stop task=%x code=%x\n", msg->hdr.task, code);
+	DPRINTF(("stop task=%x code=%x\n", msg->hdr.task, code));
 
-	if (curproc->stat == SZOMB)
+	if (curproc->p_stat == SZOMB)
 		return EBUSY;
 
-	curproc->stat = SSTOP;
-	curproc->exit_code = code;
+	curproc->p_stat = SSTOP;
+	curproc->p_exitcode = code;
 
 	/* Send a signal to the parent process. */
-	exception_raise(curproc->parent->task, SIGCHLD);
+	exception_raise(curproc->p_parent->p_task, SIGCHLD);
 	return 0;
 }
 
 /*
- * Find the zombie process in the child processes. It just returns
- * the pid and exit code if it find at least one zombie process.
+ * Find the zombie process in the child processes. It just
+ * returns the pid and exit code if it find at least one zombie
+ * process.
  *
  * The library stub for waitpid() will wait the SIGCHLD signal in
  * the stub code if there is no zombie process in child process.
@@ -136,7 +142,7 @@ int
 proc_waitpid(struct msg *msg)
 {
 	pid_t pid, pid_child;
-	int options, code;
+	int options, code, match;
 	struct proc *p;
 	list_t head, n;
 
@@ -145,10 +151,10 @@ proc_waitpid(struct msg *msg)
 
 	pid = (pid_t)msg->data[0];
 	options = msg->data[1];
-	dprintf("wait task=%x pid=%x options=%x\n",
-		msg->hdr.task, pid, options);
+	DPRINTF(("wait task=%x pid=%d options=%x\n", msg->hdr.task,
+		 pid, options));
 
-	if (list_empty(&curproc->children))
+	if (list_empty(&curproc->p_children))
 		return ECHILD;	/* No child process */
 
 	/* Set the default pid and exit code */
@@ -159,35 +165,52 @@ proc_waitpid(struct msg *msg)
 	 * Check all processes.
 	 */
 	p = NULL;
-	head = &curproc->children;
+	head = &curproc->p_children;
 	for (n = list_first(head); n != head; n = list_next(n)) {
-		p = list_entry(n, struct proc, sibling);
+		p = list_entry(n, struct proc, p_sibling);
 
 		/*
 		 * Check if pid matches.
 		 */
+		match = 0;
 		if (pid > 0) {
-			if (p->pid != pid)
-				continue;
+			/*
+			 * Wait a specific child process.
+			 */
+			if (p->p_pid == pid)
+				match = 1;
 		} else if (pid == 0) {
-			if (p->pgrp->pgid != curproc->pgrp->pgid)
-				continue;
+			/*
+			 * Wait a process who has same pgid.
+			 */
+			if (p->p_pgrp->pg_pgid == curproc->p_pgrp->pg_pgid)
+				match = 1;
 		} else if (pid != -1) {
-			if (p->pgrp->pgid != -pid)
-				continue;
+			/*
+			 * Wait a specific pgid.
+			 */
+			if (p->p_pgrp->pg_pgid == -pid)
+				match = 1;
+		} else {
+			/*
+			 * pid = -1 means wait any child process.
+			 */
+			match = 1;
 		}
-		/*
-		 * Get the exit code.
-		 */
-		if (p->stat == SSTOP) {
-			pid_child = p->pid;
-			code = p->exit_code;
-			break;
-		} else if (p->stat == SZOMB) {
-			pid_child = p->pid;
-			code = p->exit_code;
-			proc_cleanup(p);
-			break;
+		if (match) {
+			/*
+			 * Get the exit code.
+			 */
+			if (p->p_stat == SSTOP) {
+				pid_child = p->p_pid;
+				code = p->p_exitcode;
+				break;
+			} else if (p->p_stat == SZOMB) {
+				pid_child = p->p_pid;
+				code = p->p_exitcode;
+				proc_cleanup(p);
+				break;
+			}
 		}
 	}
 	msg->data[0] = pid_child;

@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <prex/sysinfo.h>
+#include <prex/capability.h>
 
 /*
  * vm_option for task_crate()
@@ -85,13 +86,7 @@
  */
 #define DUMP_THREAD	1
 #define DUMP_TASK	2
-#define DUMP_OBJECT	3
-#define DUMP_TIMER	4
-#define DUMP_IRQ	5
-#define DUMP_DEVICE	6
-#define DUMP_VM		7
-#define DUMP_MSGLOG	8
-#define DUMP_TRACE	9
+#define DUMP_VM		3
 
 __BEGIN_DECLS
 int	object_create(const char *name, object_t *obj);
@@ -109,7 +104,7 @@ int	vm_map(task_t target, void  *addr, size_t size, void **alloc);
 
 int	task_create(task_t parent, int vm_option, task_t *child);
 int	task_terminate(task_t task);
-task_t	 task_self(void);
+task_t	task_self(void);
 int	task_suspend(task_t task);
 int	task_resume(task_t task);
 int	task_name(task_t task, const char *name);
@@ -128,13 +123,13 @@ int	thread_setprio(thread_t th, int	prio);
 int	thread_getpolicy(thread_t th, int *policy);
 int	thread_setpolicy(thread_t th, int policy);
 
-int	timer_sleep(u_long delay, u_long *remain);
-int	timer_alarm(u_long delay, u_long *remain);
+int	timer_sleep(u_long msec, u_long *remain);
+int	timer_alarm(u_long msec, u_long *remain);
 int	timer_periodic(thread_t th, u_long start, u_long period);
 int	timer_waitperiod(void);
 
-int	exception_setup(void (*handler)(int, void *));
-int	exception_return(void *regs);
+int	exception_setup(void (*handler)(int));
+int	exception_return(void);
 int	exception_raise(task_t task, int excpt);
 int	exception_wait(int *excpt);
 
@@ -142,7 +137,7 @@ int	device_open(const char *name, int mode, device_t *dev);
 int	device_close(device_t dev);
 int	device_read(device_t dev, void *buf, size_t *nbyte, int blkno);
 int	device_write(device_t dev, void *buf, size_t *nbyte, int blkno);
-int	device_ioctl(device_t dev, int cmd, u_long arg);
+int	device_ioctl(device_t dev, u_long cmd, void *arg);
 
 int	mutex_init(mutex_t *mu);
 int	mutex_destroy(mutex_t *mu);
@@ -164,17 +159,14 @@ int	sem_post(sem_t *sem);
 int	sem_getvalue(sem_t *sem, u_int *value);
 
 int	sys_info(int type, void *buf);
-int	sys_log(const char *);
-void	sys_panic(const char *);
+int	sys_log(const char *msg);
+void	sys_panic(const char *msg);
 int	sys_time(u_long *ticks);
-int	sys_debug(int cmd, ...);
+int	sys_debug(int cmd, void *data);
+void	sys_panic(const char *msg);
 
-/* wrapper for sys_panic */
-#ifdef DEBUG
-void panic(const char *, ...);
-#else
-#define panic(fmt...) sys_panic(NULL);
-#endif
+void	panic(const char *fmt, ...);
+void	dprintf(const char *fmt, ...);
 __END_DECLS
 
 #endif /* KERNEL */

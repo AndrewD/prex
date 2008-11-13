@@ -48,33 +48,33 @@
 
 /*
  * Initialization code.
- * This is called from kernel_start() routine that
- * is implemented in the architecture dependent layer.
- * We assumes that the following machine state are
- * already set before this routine.
+ *
+ * Called from kernel_start() routine that is
+ * implemented in the architecture dependent layer.
+ * We assume that the following machine state has
+ * been already set before this routine.
  *	- Kernel BSS section is filled with 0.
  *	- Kernel stack is configured.
  *	- All interrupts are disabled.
- *	- Minimum page table is set. (MMU only)
+ *	- Minimum page table is set. (MMU systems only)
  */
-void
-kernel_main(void)
+int
+main(void)
 {
 
 	/*
 	 * Do machine-dependent
 	 * initialization.
 	 */
-	diag_init();
-	printk(BANNAR);
 	sched_lock();
+	diag_init();
+	DPRINTF((BANNER));
+	page_init();
 	machine_init();
 
 	/*
 	 * Initialize memory managers.
 	 */
-	page_init();
-	mmu_init();
 	kmem_init();
 	vm_init();
 
@@ -107,10 +107,8 @@ kernel_main(void)
 	 */
 	task_bootstrap();
 	sched_unlock();
-
-	/*
-	 * Enter idle loop.
-	 */
 	thread_idle();
+
 	/* NOTREACHED */
+	return 0;
 }

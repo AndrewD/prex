@@ -30,7 +30,8 @@
 #ifndef _TASK_H
 #define _TASK_H
 
-#include <prex/capability.h>
+#include <sys/cdefs.h>
+#include <prex/capability.h>	/* for cap_t */
 #include <timer.h>
 
 /*
@@ -42,34 +43,37 @@ struct task {
 	struct list	link;		/* link for all tasks in system */
 	struct list	objects;	/* objects owned by this task */
 	struct list	threads;	/* threads in this task */
-	vm_map_t	map;		/* virtual memory map */
-	int		suspend_count;	/* suspend counter */
+	vm_map_t	map;		/* address space description */
+	int		suscnt;		/* suspend counter */
 	cap_t		capability;	/* security permission flag */
 	struct timer	alarm;		/* alarm timer */
-	void (*exc_handler)(int, u_long); /* pointer to excepion handler */
-	struct task	*parent;	/* parent task */
+	void (*handler)(int);		/* pointer to exception handler */
+	task_t		parent;		/* parent task */
 };
 
 #define cur_task()	  (cur_thread->task)
 #define task_valid(tsk)	  (kern_area(tsk) && ((tsk)->magic == TASK_MAGIC))
-#define task_capable(cap) ((int)(cur_task()->capability & (cap)))
 
 /* vm option for task_create(). */
 #define VM_NEW		0	/* Create new memory map */
 #define VM_SHARE	1	/* Share parent's memory map */
 #define VM_COPY		2	/* Duplicate parent's memory map */
 
-extern int	 task_create(task_t, int, task_t *);
-extern int	 task_terminate(task_t);
-extern task_t	 task_self(void);
-extern int	 task_suspend(task_t);
-extern int	 task_resume(task_t);
-extern int	 task_name(task_t, const char *);
-extern int	 task_getcap(task_t, cap_t *);
-extern int	 task_setcap(task_t, cap_t *);
-extern int	 task_access(task_t);
-extern void	 task_bootstrap(void);
-extern void	 task_dump(void);
-extern void	 task_init(void);
+
+__BEGIN_DECLS
+int	 task_create(task_t, int, task_t *);
+int	 task_terminate(task_t);
+task_t	 task_self(void);
+int	 task_suspend(task_t);
+int	 task_resume(task_t);
+int	 task_name(task_t, const char *);
+int	 task_getcap(task_t, cap_t *);
+int	 task_setcap(task_t, cap_t *);
+int	 task_capable(cap_t);
+int	 task_access(task_t);
+void	 task_bootstrap(void);
+void	 task_dump(void);
+void	 task_init(void);
+__END_DECLS
 
 #endif /* !_TASK_H */

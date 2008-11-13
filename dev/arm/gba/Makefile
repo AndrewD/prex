@@ -2,7 +2,7 @@ include $(SRCDIR)/mk/own.mk
 
 TARGET=		dev.o
 TYPE=		OBJECT
-OBJS-y= 	../arm/start.o machdep.o
+OBJS-y= 	../arm/start.o
 
 OBJS-$(CONFIG_CONSOLE)+=	console.o
 OBJS-$(CONFIG_KEYPAD)+=		keypad.o

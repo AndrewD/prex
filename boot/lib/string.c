@@ -32,6 +32,7 @@
  */
 
 #include <sys/types.h>
+#include <boot.h>
 
 char *strncpy(char *dest, const char *src, size_t count)
 {

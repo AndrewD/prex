@@ -42,18 +42,17 @@
  */
 
 #include <driver.h>
-#include <cpu.h>
+#include <cpufunc.h>
 
 #include "kmc.h"
 
-/* #define DEBUG_MOUSE */
+/* #define DEBUG_MOUSE 1 */
 
 #ifdef DEBUG_MOUSE
-#define mou_printf(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
+#define DPRINTF(a) printf a
 #else
-#define mou_printf(fmt, args...)	do {} while (0)
+#define DPRINTF(a)
 #endif
-
 
 #define MOUSE_IRQ	12
 
@@ -71,6 +70,9 @@ struct driver mouse_drv = {
 	/* init */	mouse_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio mouse_io = {
 	/* open */	mouse_open,
 	/* close */	mouse_close,
@@ -81,7 +83,7 @@ static struct devio mouse_io = {
 };
 
 static device_t mouse_dev;	/* Mouse object */
-static int mouse_irq;		/* Handle for mouse irq */
+static irq_t mouse_irq;		/* Handle for mouse irq */
 static u_char packet[3];	/* Mouse packet */
 static int index = 0;
 
@@ -89,10 +91,10 @@ static int index = 0;
  * Write aux device command
  */
 static void
-aux_command(int val)
+aux_command(u_char val)
 {
 
-	mou_printf("%x\n", val);
+	DPRINTF(("aux_command: %x\n", val));
 	wait_ibe();
 	outb(0x60, KMC_CMD);
 	wait_ibe();
@@ -103,11 +105,11 @@ aux_command(int val)
  * Returns 0 on success, -1 on failure.
  */
 static int
-aux_write(int val)
+aux_write(u_char val)
 {
 	int rc = -1;
 
-	mou_printf("val=%x\n", val);
+	DPRINTF(("aux_write: val=%x\n", val));
 	irq_lock();
 
 	/* Write the value to the device */
@@ -125,7 +127,7 @@ aux_write(int val)
 	irq_unlock();
 #ifdef DEBUG_MOUSE
 	if (rc)
-		mou_printf("error val=%x\n", val);
+		printf("aux_write: error val=%x\n", val);
 #endif
 	return rc;
 }
@@ -143,12 +145,12 @@ mouse_isr(int irq)
 
 	dat = inb(KMC_DATA);
 	if (dat == 0xaa) {	/* BAT comp (reconnect) ? */
-		printk("BAT comp");
+		DPRINTF(("BAT comp"));
 		index = 0;
 		wait_obf();
 		if ((inb(KMC_STS) & 0x20) == 0x20) {
 			id = inb(KMC_DATA);
-			printk("Mouse ID=%x\n", id);
+			DPRINTF(("Mouse ID=%x\n", id));
 		}
 		aux_write(0xf4);	/* Enable aux device */
 		return 0;
@@ -158,7 +160,7 @@ mouse_isr(int irq)
 	if (index < 3)
 		return 0;
 	index = 0;
-	mou_printf("%x:%d:%d\n", packet[0], packet[1], packet[2]);
+	DPRINTF(("mouse packet %x:%d:%d\n", packet[0], packet[1], packet[2]));
 	return 0;
 }
 
@@ -168,7 +170,7 @@ mouse_isr(int irq)
 static int
 mouse_open(device_t dev, int mode)
 {
-	mou_printf("dev=%x\n", dev);
+	DPRINTF(("mouse_open: dev=%x\n", dev));
 	return 0;
 }
 
@@ -178,7 +180,7 @@ mouse_open(device_t dev, int mode)
 static int
 mouse_close(device_t dev)
 {
-	mou_printf("dev=%x\n", dev);
+	DPRINTF(("mouse_close: dev=%x\n", dev));
 	return 0;
 }
 
@@ -198,15 +200,16 @@ static int
 mouse_init(void)
 {
 
+#ifdef DEBUG
 	printk("Mouse sampling rate=100 samples/sec\n");
-
+#endif
 	/* Create device object */
 	mouse_dev = device_create(&mouse_io, "mouse", DF_CHR);
 	ASSERT(mouse_dev);
 
 	/* Allocate IRQ */
 	mouse_irq = irq_attach(MOUSE_IRQ, IPL_INPUT, 0, mouse_isr, NULL);
-	ASSERT(mouse_irq != -1);
+	ASSERT(mouse_irq != IRQ_NULL);
 
 	wait_ibe();
 	outb(0xa8, KMC_CMD);	/* Enable aux */

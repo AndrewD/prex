@@ -30,25 +30,22 @@
 /*
  * debug.c - loader debug functions
  */
-#include <prex/bootinfo.h>
-#include <platform.h>
+
 #include <boot.h>
 
-#undef printk
-
+#ifdef DEBUG
 /*
- * printk - print formated string
+ * printf - print formated string
  */
 void
-printk(const char *fmt, ...)
+printf(const char *fmt, ...)
 {
-#ifdef DEBUG
-	static const char digits[16] = "0123456789abcdef";
+	static const char digits[] = "0123456789abcdef";
 	va_list ap;
 	char buf[10];
 	char *s;
-	unsigned r, u;
-	int c;
+	unsigned u;
+	int c, i, pad;
 
 	va_start(ap, fmt);
 	while ((c = *fmt++)) {
@@ -56,30 +53,48 @@ printk(const char *fmt, ...)
 			c = *fmt++;
 			switch (c) {
 			case 'c':
-				putc(va_arg(ap, int));
+				machine_putc(va_arg(ap, int));
 				continue;
 			case 's':
-				for (s = va_arg(ap, char *); *s; s++)
-					putc((int)*s);
+				s = va_arg(ap, char *);
+				if (s == NULL)
+					s = "<NULL>";
+				for (; *s; s++) {
+					machine_putc((int)*s);
+				}
 				continue;
+			case 'd':
+				c = 'u';
 			case 'u':
 			case 'x':
-				r = c == 'u' ? 10U : 16U;
 				u = va_arg(ap, unsigned);
 				s = buf;
-				do
-					*s++ = digits[u % r];
-				while (u /= r);
+				if (c == 'u') {
+					do
+						*s++ = digits[u % 10U];
+					while (u /= 10U);
+				} else {
+					pad = 0;
+					for (i = 0; i < 8; i++) {
+						if (pad)
+							*s++ = '0';
+						else {
+							*s++ = digits[u % 16U];
+							if ((u /= 16U) == 0)
+								pad = 1;
+						}
+					}
+				}
 				while (--s >= buf)
-					putc((int)*s);
+					machine_putc((int)*s);
 				continue;
 			}
 		}
-		putc((int)c);
+		machine_putc((int)c);
 	}
 	va_end(ap);
-#endif /* DEBUG */
 }
+#endif /* DEBUG */
 
 /*
  * Show error and hang up.
@@ -88,6 +103,9 @@ void
 panic(const char *msg)
 {
 
-	printk("Panic: %s\n", msg);
-	for (;;);
+#ifdef DEBUG
+	printf("Panic: %s\n", msg);
+#endif
+	machine_panic();
+	/* NOTREACHED */
 }

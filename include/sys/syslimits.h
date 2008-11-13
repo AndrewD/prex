@@ -42,7 +42,7 @@
 #define	NGROUPS_MAX		   16	/* max supplemental group id's */
 #define	OPEN_MAX      CONFIG_OPEN_MAX	/* max open files per process */
 #define	PATH_MAX		  256	/* max bytes in pathname (include null)*/
-#define	PIPE_BUF		  512	/* max bytes for atomic pipe writes */
+#define	PIPE_BUF		 1024	/* max bytes for atomic pipe writes */
 #define	LINE_MAX		  256	/* max bytes in an input line */
 
 #endif

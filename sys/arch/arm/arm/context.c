@@ -49,69 +49,68 @@
 #include <locore.h>
 
 /*
- * Initialize specified context.
- * @ctx: context id (pointer)
- * @kstack: kernel stack for the context
- *
- * All thread will start at the trap return routine - syscall_ret().
- * In this time, the interrupt flag is enabled and I/O access
- * is disabled.
- */
-void
-context_init(context_t ctx, u_long kstack)
-{
-	struct kern_regs *k;
-	struct cpu_regs *u;
-
-	ctx->uregs = (struct cpu_regs *)(kstack - sizeof(struct cpu_regs));
-
-	/* Initialize kernel mode registers */
-	k = &ctx->kregs;
-	k->lr = (u_long)syscall_ret;
-	k->sp = (u_long)ctx->uregs;
-
-	/* Reset minimum user mode registers */
-	u = ctx->uregs;
-	u->r0 = 0;
-	u->r1 = 0x11111111;
-	u->r2 = 0x22222222;
-	u->r3 = 0x33333333;
-	u->svc_sp = kstack;
-	u->cpsr = PSR_APP_MODE;	/* FIQ/IRQ is enabled */
-}
-
-/*
  * Set data to the specific register stored in context.
- * @type: register type to be set
- * @val: register value to be set
  *
  * Note: When user mode program counter is set, all register
  * values except stack pointer are reset to default value.
  */
 void
-context_set(context_t ctx, int type, u_long val)
+context_set(context_t ctx, int type, vaddr_t val)
 {
 	struct kern_regs *k;
 	struct cpu_regs *u;
 
+	k = &ctx->kregs;
+
 	switch (type) {
-	case CTX_UENTRY:	/* User mode program counter */
+	case CTX_KSTACK:
+		/* Set kernel mode stack pointer */
+		ctx->uregs = (struct cpu_regs *)
+			((vaddr_t)val - sizeof(struct cpu_regs));
+		k->sp = (uint32_t)ctx->uregs;
+
+		/* Reset minimum user mode registers */
+		u = ctx->uregs;
+		u->r0 = 0;
+		u->r1 = 0x11111111;
+		u->r2 = 0x22222222;
+		u->r3 = 0x33333333;
+		u->svc_sp = (uint32_t)val;
+		u->cpsr = PSR_APP_MODE;	/* FIQ/IRQ is enabled */
+		break;
+
+	case CTX_KENTRY:
+		/* Kernel mode program counter */
+		k->lr = (uint32_t)&kernel_thread_entry;
+		k->r4 = (uint32_t)val;
+		break;
+
+	case CTX_KARG:
+		/* Kernel mode argument */
+		k->r5 = (uint32_t)val;
+		break;
+
+	case CTX_USTACK:
+		/* User mode stack pointer */
+		u = ctx->uregs;
+		u->sp = (uint32_t)val;
+		break;
+
+	case CTX_UENTRY:
+		/* User mode program counter */
 		u = ctx->uregs;
 		u->cpsr = PSR_APP_MODE;	/* FIQ/IRQ is enabled */
-		u->pc = u->lr = val;
+		u->pc = u->lr = (uint32_t)val;
 		break;
-	case CTX_USTACK:	/* User mode stack pointer */
+
+	case CTX_UARG:
+		/* User mode argument */
 		u = ctx->uregs;
-		u->sp = val;
+		u->r0 = val;		/* Argument 1 */
 		break;
-	case CTX_KENTRY:	/* Kernel mode program counter */
-		k = &ctx->kregs;
-		k->lr = (u_long)kernel_thread_entry;
-		k->r4 = val;	/* Entry point */
-		break;
-	case CTX_KARG:		/* Kernel mode argument */
-		k = &ctx->kregs;
-		k->r5 = val;
+
+	default:
+		/* invalid */
 		break;
 	}
 }
@@ -119,14 +118,8 @@ context_set(context_t ctx, int type, u_long val)
 /*
  * Switch to new context
  *
- * Kernel mode registers and kernel stack pointer are switched to the
- * next context.
- *
- * We don't use x86 task switch mechanism to minimize the context space.
- * The system has only one TSS(task state segment), and the context
- * switching is done by changing the register value in this TSS. Processor
- * will reload them automatically when it enters to the kernel mode in
- * next time.
+ * Kernel mode registers and kernel stack pointer are switched to
+ * the next context.
  *
  * It is assumed all interrupts are disabled by caller.
  *
@@ -140,7 +133,6 @@ context_switch(context_t prev, context_t next)
 
 /*
  * Save user mode context to handle exceptions.
- * @exc: exception code passed to the exception handler
  *
  * Copy current user mode registers in the kernel stack to the user
  * mode stack. The user stack pointer is adjusted for this area.
@@ -153,34 +145,32 @@ context_switch(context_t prev, context_t next)
  *   void exception_handler(int exc, void *regs);
  */
 void
-context_save(context_t ctx, int exc)
+context_save(context_t ctx)
 {
 	struct cpu_regs *cur, *sav;
 
 	/* Copy current register context into user mode stack */
 	cur = ctx->uregs;
 	sav = (struct cpu_regs *)(cur->sp - sizeof(struct cpu_regs));
-	memcpy(sav, cur, sizeof(struct cpu_regs));
+	*sav = *cur;
+
+	ctx->saved_regs = sav;
 
 	/* Setup arguments for exception handler */
-	cur->sp = (u_long)sav;
-	cur->r0 = exc;		/* Argument 1 */
-	cur->r1 = (u_long)sav;	/* Argument 2 */
-	cur->r2 = 0xdeadbeef;	/* Tag */
+	cur->sp = (uint32_t)sav;
 }
 
 /*
  * Restore register context to return from the exception handler.
- * @regs: pointer to user mode register context.
  */
 void
-context_restore(context_t ctx, void *regs)
+context_restore(context_t ctx)
 {
 	struct cpu_regs *cur;
 
 	/* Restore user mode context */
 	cur = ctx->uregs;
-	memcpy(cur, regs, sizeof(struct cpu_regs));
+	*cur = *ctx->saved_regs;
 
 	/* Correct some registers for fail safe */
 	cur->cpsr = PSR_APP_MODE;

@@ -33,8 +33,8 @@
 
 #include <driver.h>
 
-static int null_read(device_t dev, char *buf, size_t *nbyte, int blkno);
-static int null_write(device_t dev, char *buf, size_t *nbyte, int blkno);
+static int null_read(device_t, char *, size_t *, int);
+static int null_write(device_t, char *, size_t *, int);
 static int null_init(void);
 
 /*
@@ -46,6 +46,9 @@ struct driver null_drv = {
 	/* init */	null_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio null_io = {
 	/* open */	NULL,
 	/* close */	NULL,

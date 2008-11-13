@@ -8,7 +8,4 @@ ifndef SRCDIR
 exit 1
 endif
 
--include $(SRCDIR)/conf/$(ARCH)/Makefile.$(ARCH)
--include $(SRCDIR)/conf/$(ARCH)/Makefile.$(ARCH)-$(PLATFORM)
-
 endif

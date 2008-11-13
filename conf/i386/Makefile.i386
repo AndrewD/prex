@@ -1,2 +1,0 @@
-OBJCOPYFLAGS+=	-I elf32-i386 -O binary -R .note -R .comment -S
-CFLAGS+=	-march=i386 -mpreferred-stack-boundary=2

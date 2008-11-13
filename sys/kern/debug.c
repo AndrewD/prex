@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,63 +33,67 @@
 
 #include <kernel.h>
 #include <task.h>
-#include <ipc.h>
 #include <thread.h>
-#include <device.h>
-#include <page.h>
-#include <kmem.h>
 #include <vm.h>
 #include <irq.h>
 
 #ifdef DEBUG
 
-#ifdef printk
-#undef printk
-#endif
-#ifdef panic
-#undef panic
-#endif
+/*
+ * diag_print() is provided by architecture dependent layer.
+ */
+typedef void (*prtfn_t)(char *);
+static prtfn_t	print_func = &diag_print;
 
-#ifdef CONFIG_DMESG
-#define LOG_SIZE	2048		/* size of ring buffer for log */
-#define LOG_MASK	(LOG_SIZE-1)
-
-static void log_save(char *buf);
-
-static char log_buf[LOG_SIZE];		/* buffer for message log */
-static u_long log_start;		/* start index of log_buf */
-static u_long log_end;			/* end index of log_buf */
-static u_long log_len;			/* length of logged char */
-#endif
-
-static char msg_buf[MSGBUFSZ];		/* temporary buffer for message */
-static void (*alt_print)(char *);	/* alternate print handler */
+static char	dbg_msg[DBGMSG_SIZE];
 
 /*
- * Print out the specified string with a variable argument.
+ * dmesg support
+ */
+static char	log_buf[LOGBUF_SIZE];
+static u_long	log_head;
+static u_long	log_tail;
+static u_long	log_len;
+
+#define LOGINDEX(x)	((x) & (LOGBUF_SIZE - 1))
+
+/*
+ * Print out the specified string.
  *
- * An actual output is displayed via the platform specific device by
- * diag_print() routine in kernel. As an alternate option, the device
- * driver can replace the print routine by using debug_attach().
- * All printk() inside the kernel are defined as a macro.
- * The printk() macro is compiled only when the debug option is
- * enabled (NDEBUG=0).
+ * An actual output is displayed via the platform
+ * specific device by diag_print() routine in kernel.
+ * As an alternate option, the device driver can
+ * replace the print routine by using debug_attach().
  */
 void
-printk(const char *fmt, ...)
+printf(const char *fmt, ...)
 {
 	va_list args;
+	int i;
+	char c;
 
 	irq_lock();
 	va_start(args, fmt);
-	vsprintf(msg_buf, fmt, args);
-#ifdef CONFIG_DMESG
-	log_save(msg_buf);
-#endif
-	if (alt_print != NULL)
-		alt_print(msg_buf);
-	else
-		diag_print(msg_buf);
+
+	vsprintf(dbg_msg, fmt, args);
+
+	/* Print out */
+	(*print_func)(dbg_msg);
+
+	/*
+	 * Record to log buffer
+	 */
+	for (i = 0; i < DBGMSG_SIZE; i++) {
+		c = dbg_msg[i];
+		if (c == '\0')
+			break;
+		log_buf[LOGINDEX(log_tail)] = c;
+		log_tail++;
+		if (log_len < LOGBUF_SIZE)
+			log_len++;
+		else
+			log_head = log_tail - LOGBUF_SIZE;
+	}
 	va_end(args);
 	irq_unlock();
 }
@@ -97,16 +101,17 @@ printk(const char *fmt, ...)
 /*
  * Kernel assertion.
  *
- * assert() is called only when the expression is false in ASSERT()
- * macro. ASSERT() macro is compiled only when the debug option is
- * enabled.
+ * assert() is called only when the expression is false in
+ * ASSERT() macro. ASSERT() macro is compiled only when
+ * the debug option is enabled.
  */
 void
 assert(const char *file, int line, const char *exp)
 {
+
 	irq_lock();
-	printk("\nAssertion failed: %s line:%d '%s'\n", file, line, exp);
-	BREAKPOINT();
+	printf("\nAssertion failed: %s line:%d '%s'\n",
+	       file, line, exp);
 	for (;;)
 		machine_idle();
 	/* NOTREACHED */
@@ -115,108 +120,72 @@ assert(const char *file, int line, const char *exp)
 /*
  * Kernel panic.
  *
- * panic() is called for a fatal kernel error. It shows specified
- * message, and stops CPU. If the kernel is not debug version,
- * panic() macro will reset the system instead of calling this
- * routine.
+ * panic() is called for a fatal kernel error. It shows
+ * specified message, and stops CPU.
  */
 void
-panic(const char *fmt, ...)
+panic(const char *msg)
 {
-	va_list args;
 
 	irq_lock();
-	printk("\nKernel panic: ");
-	va_start(args, fmt);
-	vsprintf(msg_buf, fmt, args);
-	printk(msg_buf);
-	va_end(args);
-	printk("\n");
+	printf("\nKernel panic: %s\n", msg);
 	irq_unlock();
-	BREAKPOINT();
 	for (;;)
 		machine_idle();
 	/* NOTREACHED */
 }
 
-#ifdef CONFIG_DMESG
 /*
- * Save diag message to ring buffer
- */
-static void
-log_save(char *buf)
-{
-	char *p;
-
-	for (p = buf; *p != '\0'; p++) {
-		log_buf[log_end & LOG_MASK] = *p;
-		log_end++;
-		if (log_end - log_start > LOG_SIZE)
-			log_start = log_end - LOG_SIZE;
-		if (log_len < LOG_SIZE)
-			log_len++;
-	}
-	/* Store end tag */
-	log_buf[log_end & LOG_MASK] = -1;
-}
-#endif
-
-/*
- * Return infomation about log
+ * Copy log to user buffer.
  */
 int
-log_get(char **buf, size_t *size)
+debug_getlog(char *buf)
 {
-
-#ifdef CONFIG_DMESG
-	*buf = log_buf;
-	*size = LOG_SIZE;
-	return 0;
-#else
-	return -1;
-#endif
-}
-
-#if defined(CONFIG_DMESG) && defined (CONFIG_KDUMP)
-static void
-log_dump(void)
-{
-	int i, len;
-	u_long index;
+	u_long i, len, index;
+	int err = 0;
 	char c;
 
-	index = log_start;
+	irq_lock();
+	index = log_head;
 	len = log_len;
-	if (log_len == LOG_SIZE) {
-		/* Skip first line */
-		while (log_buf[index & LOG_MASK] != '\n') {
+	if (len >= LOGBUF_SIZE) {
+		/*
+		 * Overrun found. Discard broken message.
+		 */
+		while (len > 0 && log_buf[LOGINDEX(index)] != '\n') {
 			index++;
 			len--;
 		}
 	}
-	for (i = 0; i < len; i++) {
-		c = log_buf[index & LOG_MASK];
-		printk("%c", c);
+	for (i = 0; i < LOGBUF_SIZE; i++) {
+		if (i < len)
+			c = log_buf[LOGINDEX(index)];
+		else
+			c = '\0';
+		if (umem_copyout(&c, buf, 1)) {
+			err = EFAULT;
+			break;
+		}
 		index++;
+		buf++;
 	}
+	irq_unlock();
+	return err;
 }
-#endif
 
 /*
  * Dump system information.
  *
- * A keyboard driver may call this routine if a user presses
- * a predefined "dump" key.
- * Since interrupt is locked in this routine, there is no need
- * to lock the interrupt/scheduler in each dump function.
+ * A keyboard driver may call this routine if a user
+ * presses a predefined "dump" key.  Since interrupt is
+ * locked in this routine, there is no need to lock the
+ * interrupt/scheduler in each dump function.
  */
 int
 debug_dump(int item)
 {
-#ifdef CONFIG_KDUMP
 	int err = 0;
 
-	printk("\n");
 	irq_lock();
 	switch (item) {
 	case DUMP_THREAD:
@@ -225,63 +194,26 @@ debug_dump(int item)
 	case DUMP_TASK:
 		task_dump();
 		break;
-	case DUMP_OBJECT:
-		object_dump();
-		break;
-	case DUMP_TIMER:
-		timer_dump();
-		break;
-	case DUMP_IRQ:
-		irq_dump();
-		break;
-	case DUMP_DEVICE:
-		device_dump();
-		break;
 	case DUMP_VM:
-		page_dump();
-		kmem_dump();
 		vm_dump();
 		break;
-#ifdef CONFIG_DMESG
-	case DUMP_MSGLOG:
-		log_dump();
-		break;
-#endif
 	default:
-		err = 1;
+		err = ENOSYS;
 		break;
 	}
 	irq_unlock();
 	return err;
-#else
-	return ENOSYS;
-#endif
 }
 
 /*
- * Attach an alternate print handler.
+ * Attach to a print handler.
  * A device driver can hook the function to display message.
  */
 void
 debug_attach(void (*fn)(char *))
 {
 	ASSERT(fn);
-	alt_print = fn;
-}
 
-#else /* !DEBUG */
-
-/*
- * Stubs for the release build.
- */
-int
-debug_dump(int item)
-{
-	return ENOSYS;
-}
-
-void
-debug_attach(void (*fn)(char *))
-{
+	print_func = fn;
 }
 #endif /* !DEBUG */

@@ -74,7 +74,6 @@ clock_isr(int irq)
 	irq_lock();
 	timer_tick();
 	irq_unlock();
-
 	return INT_DONE;
 }
 
@@ -85,12 +84,16 @@ clock_isr(int irq)
 void
 clock_init(void)
 {
-	int clock_irq;
+	irq_t clock_irq;
 
+	/* Setup counter value */
 	TMR0_COUNT = TIMER_COUNT;
 	TMR0_CTRL = (uint16_t)(TMR_IRQEN | TMR_64_CLOCK);
-	clock_irq = irq_attach(CLOCK_IRQ, IPL_CLOCK, 0, clock_isr, NULL);
-	TMR0_CTRL |= TMR_EN;
 
-	ASSERT(clock_irq != -1);
+	/* Install ISR */
+	clock_irq = irq_attach(CLOCK_IRQ, IPL_CLOCK, 0, &clock_isr, NULL);
+	ASSERT(clock_irq != NULL);
+
+	/* Enable timer */
+	TMR0_CTRL |= TMR_EN;
 }

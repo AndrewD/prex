@@ -23,7 +23,7 @@
           <td id="logo">
             <a href="http://prex.sourceforge.net/">
             <img alt="Prex logo" src="../img/logo.gif" border="0"
-            style="width: 281px; height: 56px;"></a>
+            style="width: 250px; height: 54px;"></a>
           </td>
           <td id="brief" align="right" valign="bottom">
             An Open Source, Royalty-free,<br>
@@ -43,10 +43,10 @@
     <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
-      <td id="main" style="vertical-align: top;">
+      <td id="doc" style="vertical-align: top;">
       <h1>Prex Kernel Debugging Tips and Tricks</h1>
 
-<i>Version 1.0, 2005/09/05</i><br>
+<i>Version 1.1, 2008/09/25</i><br>
 
 <h3>Table of Contents</h3>
 
@@ -58,6 +58,7 @@
   <li><a href="#trace">Function Trace</a></li>
   <li><a href="#dump">Kernel Dump</a></li>
   <li><a href="#gdb">Remote debugging with GDB</a></li>
+  <li><a href="#qemu">Using GDB with QEMU</a></li>
 </ul>
 <br>
 <br>
@@ -68,7 +69,7 @@ The Prex kernel is compiled with debugging version by default.
 The debugging version will have the following extra functions
 compared with the release version.
 <ul>
-  <li>printk() to output the debug message.</li>
+  <li>printf() to output the debug message.</li>
   <li>panic() log for the fatal error.</li>
   <li>ASSERT() for the assertion check.</li>
   <li>Kernel function trace.</li>
@@ -93,12 +94,12 @@ $ export NDEBUG=1
 
 <h2 id="print">Kernel Print</h2>
 <p>
-The most powerful tool for kernel debugging is printk(). You can check the
-code path, or get the data value by putting the printk() anywhere in 
+The most powerful tool for kernel debugging is printf(). You can check the
+code path, or get the data value by putting the printf() anywhere in 
 the kernel code.
 </p>
 <p>
-printk() is the subset of printf() in standard C library. You can use
+This is the subset of printf() in standard C library. You can use
 only following identifiers for the output string.
 </p>
 <ul>
@@ -385,7 +386,7 @@ Breakpoint 1, context_init (ctx=0x8001a16c, kstack=0x8002c414) at context.c:72
 464                     panic("Failed to allocate idle stack");
 465             memset(stk, 0, KSTACK_SIZE);
 466             idle_thread.kstack = stk;
-467             printk("kernel stack size=%d\n", KSTACK_SIZE);
+467             printf("kernel stack size=%d\n", KSTACK_SIZE);
 468
 469             context_init(&amp;idle_thread.context, stk + KSTACK_SIZE);
 470             list_insert(&amp;kern_task.threads, &amp;idle_thread.task_link);
@@ -398,6 +399,49 @@ Continuing.
 
 
 
+<h2 id="qemu">Using GDB with QEMU</h2>
+
+QEMU has capability to connect to GDB on the same local machine.
+
+<ul>
+<li>
+<b>Preparing gdbinit</b><br>
+
+You have to prepare the following "gdbqemu" for gdb.
+<pre>
+symbol-file /usr/src/prex/sys/prex.sym
+target remote localhost:1234
+</pre>
+</li>
+
+<li>
+<b>Run QEMU</b><br>
+
+Execute the following command:
+
+<pre class="terminal">
+$ qemu -s -S -fda (your directory)/prex-X.X.X.i386-pc.img -localtime
+</pre>
+
+Then, the following message will be appered.
+
+<pre class="terminal">
+Waiting gdb connection on port 1234
+_
+</pre>
+
+</li>
+
+<li>
+<b>Run GDB</b><br>
+
+<pre class="terminal">
+$ gdb -x gdbqemu
+</pre>
+
+
+</li>
+
       </td>
     </tr>
     <tr>
@@ -405,7 +449,7 @@ Continuing.
         <a href="http://sourceforge.net">
         <img src="http://sourceforge.net/sflogo.php?group_id=132028&amp;type=1"
         alt="SourceForge.net Logo" border="0" height="31" width="88"></a><br>
-        Copyright&copy; 2005-2007 Kohsuke Ohtani
+        Copyright&copy; 2005-2008 Kohsuke Ohtani
       </td>
     </tr>
 

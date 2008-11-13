@@ -30,6 +30,7 @@
 #ifndef _IPC_H
 #define _IPC_H
 
+#include <sys/cdefs.h>
 #include <queue.h>
 
 struct thread;
@@ -37,9 +38,9 @@ struct thread;
 struct object {
 	int		magic;		/* magic number */
 	char		name[MAXOBJNAME]; /* object name */
-	struct list	name_link;	/* list for name hash table */
-	struct list	task_link;	/* link all objects in same task */
-	task_t		owner;		/* owner task of this object */
+	struct list	hash_link;	/* link for object hash table */
+	struct list	task_link;	/* link in same task */
+	task_t		owner;		/* creator of this object */
 	struct queue	sendq;		/* queue for sender threads */
 	struct queue	recvq;		/* queue for receiver threads */
 };
@@ -55,17 +56,17 @@ struct msg_header {
 	int		status;		/* return status */
 };
 
-extern int	 object_create(const char *, object_t *);
-extern int	 object_lookup(const char *, object_t *);
-extern int	 object_destroy(object_t);
-extern void	 object_init(void);
-extern void	 object_dump(void);
-
-extern int	 msg_send(object_t, void *, size_t);
-extern int	 msg_receive(object_t, void *, size_t);
-extern int	 msg_reply(object_t, void *, size_t);
-extern void	 msg_cleanup(struct thread *);
-extern void	 msg_cancel(struct object *);
-extern void	 msg_init(void);
+__BEGIN_DECLS
+int	 object_create(const char *, object_t *);
+int	 object_lookup(const char *, object_t *);
+int	 object_destroy(object_t);
+void	 object_init(void);
+int	 msg_send(object_t, void *, size_t);
+int	 msg_receive(object_t, void *, size_t);
+int	 msg_reply(object_t, void *, size_t);
+void	 msg_cleanup(struct thread *);
+void	 msg_cancel(struct object *);
+void	 msg_init(void);
+__BEGIN_DECLS
 
 #endif /* !_IPC_H */

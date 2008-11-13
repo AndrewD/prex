@@ -63,9 +63,8 @@ pid_assign(void)
 	pid = last_pid + 1;
 	if (pid >= PID_MAX)
 		pid = 1;
-
 	while (pid != last_pid) {
-		if (!proc_find(pid))
+		if (proc_find(pid) == NULL)
 			break;
 		if (++pid >= PID_MAX)
 			pid = 1;
@@ -77,7 +76,7 @@ pid_assign(void)
 }
 
 /*
- * Get pid for specified task
+ * getpid - get the process ID.
  */
 int
 proc_getpid(struct msg *msg)
@@ -86,12 +85,12 @@ proc_getpid(struct msg *msg)
 	if (curproc == NULL)
 		return ESRCH;
 
-	msg->data[0] = (int)curproc->pid;
+	msg->data[0] = (int)curproc->p_pid;
 	return 0;
 }
 
 /*
- * Get ppid for specified task
+ * getppid - get the parent process ID.
  */
 int
 proc_getppid(struct msg *msg)
@@ -100,12 +99,15 @@ proc_getppid(struct msg *msg)
 	if (curproc == NULL)
 		return ESRCH;
 
-	msg->data[0] = (int)curproc->parent->pid;
+	msg->data[0] = (int)curproc->p_parent->p_pid;
 	return 0;
 }
 
 /*
- * Get pgid for specified process.
+ * getpgid - get the process group ID for a process.
+ *
+ * If the specified pid is equal to 0, it returns the process
+ * group ID of the calling process.
  */
 int
 proc_getpgid(struct msg *msg)
@@ -113,17 +115,27 @@ proc_getpgid(struct msg *msg)
 	pid_t pid;
 	struct proc *p;
 
-	pid = (pid_t)msg->data[0];
-	if ((p = proc_find(pid)) == NULL)
+	if (curproc == NULL)
 		return ESRCH;
 
-	msg->data[0] = (int)p->pgrp->pgid;
-	dprintf("proc getpgid=%x\n", msg->data[0]);
+	pid = (pid_t)msg->data[0];
+	if (pid == 0)
+		p = curproc;
+	else {
+		if ((p = proc_find(pid)) == NULL)
+			return ESRCH;
+	}
+	msg->data[0] = (int)p->p_pgrp->pg_pgid;
+	DPRINTF(("proc: getpgid pgid=%d\n", msg->data[0]));
 	return 0;
 }
 
 /*
- * Set process group for specified process.
+ * setpgid - set process group ID for job control.
+ *
+ * If the specified pid is equal to 0, it the process ID of
+ * the calling process is used. Also, if pgid is 0, the process
+ * ID of the indicated process is used.
  */
 int
 proc_setpgid(struct msg *msg)
@@ -132,37 +144,115 @@ proc_setpgid(struct msg *msg)
 	struct proc *p;
 	struct pgrp *pgrp;
 
-	pid = (pid_t)msg->data[0];
-	pgid = (pid_t)msg->data[1];
+	DPRINTF(("proc: setpgid pid=%d pgid=%d\n", msg->data[0],
+		 msg->data[1]));
 
-	if (pgid < 0)
-		return EINVAL;
-
-	if ((p = proc_find(pid)) == NULL)
+	if (curproc == NULL)
 		return ESRCH;
 
-	if (p->pgrp->pgid == pgid)
+	pid = (pid_t)msg->data[0];
+	if (pid == 0)
+		p = curproc;
+	else {
+		if ((p = proc_find(pid)) == NULL)
+			return ESRCH;
+	}
+	pgid = (pid_t)msg->data[1];
+	if (pgid < 0)
+		return EINVAL;
+	if (pgid == 0)
+		pgid = p->p_pid;
+	if (p->p_pgrp->pg_pgid == pgid)	/* already leader */
 		return 0;
 
-	pgrp = pgrp_find(pgid);
-	if (pgrp == NULL) {
+	if ((pgrp = pgrp_find(pgid)) == NULL) {
 		/*
-		 * Create new process group
+		 * Create a new process group.
 		 */
-		pgrp = malloc(sizeof(struct pgrp));
-		if (pgrp == NULL)
+		if ((pgrp = malloc(sizeof(struct pgrp))) == NULL)
 			return ENOMEM;
-		list_init(&pgrp->members);
-		pgrp->pgid = pgid;
+		list_init(&pgrp->pg_members);
+		pgrp->pg_pgid = pgid;
 		pgrp_add(pgrp);
-	}
-	else {
+	} else {
 		/*
-		 * Remove from old process group
+		 * Join an existing process group.
+		 * Remove from the old process group.
 		 */
-		list_remove(&p->pgrp_link);
+		list_remove(&p->p_pgrp_link);
 	}
-	list_insert(&pgrp->members, &p->pgrp_link);
-	p->pgrp = pgrp;
+	list_insert(&pgrp->pg_members, &p->p_pgrp_link);
+	p->p_pgrp = pgrp;
+	return 0;
+}
+
+/*
+ * getsid - get the process group ID of a session leader.
+ */
+int
+proc_getsid(struct msg *msg)
+{
+	pid_t pid;
+	struct proc *p, *leader;
+
+	if (curproc == NULL)
+		return ESRCH;
+
+	pid = (pid_t)msg->data[0];
+	if (pid == 0)
+		p = curproc;
+	else {
+		if ((p = proc_find(pid)) == NULL)
+			return ESRCH;
+	}
+	leader = p->p_pgrp->pg_session->s_leader;
+	msg->data[0] = (int)leader->p_pid;
+	DPRINTF(("proc: getsid sid=%d\n", msg->data[0]));
+	return 0;
+}
+
+/*
+ * setsid - create session and set process group ID.
+ */
+int
+proc_setsid(struct msg *msg)
+{
+	struct proc *p;
+	struct pgrp *pgrp;
+	struct session *sess;
+
+	if (curproc == NULL)
+		return ESRCH;
+	p = curproc;
+	if (p->p_pid == p->p_pgrp->pg_pgid)	/* already leader */
+		return EPERM;
+
+	if ((sess = malloc(sizeof(struct session))) == NULL)
+		return ENOMEM;
+
+	/*
+	 * Create a new process group.
+	 */
+	if ((pgrp = malloc(sizeof(struct pgrp))) == NULL) {
+		free(sess);
+		return ENOMEM;
+	}
+	list_init(&pgrp->pg_members);
+	pgrp->pg_pgid = p->p_pid;
+	pgrp_add(pgrp);
+	list_remove(&p->p_pgrp_link);
+	list_insert(&pgrp->pg_members, &p->p_pgrp_link);
+	p->p_pgrp = pgrp;
+
+	/*
+	 * Create a new session.
+	 */
+	sess->s_refcnt = 1;
+	sess->s_leader = p;
+	sess->s_ttyhold = 0;
+	pgrp->pg_session = sess;
+
+	msg->data[0] = (int)p->p_pid;
+	DPRINTF(("proc: setsid sid=%d\n", msg->data[0]));
 	return 0;
 }

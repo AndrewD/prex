@@ -127,6 +127,8 @@ print_entry(char *name, struct stat *sp)
 		color = 35;  /* magenta */
 	else if (S_ISDIR(sp->st_mode))
 		color = 36;  /* cyan */
+	else if (S_ISFIFO(sp->st_mode))
+		color = 34;
 	else if (S_ISLNK(sp->st_mode))
 		color = 33;  /* yellow */
 
@@ -135,6 +137,8 @@ print_entry(char *name, struct stat *sp)
 		if (S_ISDIR(sp->st_mode))
 			putchar('d');
 		else if (S_ISLNK(sp->st_mode))
+			putchar('@');
+		else if (S_ISFIFO(sp->st_mode))
 			putchar('|');
 		else
 			putchar('-');
@@ -238,6 +242,7 @@ do_ls(char *path)
 			putchar('\n');
 	} else {
 		print_entry(path, &st);
+		putchar('\n');
 	}
 	return 0;
 }

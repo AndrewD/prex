@@ -28,6 +28,7 @@
  */
 
 #include <sys/types.h>
+#include <drvlib.h>
 
 char *
 strncpy(char *dest, const char *src, size_t count)

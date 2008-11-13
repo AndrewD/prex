@@ -76,6 +76,7 @@
 #define FS_EXEC		0x0000021F
 #define FS_EXIT		0x00000220
 #define FS_REGISTER	0x00000221
+#define FS_PIPE		0x00000222
 
 /*
  * Mount message
@@ -146,7 +147,7 @@ struct dir_msg {
 struct ioctl_msg {
 	struct msg_header hdr;	/* message header */
 	int	fd;		/* file descriptor */
-	int	request;	/* io control command */
+	u_long	request;	/* io control command */
 	char	buf[IOCPARM_MAX];	/* parameter buffer */
 };
 

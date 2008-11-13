@@ -27,37 +27,55 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * tty.c - TTY signal support
+ */
+
 #include <prex/prex.h>
 #include <server/proc.h>
 #include <sys/list.h>
-#include <sys/ioctl.h>
 
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <termios.h>
 
 #include "proc.h"
 
 static device_t ttydev;
 
+/*
+ * Send TTY signal.
+ */
 static void
-tty_signal(int code)
+tty_signal(int sig)
 {
 	pid_t pid;
 
-	if (device_ioctl(ttydev, TIOCGPGRP, (u_long)&pid) != 0)
+	/*
+	 * Get the process group that was active when
+	 * the TTY signal was invoked.
+	 */
+	if (device_ioctl(ttydev, TIOCGPGRP, &pid) != 0)
 		return;
-	kill_pg(pid, code);
+
+	DPRINTF(("proc: tty_signal sig=%d\n", sig));
+	kill_pg(pid, sig);
 }
 
+/*
+ * Catch TTY related signals and forward them
+ * to the appropriate processes.
+ */
 static void
-exception_handler(int code, void *regs)
+exception_handler(int sig)
 {
+
 	/*
 	 * Handle signals from tty input.
 	 */
-	switch (code) {
+	switch (sig) {
 	case SIGINT:
 	case SIGQUIT:
 	case SIGTSTP:
@@ -67,26 +85,40 @@ exception_handler(int code, void *regs)
 	case SIGWINCH:
 	case SIGIO:
 		if (ttydev != DEVICE_NULL)
-			tty_signal(code);
+			tty_signal(sig);
 		break;
 	}
-	exception_return(regs);
+	exception_return();
 }
 
+/*
+ * Initialize TTY.
+ *
+ * Since we manage the process group only in the process
+ * server, the TTY driver can not know anything about the
+ * process group.  However, POSIX specification requires TTY
+ * driver to send a signal to the specific process group.
+ * So, we will catch all TTY related signals by this server
+ * and forward them to the actual process or process group.
+ */
 void
 tty_init(void)
 {
 	task_t self;
 
 	/*
-	 * Setup exception to recieve signals from tty.
+	 * Setup exception to receive signals from tty.
 	 */
 	exception_setup(exception_handler);
 
 	if (device_open("tty", 0, &ttydev) != 0)
 		ttydev = DEVICE_NULL;
 	else {
+		/*
+		 * Notify the TTY driver to send all tty related
+		 * signals in system to this task.
+		 */
 		self = task_self();
-		device_ioctl(ttydev, TIOCSETSIGT, (u_long)&self);
+		device_ioctl(ttydev, TIOCSETSIGT, &self);
 	}
 }

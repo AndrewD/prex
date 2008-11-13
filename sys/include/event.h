@@ -30,6 +30,7 @@
 #ifndef _EVENT_H
 #define _EVENT_H
 
+#include <sys/cdefs.h>
 #include <queue.h>
 
 /*
@@ -39,10 +40,6 @@ struct event {
 	struct queue	sleepq;		/* queue for waiting thread */
 	char		*name;		/* pointer to event name string */
 };
-
-/* Macro to initialize event statically */
-#define EVENT_INIT(event, evt_name) \
-			{ {&(event).sleepq, &(event).sleepq}, evt_name}
 
 /* Macro to initialize event dynamically */
 #define event_init(event, evt_name) \

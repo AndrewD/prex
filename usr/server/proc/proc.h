@@ -30,24 +30,26 @@
 #ifndef _PROC_H
 #define _PROC_H
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/list.h>
-#include <sys/syslog.h>
 #include <server/proc.h>
 #include <server/stdmsg.h>
+#include <prex/capability.h>
 
 #include <unistd.h>
 #include <stdio.h>
+#include <assert.h>
 
-#ifdef DEBUG
 /* #define DEBUG_PROC 1 */
-#endif
 
 #ifdef DEBUG_PROC
-#define dprintf(fmt, args...)	syslog(LOG_DEBUG, "proc: " fmt, ## args)
+#define DPRINTF(a)	dprintf a
+#define ASSERT(e)	assert(e)
 #else
-#define dprintf(fmt...)		do {} while (0)
+#define DPRINTF(a)
+#define ASSERT(e)
 #endif
 
 #define PRIO_PROC	130		/* priority of process server */
@@ -56,35 +58,48 @@
 #define ID_MAXBUCKETS	32
 #define IDHASH(x)	((x) & (ID_MAXBUCKETS - 1))
 
+struct proc;
+
+/*
+ * Session
+ */
+struct session {
+	int		s_refcnt;	/* reference count */
+	struct proc	*s_leader;	/* session leader */
+	int		s_ttyhold;	/* true if hold tty */
+};
+
+
 /*
  * Process group
  */
 struct pgrp {
-	struct list	pgid_link;	/* link for pgid hash */
-	struct list	members;	/* list head of processes */
-	pid_t		pgid;		/* pgrp id */
+	struct list	pg_link;	/* link for pgid hash */
+	struct list	pg_members;	/* list head of processes */
+	struct session	*pg_session;	/* pointer to session */
+	pid_t		pg_pgid;	/* pgrp id */
 };
 
 /*
- * Description of a process.
+ * Description of a process
  */
 struct proc {
-	struct list	link;		/* link for all processes */
-	struct proc 	*parent;	/* pointer to parent process */
-	struct list 	children;	/* list head of child processes */
-	struct list 	sibling;	/* link for sibling processes */
-	struct list 	pid_link;	/* link for pid hash */
-	struct list 	task_link;	/* link for task hash */
-	struct list 	pgrp_link;	/* link for process group */
-	struct pgrp 	*pgrp;		/* pointer to process group */
-	int		stat;		/* process status S* */
-	int		exit_code;	/* exit code to send to parrent */
-	int		wait_vfork;	/* true while processing vfork() */
-	pid_t		pid;		/* process id */
-	task_t		task;		/* task id */
-	cap_t		cap;		/* capability of the task */
-	void		*stack_base;	/* pointer to stack */
-	void		*stack_saved;	/* pointer to saved stack */
+	struct list	p_link;		/* link for all processes */
+	struct proc 	*p_parent;	/* pointer to parent process */
+	struct list 	p_children;	/* list head of child processes */
+	struct list 	p_sibling;	/* link for sibling processes */
+	struct list 	p_pid_link;	/* link for pid hash */
+	struct list 	p_task_link;	/* link for task hash */
+	struct list 	p_pgrp_link;	/* link for process group */
+	struct pgrp 	*p_pgrp;	/* pointer to process group */
+	int		p_stat;		/* process status S* */
+	int		p_exitcode;	/* exit code to send to parrent */
+	int		p_vforked;	/* true while processing vfork() */
+	pid_t		p_pid;		/* process id */
+	task_t		p_task;		/* task id */
+	cap_t		p_cap;		/* capability of the task */
+	void		*p_stackbase;	/* pointer to stack */
+	void		*p_stacksaved;	/* pointer to saved stack */
 };
 
 /*
@@ -101,29 +116,32 @@ extern struct proc initproc;		/* process slot for init */
 extern struct list allproc;		/* list of all processes */
 extern struct proc *curproc;		/* current (caller) process */
 
-extern pid_t pid_assign(void);
-extern struct proc *proc_find(pid_t);
-extern struct pgrp *pgrp_find(pid_t);
-extern struct proc *task_to_proc(task_t);
-extern void proc_add(struct proc *);
-extern void proc_remove(struct proc *);
-extern void pgrp_add(struct pgrp *);
-extern void pgrp_remove(struct pgrp *);
-extern void table_init(void);
-extern void pid_init(void);
-extern void proc_cleanup(struct proc *);
-extern void vfork_end(struct proc *);
-extern int kill_pg(pid_t, int);
-extern void tty_init(void);
-
-extern int proc_getpid(struct msg *);
-extern int proc_getppid(struct msg *);
-extern int proc_getpgid(struct msg *);
-extern int proc_setpgid(struct msg *);
-extern int proc_fork(struct msg *);
-extern int proc_exit(struct msg *);
-extern int proc_stop(struct msg *);
-extern int proc_waitpid(struct msg *);
-extern int proc_kill(struct msg *);
+__BEGIN_DECLS
+struct proc *proc_find(pid_t);
+struct pgrp *pgrp_find(pid_t);
+struct proc *task_to_proc(task_t);
+pid_t	pid_assign(void);
+void	proc_add(struct proc *);
+void	proc_remove(struct proc *);
+void	pgrp_add(struct pgrp *);
+void	pgrp_remove(struct pgrp *);
+void	table_init(void);
+void	pid_init(void);
+void	proc_cleanup(struct proc *);
+void	vfork_end(struct proc *);
+int	kill_pg(pid_t, int);
+void	tty_init(void);
+int	proc_getpid(struct msg *);
+int	proc_getppid(struct msg *);
+int	proc_getpgid(struct msg *);
+int	proc_setpgid(struct msg *);
+int	proc_getsid(struct msg *);
+int	proc_setsid(struct msg *);
+int	proc_fork(struct msg *);
+int	proc_exit(struct msg *);
+int	proc_stop(struct msg *);
+int	proc_waitpid(struct msg *);
+int	proc_kill(struct msg *);
+__END_DECLS
 
 #endif /* !_PROC_H */

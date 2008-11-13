@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,41 +28,14 @@
  */
 
 /*
- * cpu.c - user memory access code for NOMMU system.
+ * cpu.c - cpu specific code
  */
 
 #include <kernel.h>
 #include <cpu.h>
 
-#ifndef CONFIG_MMU
-
-int
-umem_copyin(void *uaddr, void *kaddr, size_t len)
+void
+cpu_init(void)
 {
-	if (user_area(uaddr) && user_area((u_long)uaddr + len)) {
-		memcpy(kaddr, uaddr, len);
-		return 0;
-	}
-	return EFAULT;
-}
 
-int
-umem_copyout(void *kaddr, void *uaddr, size_t len)
-{
-	if (user_area(uaddr) && user_area((u_long)uaddr + len)) {
-		memcpy(uaddr, kaddr, len);
-		return 0;
-	}
-	return EFAULT;
 }
-
-int
-umem_strnlen(const char *uaddr, size_t maxlen, size_t *len)
-{
-	if (user_area(uaddr)) {
-		*len = strnlen(uaddr, maxlen);
-		return 0;
-	}
-	return EFAULT;
-}
-#endif

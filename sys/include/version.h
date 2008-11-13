@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, Kohsuke Ohtani
+ * Copyright (c) 2007-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,15 +33,15 @@
 #include <sys/cdefs.h>
 
 #define MAJORVERSION	0
-#define MINORVERSION	7
-#define PATCHLEVEL	0
+#define MINORVERSION	8
+#define PATCHLEVEL	1
 
 #define __s(x) __STRING(x)
 
 #define VERSION	__s(MAJORVERSION) "." __s(MINORVERSION) "." __s(PATCHLEVEL)
 #define MACHINE	__s(__ARCH__) "-" __s(__PLATFORM__)
 
-#define BANNAR	"Prex version" VERSION " for " MACHINE \
-		" ("__DATE__ " " __TIME__ ")"
+#define BANNER	"Prex version " VERSION " for " MACHINE \
+		" ("__DATE__ ")\n"
 
 #endif /* !_VERSION_H */

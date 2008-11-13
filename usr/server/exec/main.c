@@ -70,7 +70,7 @@ wait_server(const char *name, object_t *obj)
 	int i, err = 0;
 
 	/*
-	 * Wait 1sec for loading server.
+	 * Check the server existence. Timeout is 1sec.
 	 */
 	for (i = 0; i < 100; i++) {
 		err = object_lookup((char *)name, obj);
@@ -106,16 +106,16 @@ notify_server(task_t org_task, task_t new_task, void *stack)
 	/* Notify to file system server */
 	do {
 		m.hdr.code = FS_EXEC;
-		m.data[0] = org_task;
-		m.data[1] = new_task;
+		m.data[0] = (int)org_task;
+		m.data[1] = (int)new_task;
 		err = msg_send(fs_obj, &m, sizeof(m));
 	} while (err == EINTR);
 
 	/* Notify to process server */
 	do {
 		m.hdr.code = PS_EXEC;
-		m.data[0] = org_task;
-		m.data[1] = new_task;
+		m.data[0] = (int)org_task;
+		m.data[1] = (int)new_task;
 		m.data[2] = (int)stack;
 		err = msg_send(proc_obj, &m, sizeof(m));
 	} while (err == EINTR);
@@ -137,7 +137,7 @@ do_exec(struct exec_msg *msg)
 	void (*entry)(void);
 	cap_t cap;
 
-	dprintf("do_exec: path=%s task=%x\n", msg->path, msg->hdr.task);
+	DPRINTF(("do_exec: path=%s task=%x\n", msg->path, msg->hdr.task));
 
 	old_task = msg->hdr.task;
 
@@ -174,17 +174,17 @@ do_exec(struct exec_msg *msg)
 		err = EIO;
 		goto err2;
 	}
-	for (ldr = loader_table; ldr->name != NULL; ldr++) {
-		if (ldr->probe(header) == 0)
+	for (ldr = loader_table; ldr->el_name != NULL; ldr++) {
+		if (ldr->el_probe(header) == 0)
 			break;
 		/* Check next format */
 	}
-	if (ldr->name == NULL) {
-		dprintf("Unsupported file format\n");
+	if (ldr->el_name == NULL) {
+		DPRINTF(("Unsupported file format\n"));
 		err = ENOEXEC;
 		goto err2;
 	}
-	dprintf("exec loader=%s\n", ldr->name);
+	DPRINTF(("exec loader=%s\n", ldr->el_name));
 
 	/*
 	 * Suspend old task
@@ -210,7 +210,12 @@ do_exec(struct exec_msg *msg)
 	 * Copy capabilities
 	 */
 	task_getcap(old_task, &cap);
+
+	/*
+	 * XXX: Temporary removed...
+	 */
 	/* cap &= CONFIG_CAP_MASK; */
+
 	task_setcap(new_task, &cap);
 
 	if ((err = thread_create(new_task, &th)) != 0)
@@ -228,7 +233,7 @@ do_exec(struct exec_msg *msg)
 	/*
 	 * Load file image.
 	 */
-	if ((err = ldr->load(header, new_task, fd, (void **)&entry)) != 0)
+	if ((err = ldr->el_load(header, new_task, fd, (void **)&entry)) != 0)
 		goto err5;
 	if ((err = thread_load(th, entry, sp)) != 0)
 		goto err5;
@@ -249,7 +254,7 @@ do_exec(struct exec_msg *msg)
 	thread_resume(th);
 
 	close(fd);
-	dprintf("exec complete successfully\n");
+	DPRINTF(("exec complete successfully\n"));
 	return 0;
  err5:
 	vm_free(new_task, stack);
@@ -260,7 +265,7 @@ do_exec(struct exec_msg *msg)
  err2:
 	close(fd);
  err1:
-	dprintf("exec failed err=%d\n", err);
+	DPRINTF(("exec failed err=%d\n", err));
 	return err;
 }
 
@@ -284,9 +289,9 @@ exec_init(void)
 {
 	struct exec_loader *ldr;
 
-	for (ldr = loader_table; ldr->name; ldr++) {
-		dprintf("Initialize \'%s\' loader\n", ldr->name);
-		ldr->init();
+	for (ldr = loader_table; ldr->el_name; ldr++) {
+		DPRINTF(("Initialize \'%s\' loader\n", ldr->el_name));
+		ldr->el_init();
 	}
 }
 
@@ -361,7 +366,7 @@ main(int argc, char *argv[])
 		}
 #ifdef DEBUG_EXEC
 		if (err)
-			dprintf("msg error=%d\n", err);
+			DPRINTF(("msg error=%d\n", err));
 #endif
 		/*
 		 * Reply to the client.

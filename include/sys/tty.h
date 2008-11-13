@@ -46,10 +46,10 @@
 #define TTYQ_HIWAT	246
 
 struct tty_queue {
-	char	buf[TTYQ_SIZE];
-	int	head;
-	int	tail;
-	int	count;
+	char	tq_buf[TTYQ_SIZE];
+	int	tq_head;
+	int	tq_tail;
+	int	tq_count;
 };
 
 /*
@@ -62,8 +62,9 @@ struct tty {
 	struct termios t_termios;	/* termios state */
 	struct winsize t_winsize;	/* window size */
 
-	struct event t_input_event;	/* event to sleep */
-	void	(*t_output)(struct tty *);	/* start output */
+	struct event t_input;		/* event for input data ready */
+	struct event t_output;		/* event for output completion */
+	void (*t_oproc)(struct tty *);	/* routine to start output */
 	int	t_state;		/* driver state */
 	int	t_column;		/* tty output column */
 	pid_t	t_pgid;			/* foreground process group. */
@@ -78,11 +79,13 @@ struct tty {
 #define	t_ospeed	t_termios.c_ospeed
 
 /* These flags are kept in t_state. */
-#define	TS_TTSTOP	0x00100		/* Output paused. */
+#define	TS_ASLEEP	0x00001		/* Process waiting for tty. */
+#define	TS_BUSY		0x00004		/* Draining output. */
+#define	TS_TIMEOUT	0x00100		/* Wait for output char processing. */
+#define	TS_TTSTOP	0x00200		/* Output paused. */
 
 __BEGIN_DECLS
-int tty_register(struct devio *io, struct tty *tp,
-		 void (*output)(struct tty*));
+int tty_attach(struct devio *io, struct tty *tp);
 int ttyq_getc(struct tty_queue *tq);
 void ttyq_putc(int c, struct tty_queue *tq);
 int ttyq_unputc(struct tty_queue *tq);
@@ -91,6 +94,7 @@ int tty_read(struct tty *tp, char *buf, size_t *nbytes);
 int tty_write(struct tty *tp, char *buf, size_t *nbyte);
 int tty_ioctl(struct tty *tp, u_long cmd, void *data);
 void tty_input(int c, struct tty *tp);
+void tty_done(struct tty *tp);
 __END_DECLS
 
 #endif /* KERNEL */

@@ -10,6 +10,10 @@ OBJS+=		./power/power.o
 endif
 
 LIBS=		./lib/libdev.a
-LD_SCRIPT=	./$(ARCH)/$(PLATFORM)/dev.ld
+LD_SCRIPT=	./$(ARCH)/$(ARCH)/dev.ld
+
+#MAP   = 	dev.map
+#DISASM= 	dev.lst
+#SYMBOL= 	dev.sym
 
 include $(SRCDIR)/mk/dev.mk

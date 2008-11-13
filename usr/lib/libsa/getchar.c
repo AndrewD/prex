@@ -28,6 +28,7 @@
  */
 
 #include <prex/prex.h>
+#include <stdio.h>
 
 extern char __console_read(void);
 

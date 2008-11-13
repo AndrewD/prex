@@ -1,3 +1,259 @@
+2008-10-15  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/include/version.h: Update version to 0.8.1.
+
+2008-10-12  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/arch/arm/arm/locore.S: Support relocation of ARM exception
+	vector.
+
+	* *: Changed external function declarations to BSD style in all
+	header files.
+
+2008-10-11  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/arch/arm/arm/locore.S: Added exception handling for ARM.
+	* sys/arch/arm/arm/trap.c: Likewise.
+
+	* sys/include/version.h: Removed time data from the banner string.
+
+2008-10-05  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/arch/arm/arm/mmu.c: Support MMU on ARM.
+	* sys/arch/arm/arm/locore.S: Likewise.
+
+	* dev/arm/arm/start.S: Added machine_setpower() interface in DKI.
+	* dev/i386/i386/start.S: Likewise.
+
+2008-10-04  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/arch/arm/include/syspage.h: Define system page which is
+	predefined in each architecture.
+
+	* usr/arch/arm/arm.ld: Changed to use the common liker script for
+	the same architecture to build applications.
+	* usr/arch/arm/arm-nommu.ld: Likewise.
+	* usr/arch/i386/i386.ld: Likewise.
+	* usr/arch/i386/i386-nommu.ld: Likewise.
+
+	* */arm/integrator/*: Support Integrator-CP platform.
+
+	* sys/include/arch.h: Changed architecture interface to common for
+	all platforms.
+
+2008-09-27  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* configure: Changed to specify the load address for the kernel in
+	the confiugration file.
+
+	* sys/arch/i386/include/arch.h: Added physical/virtual address mapping
+	table.
+	* sys/arch/i386/i386/mmu.c: Likewise.
+	* sys/arch/i386/pc/machdep.c: Likewise.
+
+2008-09-20  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* include/prex/bootinfo.h: Support multiple RAM regions.
+	* sys/mem/page.c: Likewise.
+	* boot/common/load.c: Likewise.
+
+2008-09-19  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* dev/gen/tty.c: Added tty_done() to notify the completion of
+	the output interrupt.
+	* include/sys/tty.h: Likewise.
+
+	* usr/test/kmon/cmd.c: Fixed the broken output of "mem" command
+	in kmon.
+
+2008-09-18  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* dev/i386/pc/serial.c: Added serial console driver for PC.
+	* dev/core/dev_conf.c: Likewise.
+	* conf/i386/config.*: Likewise.
+
+	* usr/bin/head/head.c: Code clean up.
+
+2008-09-06  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/test/pipe/pipe.c: Removed compiler warning for unused function.
+
+	* usr/sample/tetris/*: Port tetris game from BSD.
+
+2008-08-23  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* configure: Added "--profile" option for configure to suport
+	various target profiles.
+
+	* boot/arm/arm/elf_reloc.c: Added ELFDBG() macro to debug ELF file
+	loading.
+	* boot/i386/i386/elf_reloc.c: Likewise.
+	* boot/include/boot.h: Likewise.
+	* boot/common/elf.c: Likewise.
+
+2008-08-17  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* configure: Changed configuration file format as BSD style.
+	* conf/*: Likewise.
+
+	* boot/common/debug.c: Added zero pad for %x in printf().
+
+2008-08-07  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/include/version.h: Update version to 0.8.0.
+
+2008-08-03  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/server/fs/vfs/main.c: Support pipe().
+	* include/server/fs.h: Likewise.
+	* usr/lib/posix/file/pipe.c: Likewise.
+	* usr/test/pipe/*: Likewise.
+
+2008-07-17  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/server/fs/fifofs/*: Added FIFOFS.
+	* usr/server/fs/vfs/vfs_conf.c: Likewise.
+
+
+2008-07-05  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/bin/cal/cal.c: Added cal command.
+	* usr/bin/cal/Makefile: Likewise.
+	* usr/bin/Makefile: Likewise.
+	* usr/bin/cmdbox/cmd_conf.c: Likewise.
+
+	* usr/bin/head/head.c: Added head command.
+	* usr/bin/head/Makefile: Likewise.
+	* usr/bin/Makefile: Likewise.
+	* usr/bin/cmdbox/cmd_conf.c: Likewise.
+
+2008-06-19  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/device.c: Removed the verification of I/O buffer
+	by vm_access() to improve I/O performace. Instead, the device driver
+	must use umem_copyin/umem_copyout to access user buffer.
+	* sys/mem/vm.c: Likewise.
+	* sys/mem/vm_nommu.c: Likewise.
+
+2008-06-07  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/server/fs/fatfs/*: Added FATFS.
+	* usr/server/fs/vfs/vfs_conf.c: Likewise.
+
+2008-04-14  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* boot/arm/gba/head.S: Fixed the system hang on the actual GBA
+	flash cart. Correct the relocatin address.
+
+2008-04-10  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/server/proc/exit.c (proc_exit): Fixed process server to
+	handle exit() properly.
+
+2008-04-09  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* dev/gen/tty.c (tty_read): Fixed to handle EOF properly in tty.
+
+	* usr/server/fs/vfs/vfs_vnode.c (vn_lookup): Fixed vnode lookup
+	routine to prevent a deadlock.
+
+2008-04-08  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* boot/i386/head.S: Fixed boot failure with some real hardwares.
+	Added some wait after enabling gate A20. This was reported at the
+	Prex forum.
+
+2008-04-07  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/server/exec/args.c (build_args): The argv/envp pointer was not
+	set correctly for the main() routine of applications.
+
+2008-03-27  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/lib/posix/process/waitpid.c (waitpid): Fixed to allow NULL for
+	status pointer. It caused a page fault.
+
+2008-03-07  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/thread.c: Modified an argument of context_set().
+	* sys/kern/exception.c: Likewise.
+
+2008-03-02  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* usr/server/fs/vfs_syscall.c: Fixed stat() not to call open()
+	system call.
+
+	* usr/server/proc/main.c (proc_register): Fixed the memory leak
+	when the process registration failed.
+
+	* sys/kern/system.c: sys_debug(int, u_long) => sys_debug(int, void *).
+
+	* sys/kern/device.c: Changed the data types of ioctl() parameters.
+
+2008-02-23  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/exception.c: Removed the register data from the argument
+	of an exception handler. Now, the exception handler don't have to
+	pass the register data with exception_return(). This change was
+	applied to improve portability and to prevent a security problem.
+	* sys/kern/thread.c: Likewise.
+
+	* sys/kern/thread.c: Rename kernel_thread() -> kthread_create(), and
+	add kthread_terminate().
+
+	* sys/kern/main.c: Rename kernel_main() -> main().
+
+2008-02-23  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/thread.c (thread_load): Fixed to return a correct error
+	code for an invalid user request.
+
+2008-02-03  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/kern/task.c (task_terminate): Fixed to stop the alarm timer
+	in task_terminate(). The page fault was occured if an alarm
+	exception was invoked after task termination.
+
+	* sys/kern/thread.c (thread_suspend): thread_suspend() routine always
+	returns a success code even if it detects errors.
+
+2008-01-27  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* dev/include/driver.h: Changed the data type of the arguments
+	for timer_callout().
+
+	* dev/include/driver.h: Added 'const' for the argument of
+	umem_copyin()/umem_copyout().
+
+	* dev/include/driver.h: Changed the data type for the irq handle
+	returned by irq_attach().
+
+2008-01-26  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* Added modification to build Prex-i386 with PCC (Portable C Compiler)
+	on FreeBSD. All in-line assembly code were removed with this change.
+
+2008-01-25  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/sync/sem.c (sem_init): The semaphore count was not set
+	propery for re-initinalization.
+
+2008-01-04  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* Removed unused kernel dump routines for simpilicy.
+
+	* Removed all variadic macros for C90 compiler.
+
+	* Changed printk() (linux style) to printf() (bsd style).
+
+2008-01-03  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
+
+	* sys/ipc/object.c (object_create): Fixed the bug in string
+	manipulation when the object name is not specified for object_create().
+	This fix was sent by YoctoGram.
+
+	* include/sys/cdefs.h: Added some definitions for PCC compiler.
+
 2007-12-22  Kohsuke Ohtani  <kohtani@users.sourceforge.net>
 
 	* sys/include/version.h: Update version to 0.7.0.

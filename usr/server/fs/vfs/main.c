@@ -53,8 +53,8 @@
 #include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/buf.h>
 #include <sys/file.h>
-#include <sys/syslog.h>
 
 #include <limits.h>
 #include <unistd.h>
@@ -67,6 +67,9 @@
 
 #include "vfs.h"
 
+#ifdef DEBUG_VFS
+int	vfs_debug = 0;
+#endif
 /*
  * Message mapping
  */
@@ -92,10 +95,8 @@ fs_mount(struct task *t, struct mount_msg *msg)
 
 	err = sys_mount(msg->dev, msg->dir, msg->fs, msg->flags,
 			(void *)msg->data);
-#ifdef DEBUG
 	if (err)
-		syslog(LOG_INFO, "fs: mount failed! fs=%s\n", msg->fs);
-#endif
+		dprintf("VFS: mount failed! fs=%s\n", msg->fs);
 	return err;
 }
 
@@ -124,14 +125,13 @@ fs_open(struct task *t, struct open_msg *msg)
 	int fd, err;
 	mode_t mode;
 
-	/* Find empty slot for file descriptor */
-	for (fd = 0; fd < OPEN_MAX; fd++)
-		if (t->file[fd] == NULL)
-			break;
-	if (fd == OPEN_MAX)
+	/* Find empty slot for file descriptor. */
+	if ((fd = task_newfd(t)) == -1)
 		return EMFILE;
 
-	/* Check the capability of caller task */
+	/*
+	 * Check the capability of caller task.
+	 */
 	mode = msg->mode;
 	if ((mode & 0111) && (t->cap & CAP_EXEC) == 0)
 		return EACCES;
@@ -146,7 +146,7 @@ fs_open(struct task *t, struct open_msg *msg)
 		return err;
 
 	t->file[fd] = fp;
-	t->nr_open++;
+	t->nopens++;
 	msg->fd = fd;
 	return 0;
 }
@@ -169,7 +169,7 @@ fs_close(struct task *t, struct msg *msg)
 		return err;
 
 	t->file[fd] = NULL;
-	t->nr_open--;
+	t->nopens--;
 	return 0;
 }
 
@@ -179,6 +179,8 @@ fs_mknod(struct task *t, struct open_msg *msg)
 	char path[PATH_MAX];
 	int err;
 
+	if ((t->cap & CAP_FS_WRITE) == 0)
+		return EACCES;
 	if ((err = task_conv(t, msg->path, path)) != 0)
 		return err;
 	return sys_mknod(path, msg->mode);
@@ -277,11 +279,8 @@ fs_opendir(struct task *t, struct open_msg *msg)
 	file_t fp;
 	int fd, err;
 
-	/* Find empty slot for file structure */
-	for (fd = 0; fd < OPEN_MAX; fd++)
-		if (t->file[fd] == NULL)
-			break;
-	if (fd == OPEN_MAX)
+	/* Find empty slot for file descriptor. */
+	if ((fd = task_newfd(t)) == -1)
 		return EMFILE;
 
 	/* Get the mounted file system and node */
@@ -420,9 +419,9 @@ fs_chdir(struct task *t, struct path_msg *msg)
 	/* Check if directory exits */
 	if ((err = sys_opendir(path, &fp)) != 0)
 		return err;
-	if (t->cwd_fp)
-		sys_closedir(t->cwd_fp);
-	t->cwd_fp = fp;
+	if (t->cwdfp)
+		sys_closedir(t->cwdfp);
+	t->cwdfp = fp;
 	strcpy(t->cwd, path);
 	return 0;
 }
@@ -452,15 +451,11 @@ fs_stat(struct task *t, struct stat_msg *msg)
 {
 	char path[PATH_MAX];
 	struct stat *st;
-	file_t fp;
 	int err;
 
 	task_conv(t, msg->path, path);
-	if ((err = sys_open(path, O_RDONLY, 0, &fp)) != 0)
-		return err;
 	st = &msg->st;
-	err = sys_fstat(fp, st);
-	sys_close(fp);
+	err = sys_stat(path, st);
 	return err;
 }
 
@@ -487,12 +482,11 @@ fs_dup(struct task *t, struct msg *msg)
 	fp = t->file[old_fd];
 	if (fp == NULL)
 		return EBADF;
+
 	/* Find smallest empty slot as new fd. */
-	for (new_fd = 0; new_fd < OPEN_MAX; new_fd++)
-		if (t->file[new_fd] == NULL)
-			break;
-	if (new_fd == OPEN_MAX)
+	if ((new_fd = task_newfd(t)) == -1)
 		return EMFILE;
+
 	t->file[new_fd] = fp;
 
 	/* Increment file reference */
@@ -547,11 +541,9 @@ fs_fcntl(struct task *t, struct fcntl_msg *msg)
 	case F_DUPFD:
 		if (arg >= OPEN_MAX)
 			return EINVAL;
+
 		/* Find smallest empty slot as new fd. */
-		for (new_fd = arg; new_fd < OPEN_MAX; new_fd++)
-			if (t->file[new_fd] == NULL)
-				break;
-		if (new_fd == OPEN_MAX)
+		if ((new_fd = task_newfd(t)) == -1)
 			return EMFILE;
 		t->file[new_fd] = fp;
 		break;
@@ -583,12 +575,16 @@ fs_access(struct task *t, struct path_msg *msg)
 
 	mode = msg->data[0];
 
-	/* Check file permission */
+	/*
+	 * Check file permission.
+	 */
 	task_conv(t, msg->path, path);
 	if ((err = sys_access(path, mode)) != 0)
 		return err;
 
-	/* Check task permission */
+	/*
+	 * Check task permission.
+	 */
 	err = EACCES;
 	if ((mode & X_OK) && (t->cap & CAP_EXEC) == 0)
 		goto out;
@@ -611,29 +607,33 @@ fs_fork(struct task *t, struct msg *msg)
 	file_t fp;
 	int err, i;
 
-	dprintf("fs_fork\n");
+	DPRINTF(VFSDB_CORE, ("fs_fork\n"));
 
 	if ((err = task_alloc((task_t)msg->data[0], &newtask)) != 0)
 		return err;
+
 	/*
 	 * Copy task related data
 	 */
-	newtask->cwd_fp = t->cwd_fp;
+	newtask->cwdfp = t->cwdfp;
 	strcpy(newtask->cwd, t->cwd);
 	for (i = 0; i < OPEN_MAX; i++) {
 		fp = t->file[i];
 		newtask->file[i] = fp;
-		/* Increment file reference if it's already opened. */
+		/*
+		 * Increment file reference if it's
+		 * already opened.
+		 */
 		if (fp != NULL) {
 			vref(fp->f_vnode);
 			fp->f_count++;
 		}
 	}
-	if (newtask->cwd_fp)
-		newtask->cwd_fp->f_count++;
+	if (newtask->cwdfp)
+		newtask->cwdfp->f_count++;
 	/* Increment cwd's reference count */
-	if (newtask->cwd_fp)
-		vref(newtask->cwd_fp->f_vnode);
+	if (newtask->cwdfp)
+		vref(newtask->cwdfp->f_vnode);
 	return 0;
 }
 
@@ -684,14 +684,16 @@ fs_exit(struct task *t, struct msg *msg)
 	file_t fp;
 	int fd;
 
-	/* Close all files opened by task. */
+	/*
+	 * Close all files opened by task.
+	 */
 	for (fd = 0; fd < OPEN_MAX; fd++) {
 		fp = t->file[fd];
 		if (fp != NULL)
 			sys_close(fp);
 	}
-	if (t->cwd_fp)
-		sys_close(t->cwd_fp);
+	if (t->cwdfp)
+		sys_close(t->cwdfp);
 	task_free(t);
 	return 0;
 }
@@ -707,7 +709,7 @@ fs_register(struct task *t, struct msg *msg)
 	cap_t cap;
 	int err;
 
-	dprintf("fs_register\n");
+	DPRINTF(VFSDB_CORE, ("fs_register\n"));
 
 	if (task_getcap(msg->hdr.task, &cap))
 		return EINVAL;
@@ -718,13 +720,47 @@ fs_register(struct task *t, struct msg *msg)
 	return err;
 }
 
-/*
- * Return version
- */
 static int
-fs_version(struct task *t, struct msg *msg)
+fs_pipe(struct task *t, struct msg *msg)
 {
+#ifdef CONFIG_FIFOFS
+	char path[PATH_MAX];
+	file_t rfp, wfp;
+	int err, rfd, wfd;
+
+	DPRINTF(VFSDB_CORE, ("fs_pipe\n"));
+
+	if ((rfd = task_newfd(t)) == -1)
+		return EMFILE;
+	t->file[rfd] = (file_t)1; /* temp */
+
+	if ((wfd = task_newfd(t)) == -1) {
+		t->file[rfd] = NULL;
+		return EMFILE;
+	}
+	sprintf(path, "/fifo/%x-%d", (u_int)t->task, rfd);
+
+	if ((err = sys_mknod(path, S_IFIFO)) != 0)
+		goto out;
+	if ((err = sys_open(path, O_RDONLY | O_NONBLOCK, 0, &rfp)) != 0) {
+		goto out;
+	}
+	if ((err = sys_open(path, O_WRONLY | O_NONBLOCK, 0, &wfp)) != 0) {
+		goto out;
+	}
+	t->file[rfd] = rfp;
+	t->file[wfd] = wfp;
+	t->nopens += 2;
+	msg->data[0] = rfd;
+	msg->data[1] = wfd;
 	return 0;
+ out:
+	t->file[rfd] = NULL;
+	t->file[wfd] = NULL;
+	return err;
+#else
+	return ENOSYS;
+#endif
 }
 
 /*
@@ -738,12 +774,15 @@ fs_shutdown(struct task *t, struct msg *msg)
 	return 0;
 }
 
+/*
+ * Dump internal data.
+ */
 static int
 fs_debug(struct task *t, struct msg *msg)
 {
 
 #ifdef DEBUG
-	printf("<File System Server>\n");
+	dprintf("<File System Server>\n");
 	task_dump();
 	vnode_dump();
 	mount_dump();
@@ -802,7 +841,8 @@ fs_init(void)
 	 * Initialize each file system.
 	 */
 	for (fs = vfssw_table; fs->vs_name; fs++) {
-		syslog(LOG_INFO, "VFS: Initializing %s\n", fs->vs_name);
+		DPRINTF(VFSDB_CORE, ("VFS: Initializing %s\n",
+				     fs->vs_name));
 		fs->vs_init();
 	}
 
@@ -821,7 +861,7 @@ thread_run(void (*entry)(void))
 {
 	task_t self;
 	thread_t th;
-	void *stack;
+	void *stack, *sp;
 	int err;
 
 	self = task_self();
@@ -829,8 +869,9 @@ thread_run(void (*entry)(void))
 		return err;
 	if ((err = vm_allocate(self, &stack, USTACK_SIZE, 1)) != 0)
 		return err;
-	if ((err = thread_load(th, entry,
-			       (void *)((u_long)stack + USTACK_SIZE))) != 0)
+
+	sp = (void *)((u_long)stack + USTACK_SIZE - sizeof(u_long) * 3);
+	if ((err = thread_load(th, entry, sp)) != 0)
 		return err;
 	if ((err = thread_setprio(th, PRIO_FS)) != 0)
 		return err;
@@ -842,7 +883,6 @@ thread_run(void (*entry)(void))
  * Message mapping
  */
 static const struct msg_map fsmsg_map[] = {
-	MSGMAP( STD_VERSION,	fs_version ),
 	MSGMAP( STD_DEBUG,	fs_debug ),
 	MSGMAP( STD_SHUTDOWN,	fs_shutdown ),
 	MSGMAP( FS_MOUNT,	fs_mount ),
@@ -879,6 +919,7 @@ static const struct msg_map fsmsg_map[] = {
 	MSGMAP( FS_EXEC,	fs_exec ),
 	MSGMAP( FS_EXIT,	fs_exit ),
 	MSGMAP( FS_REGISTER,	fs_register ),
+	MSGMAP( FS_PIPE,	fs_pipe ),
 	MSGMAP( 0,		NULL ),
 };
 
@@ -923,7 +964,7 @@ fs_thread(void)
 					break;
 
 				/* Dispatch request */
-				err = map->func(t, msg);
+				err = (*map->func)(t, msg);
 				if (map->code != FS_EXIT)
 					task_unlock(t);
 				break;
@@ -932,7 +973,8 @@ fs_thread(void)
 		}
 #ifdef DEBUG_VFS
 		if (err)
-			dprintf("code=%x error=%d\n", map->code, err);
+			dprintf("VFS: task=%x code=%x error=%d\n",
+				msg->hdr.task, map->code, err);
 #endif
 		/*
 		 * Reply to the client.
@@ -950,7 +992,7 @@ main(int argc, char *argv[])
 {
 	int i;
 
-	syslog(LOG_INFO, "Starting File System Server\n");
+	sys_log("Starting File System Server\n");
 
 	/*
 	 * Boost current priority.
@@ -971,8 +1013,9 @@ main(int argc, char *argv[])
 	/*
 	 * Create new server threads.
 	 */
-	syslog(LOG_INFO, "VFS: Number of fs threads: %d\n", CONFIG_FS_THREADS);
-
+#ifdef DEBUG_VFS
+	dprintf("VFS: Number of fs threads: %d\n", CONFIG_FS_THREADS);
+#endif
 	i = CONFIG_FS_THREADS;
 	while (--i > 0) {
 		if (thread_run(fs_thread))

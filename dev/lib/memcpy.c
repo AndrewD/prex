@@ -28,6 +28,7 @@
  */
 
 #include <sys/types.h>
+#include <drvlib.h>
 
 void *
 memcpy(void *dest, const void *src, size_t count)

@@ -30,50 +30,56 @@
 #ifndef _I386_LOCORE_H
 #define _I386_LOCORE_H
 
+#include <sys/cdefs.h>
 #include <arch.h>
 
-extern void intr_0(void);
-extern void intr_1(void);
-extern void intr_2(void);
-extern void intr_3(void);
-extern void intr_4(void);
-extern void intr_5(void);
-extern void intr_6(void);
-extern void intr_7(void);
-extern void intr_8(void);
-extern void intr_9(void);
-extern void intr_10(void);
-extern void intr_11(void);
-extern void intr_12(void);
-extern void intr_13(void);
-extern void intr_14(void);
-extern void intr_15(void);
-extern void trap_default(void);
-extern void trap_0(void);
-extern void trap_1(void);
-extern void trap_2(void);
-extern void trap_3(void);
-extern void trap_4(void);
-extern void trap_5(void);
-extern void trap_6(void);
-extern void trap_7(void);
-extern void trap_8(void);
-extern void trap_9(void);
-extern void trap_10(void);
-extern void trap_11(void);
-extern void trap_12(void);
-extern void trap_13(void);
-extern void trap_14(void);
-extern void trap_15(void);
-extern void trap_16(void);
-extern void trap_17(void);
-extern void trap_18(void);
-extern void syscall_entry(void);
-extern void syscall_ret(void);
-extern void cpu_switch(struct kern_regs *, struct kern_regs *);
-extern void known_fault1(void);
-extern void known_fault2(void);
-extern void known_fault3(void);
-extern void umem_fault(void);
+__BEGIN_DECLS
+void	intr_0(void);
+void	intr_1(void);
+void	intr_2(void);
+void	intr_3(void);
+void	intr_4(void);
+void	intr_5(void);
+void	intr_6(void);
+void	intr_7(void);
+void	intr_8(void);
+void	intr_9(void);
+void	intr_10(void);
+void	intr_11(void);
+void	intr_12(void);
+void	intr_13(void);
+void	intr_14(void);
+void	intr_15(void);
+void	trap_default(void);
+void	trap_0(void);
+void	trap_1(void);
+void	trap_2(void);
+void	trap_3(void);
+void	trap_4(void);
+void	trap_5(void);
+void	trap_6(void);
+void	trap_7(void);
+void	trap_8(void);
+void	trap_9(void);
+void	trap_10(void);
+void	trap_11(void);
+void	trap_12(void);
+void	trap_13(void);
+void	trap_14(void);
+void	trap_15(void);
+void	trap_16(void);
+void	trap_17(void);
+void	trap_18(void);
+void	syscall_entry(void);
+void	syscall_ret(void);
+void	cpu_switch(struct kern_regs *, struct kern_regs *);
+void	known_fault1(void);
+void	known_fault2(void);
+void	known_fault3(void);
+void	umem_fault(void);
+void	cpu_reset(void);
+__END_DECLS
+
+#define cache_init()	do {} while (0)
 
 #endif /* !_I386_LOCORE_H */

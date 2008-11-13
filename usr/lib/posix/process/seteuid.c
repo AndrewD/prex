@@ -36,6 +36,7 @@ seteuid(uid_t euid)
 
 	if (euid == 1)
 		return 0;
-	errno = EINVAL;
+
+	errno = EPERM;
 	return -1;
 }

@@ -35,11 +35,11 @@
 #include <stdio.h>
 
 static void
-my_exception(int code, void *regs)
+my_exception(int code)
 {
-	printf("Get exception code=%x regs=%x\n", code, (u_int)regs);
+	printf("Get exception code=%x\n", code);
 
-	exception_return(regs);
+	exception_return();
 
 	/* Control never comes here */
 	panic("Ooops!");

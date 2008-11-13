@@ -39,7 +39,7 @@
 void
 vwarn(fmt, ap)
 	const char *fmt;
-	_BSD_VA_LIST_ ap;
+	va_list ap;
 {
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, ap);

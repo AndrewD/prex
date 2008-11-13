@@ -1,3 +1,3 @@
-TARGET=		hello
+PROG=	hello
 
 include $(SRCDIR)/mk/prog.mk

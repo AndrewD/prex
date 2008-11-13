@@ -1,3 +1,3 @@
-TASKT=	dvs
+TASK=	dvs
 
 include $(SRCDIR)/mk/task.mk

@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
-  <title>Prex/i386 PC - Documentation</title>
+  <title>Prex i386 PC - HOWTO</title>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
   <meta name="keywords" content="Prex, embedded, real-time, operating system, RTOS, open source, free">
   <meta name="author" content="Kohsuke Ohtani">
@@ -23,7 +23,7 @@
           <td id="logo">
             <a href="http://prex.sourceforge.net/">
             <img alt="Prex logo" src="../img/logo.gif" border="0"
-            style="width: 281px; height: 56px;"></a>
+            style="width: 250px; height: 54px;"></a>
           </td>
           <td id="brief" align="right" valign="bottom">
             An Open Source, Royalty-free,<br>
@@ -38,13 +38,13 @@
       <td id="directory" style="vertical-align: top;">
       <a href="http://prex.sourceforge.net/">Prex Home</a> >
       <a href="index.html">Document Index</a> >
-      i386 PC
+      i386 PC HOWTO
     </tr>
     <tr><td class="pad" colspan="2" style="vertical-align: top;"></td></tr>
 
     <tr>
-      <td id="main" style="vertical-align: top;">
-      <h1>Prex/i386 PC - Documentation</h1>
+      <td id="doc" style="vertical-align: top;">
+      <h1>Prex i386 PC - HOWTO</h1>
 
 <i>Version 1.3, 2005/09/05</i><br>
 
@@ -201,7 +201,7 @@ the floppy image.
 </p>
 <p>
 To replace the file in the floppy image, "mtools" is useful. Before using
-"mcopy", the drive A must be point to the image file in "mtools.conf" as follow:
+"mcopy", the drive A must be point to the image file in "mtools.conf" as follows:
 </p>
 <pre>drive a: file="(your directory)/prex-X.X.X.i386-pc.img"</pre>
 Then, the file copy can be performed by:
@@ -223,7 +223,7 @@ You can create the Prex bootable floppy by the following steps.
 <ol>
  <li>Prepare a blank floppy disk. This must be formatted with 1.44M FAT file system.</li>
  <li>Boot DOS, and put "bootsect.bin" and "mkboot.com" in the same directory.</li>
- <li> Type as follow:</li>
+ <li> Type as follows:</li>
 </ol>
 <pre class="terminal">a:\>mkboot a:</pre>
 
@@ -279,22 +279,6 @@ Some special keys are defined by the keyboard driver.
   </tr>
   <tr>
     <td>F4</td>
-    <td>Dump all objects</td>
-  </tr>
-  <tr>
-    <td>F5</td>
-    <td>Dump all timers</td>
-  </tr>
-  <tr>
-    <td>F6</td>
-    <td>Dump all interrupts</td>
-  </tr>
-  <tr>
-    <td>F7</td>
-    <td>Dump all devices</td>
-  </tr>
-  <tr>
-    <td>F8</td>
     <td>Dump memory information</td>
   </tr>
 
@@ -306,8 +290,8 @@ Some special keys are defined by the keyboard driver.
 <h2 id="dbg">Debugging with Bochs</h2>
 <p>
  Bochs has a capability to output the character to the console via i/o port 0xe9.
- To get your printk() or sys_log() message in the console, you must configure and
- rebuild Bochs/Prex as follow.
+ To get your printf() or sys_log() message in the console, you must configure and
+ rebuild Bochs/Prex as follows.
 </p>
 <ol>
   <li>Bochs must be built with "--enable-port-e9-hack" option.</li>

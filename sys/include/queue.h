@@ -30,6 +30,8 @@
 #ifndef _QUEUE_H
 #define _QUEUE_H
 
+#include <sys/cdefs.h>
+
 struct queue {
 	struct queue *next;
 	struct queue *prev;
@@ -48,9 +50,11 @@ typedef struct queue *queue_t;
 #define queue_entry(q, type, member) \
     ((type *)((char *)(q) - (unsigned long)(&((type *)0)->member)))
 
-extern void	 enqueue(queue_t, queue_t);
-extern queue_t	 dequeue(queue_t);
-extern void	 queue_insert(queue_t, queue_t);
-extern void	 queue_remove(queue_t);
+__BEGIN_DECLS
+void	 enqueue(queue_t, queue_t);
+queue_t	 dequeue(queue_t);
+void	 queue_insert(queue_t, queue_t);
+void	 queue_remove(queue_t);
+__END_DECLS
 
 #endif /* !_QUEUE_H */

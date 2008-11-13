@@ -34,12 +34,9 @@
 #include <driver.h>
 #include <prex/keycode.h>
 #include <sys/tty.h>
-#include <cpu.h>
-#include <pm.h>
+#include <cpufunc.h>
+#include <console.h>
 #include "kmc.h"
-
-extern void console_attach(struct tty **tpp);
-
 
 /* Parameters */
 #define KBD_IRQ		1
@@ -55,6 +52,9 @@ struct driver kbd_drv = {
 	/* init */	kbd_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio kbd_io = {
 	/* open */	NULL,
 	/* close */	NULL,
@@ -81,7 +81,7 @@ static const u_char key_map[] = {
 	K_DOWN, K_PGDN, K_INS,  0x7f,   K_F11,  K_F12
 };
 
-#define KEY_MAX (sizeof(key_map) / sizeof(u_char))
+#define KEY_MAX (sizeof(key_map) / sizeof(char))
 
 static const u_char shift_map[] = {
 	0,      0x1b,   '!',    '@',    '#',    '$',    '%',    '^',
@@ -98,7 +98,7 @@ static const u_char shift_map[] = {
 };
 
 static device_t kbd_dev;	/* Device object */
-static int kbd_irq;		/* Handle for keyboard irq */
+static irq_t kbd_irq;		/* Handle for keyboard irq */
 static struct tty *tty;
 
 static int shift;
@@ -113,7 +113,7 @@ static int led_sts;
  * Send command to keyboard controller
  */
 static void
-kbd_cmd(int cmd)
+kbd_cmd(u_char cmd)
 {
 
 	wait_ibe();
@@ -134,7 +134,7 @@ kbd_setleds(void)
 	while (inb(KMC_STS) & 2);
 }
 
-#ifdef CONFIG_KDUMP
+#ifdef DEBUG
 /*
  * Help for keyboard debug function
  */
@@ -142,8 +142,8 @@ static void
 kbd_dump_help(void)
 {
 
-	printk("\nSystem dump usage:\n");
-	printk("F1=help F2=thread F3=task F4=object F5=timer F6=irq F7=dev F8=mem F9=dmesg\n");
+	printf("\nSystem dump usage:\n");
+	printf("F1=help F2=thread F3=task F4=mem\n");
 }
 #endif
 
@@ -155,7 +155,8 @@ static int
 kbd_isr(int irq)
 {
 	u_char sc, ac;		/* scan & ascii code */
-	int val, press;
+	u_char val;
+	int press;
 
 	/* Get scan code */
 	wait_obf();
@@ -172,12 +173,6 @@ kbd_isr(int irq)
 	if (sc >= KEY_MAX)
 		return 0;
 	ac = key_map[sc];
-
-#ifdef CONFIG_PM
-	/* Reload power management timer */
-	if (press)
-		pm_active();
-#endif
 
 	/* Check meta key */
 	switch (ac) {
@@ -199,7 +194,7 @@ kbd_isr(int irq)
 	if (!press)
 		return 0;
 
-#ifdef CONFIG_KDUMP
+#ifdef DEBUG
 	if (ac == K_F1) {
 		kbd_dump_help();
 		return 0;
@@ -216,7 +211,6 @@ kbd_isr(int irq)
 
 	/* Check Alt+Ctrl+Del */
 	if (alt && ctrl && ac == 0x7f) {
-		printk("Rebooting...");
 		machine_reset();
 	}
 
@@ -283,7 +277,7 @@ kbd_init(void)
 	/* kbd_setleds(); */
 
 	kbd_irq = irq_attach(KBD_IRQ, IPL_INPUT, 0, kbd_isr, kbd_ist);
-	ASSERT(kbd_irq != -1);
+	ASSERT(kbd_irq != IRQ_NULL);
 
 	/* Discard garbage data */
 	while (inb(KMC_STS) & STS_OBF)

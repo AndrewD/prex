@@ -41,21 +41,23 @@
 #include <kmem.h>
 #include <exception.h>
 
-static volatile u_long lbolt;		/* ticks elapsed since bootup */
-static struct event timer_event;	/* event to wakeup timer thread */
-static struct event delay_event;	/* event for the delay thread */
-static struct list timer_list;		/* list of active timers */
-static struct list expire_list;		/* list of expired timers */
-static void (*tick_hook)(int);		/* hook routine for timer tick */
+static volatile u_long	lbolt;		/* ticks elapsed since bootup */
+
+static struct event	timer_event;	/* event to wakeup a timer thread */
+static struct event	delay_event;	/* event for the thread delay */
+static struct list	timer_list;	/* list of active timers */
+static struct list	expire_list;	/* list of expired timers */
+
+static void (*volatile tick_hook)(int); /* hook routine for timer tick */
 
 /*
- * Macro to get a timer element for the next timer expiration.
+ * Macro to get a timer element for the next expiration.
  */
 #define timer_next() \
 	(list_entry(list_first(&timer_list), struct timer, link))
 
 /*
- * Helper routine to get remaining ticks for the expiration time.
+ * Get remaining ticks to the expiration time.
  * Return 0 if time already passed.
  */
 static u_long
@@ -68,7 +70,7 @@ time_remain(u_long expire)
 }
 
 /*
- * Add a timer element to the timer list, in the proper place.
+ * Add a timer element to the timer list in the proper place.
  * Requires interrupts to be disabled by the caller.
  */
 static void
@@ -80,9 +82,9 @@ timer_add(struct timer *tmr, u_long ticks)
 	tmr->expire = lbolt + ticks;
 
 	/*
-	 * We sort the timer list by time. So, we can quickly
-	 * get the next expiration time from the head element
-	 * of the timer list.
+	 * We sort the timer list by time. So, we can
+	 * quickly get the next expiration time from
+	 * the head element of the timer list.
 	 */
 	head = &timer_list;
 	for (n = list_first(head); n != head; n = list_next(n)) {
@@ -94,13 +96,13 @@ timer_add(struct timer *tmr, u_long ticks)
 }
 
 /*
- * Execute a function after a specified length of time.
- * A device driver can call timer_callout() or timer_stop()
- * from ISR at interrupt level.
+ * Schedule a callout function to run after a specified
+ * length of time.  A device driver can call
+ * timer_callout()/timer_stop() from ISR at interrupt level.
  */
 void
-timer_callout(struct timer *tmr, void (*func)(void *),
-	      void *arg, u_long msec)
+timer_callout(struct timer *tmr, u_long msec,
+	      void (*func)(void *), void *arg)
 {
 	u_long ticks;
 
@@ -111,21 +113,13 @@ timer_callout(struct timer *tmr, void (*func)(void *),
 		ticks = 1;
 
 	irq_lock();
-
-	/*
-	 * Stop timer if running
-	 */
 	if (tmr->active)
 		list_remove(&tmr->link);
-	/*
-	 * Program timer
-	 */
 	tmr->func = func;
 	tmr->arg = arg;
 	tmr->active = 1;
 	tmr->interval = 0;
 	timer_add(tmr, ticks);
-
 	irq_unlock();
 }
 
@@ -144,6 +138,7 @@ timer_stop(struct timer *tmr)
 
 /*
  * timer_delay - delay thread execution.
+ *
  * The caller thread is blocked for the specified time.
  * Returns 0 on success, or the remaining time (msec) on failure.
  * This service is not available at interrupt level.
@@ -167,23 +162,23 @@ timer_delay(u_long msec)
 
 /*
  * timer_sleep - sleep system call.
- * @delay:  delay time in milli-second
- * @remain: remaining time returned if the sleep is interrupted.
  *
- * Stop execution of current thread for the indicated amount of time.
- * Returns EINTR if sleep is canceled by some reasons.
+ * Stop execution of the current thread for the indicated amount
+ * of time.  If the sleep is interrupted, the remaining time
+ * is set in "remain".  Returns EINTR if sleep is canceled by
+ * some reasons.
  */
 int
-timer_sleep(u_long delay, u_long *remain)
+timer_sleep(u_long msec, u_long *remain)
 {
-	u_long msec;
+	u_long left;
 	int err = 0;
 
-	msec = timer_delay(delay);
+	left = timer_delay(msec);
 
 	if (remain != NULL)
-		err = umem_copyout(&msec, remain, sizeof(u_long));
-	if (err == 0 && msec > 0)
+		err = umem_copyout(&left, remain, sizeof(left));
+	if (err == 0 && left > 0)
 		err = EINTR;
 	return err;
 }
@@ -193,57 +188,53 @@ timer_sleep(u_long delay, u_long *remain)
  * Send an alarm exception to the target task.
  */
 static void
-alarm_expire(void *task)
+alarm_expire(void *arg)
 {
 
-	exception_post((task_t)task, SIGALRM);
+	exception_post((task_t)arg, SIGALRM);
 }
 
 /*
- * timer_alarm - schedule an alarm exception.
- * @delay:  delay time in milli-second. If delay is 0, stop timer.
- * @remain: remaining time of the previous alarm request.
+ * timer_alarm - alarm system call.
  *
- * SIGALRM is sent to the caller task when specified delay time
- * is passed.
+ * SIGALRM exception is sent to the caller task when specified
+ * delay time is passed. If passed time is 0, stop the current
+ * running timer.
  */
 int
-timer_alarm(u_long delay, u_long *remain)
+timer_alarm(u_long msec, u_long *remain)
 {
 	struct timer *tmr;
-	u_long msec = 0;
+	task_t self = cur_task();
+	u_long left = 0;
 	int err = 0;
 
 	irq_lock();
-	tmr = &cur_task()->alarm;
+	tmr = &self->alarm;
 	if (tmr->active) {
 		/*
-		 * Save the remaining time before we update
-		 * the timer value.
+		 * Save the remaining time to return
+		 * before we update the timer value.
 		 */
-		msec = tick_to_msec(time_remain(tmr->expire));
+		left = tick_to_msec(time_remain(tmr->expire));
 	}
-	if (delay == 0) {
+	if (msec == 0)
 		timer_stop(tmr);
-	} else {
-		timer_callout(tmr, alarm_expire, cur_task(), delay);
-	}
+	else
+		timer_callout(tmr, msec, &alarm_expire, self);
+
 	irq_unlock();
 
 	if (remain != NULL)
-		err = umem_copyout(&msec, remain, sizeof(u_long));
+		err = umem_copyout(&left, remain, sizeof(left));
 	return err;
 }
 
 /*
  * timer_periodic - set periodic timer for the specified thread.
- * @th:     thread to set timer.
- * @start:  first time to wakeup. set 0 to stop timer.
- * @period: time interval to wakeup. This must be non-zero.
- *          (The unit of start/period is milli-seconds.)
  *
  * The periodic thread will wait the timer period by calling
- * timer_waitperiod().
+ * timer_waitperiod(). The unit of start/period is milli-seconds.
  */
 int
 timer_periodic(thread_t th, u_long start, u_long period)
@@ -274,12 +265,12 @@ timer_periodic(thread_t th, u_long start, u_long period)
 	} else {
 		if (tmr == NULL) {
 			/*
-			 * Allocate a timer element at first call. We
-			 * don't put this data in the thread structure
-			 * because only a few threads will use the
-			 * periodic timer function.
+			 * Allocate a timer element at first call.
+			 * We don't put this data in the thread
+			 * structure because only a few threads
+			 * will use the periodic timer function.
 			 */
-			tmr = kmem_alloc(sizeof(struct timer));
+			tmr = kmem_alloc(sizeof(tmr));
 			if (tmr == NULL) {
 				sched_unlock();
 				return ENOMEM;
@@ -306,10 +297,10 @@ timer_periodic(thread_t th, u_long start, u_long period)
 /*
  * timer_waitperiod - wait next period of the periodic timer.
  *
- * Since this routine can exit by any exceptions, the control may
- * return at non-period time. So, the caller must retry immediately
- * if the error status is EINTR. This will be automatically done
- * by the library stub routine.
+ * Since this routine can exit by any exceptions, the control
+ * may return at non-period time. So, the caller must retry
+ * immediately if the error status is EINTR. This will be
+ * automatically done by the library stub routine.
  */
 int
 timer_waitperiod(void)
@@ -324,7 +315,8 @@ timer_waitperiod(void)
 
 	if (time_before(lbolt, tmr->expire)) {
 		/*
-		 * Sleep until timer_tick() routine wakes us up.
+		 * Sleep until timer_tick() routine
+		 * wakes us up.
 		 */
 		rc = sched_sleep(&tmr->event);
 		if (rc != SLP_SUCCESS)
@@ -339,12 +331,17 @@ timer_waitperiod(void)
 void
 timer_cleanup(thread_t th)
 {
+
 	if (th->periodic != NULL) {
 		timer_stop(th->periodic);
 		kmem_free(th->periodic);
 	}
 }
 
+/*
+ * Install a timer hook routine.
+ * We allow only one hook routine in system.
+ */
 int
 timer_hook(void (*func)(int))
 {
@@ -360,16 +357,15 @@ timer_hook(void (*func)(int))
 /*
  * Timer thread.
  *
- * Handle all expired timers. Each callout routine is called
- * with scheduler locked and interrupts enabled.
+ * Handle all expired timers. Each callout routine is
+ * called with scheduler locked and interrupts enabled.
  */
 static void
-timer_thread(u_long unused)
+timer_thread(void *arg)
 {
 	struct timer *tmr;
 
 	for (;;) {
-
 		/* Wait until next timer expiration. */
 		sched_sleep(&timer_event);
 
@@ -399,8 +395,9 @@ timer_thread(u_long unused)
 /*
  * Timer tick handler
  *
- * timer_tick() is called straight from the real time clock interrupt.
- * All interrupts are still disabled at the entry of this routine.
+ * timer_tick() is called straight from the real time
+ * clock interrupt.  All interrupts are still disabled
+ * at the entry of this routine.
  */
 void
 timer_tick(void)
@@ -409,21 +406,28 @@ timer_tick(void)
 	u_long ticks;
 	int idle, wakeup = 0;
 
-	/* Bump time in ticks. */
+	/*
+	 * Bump time in ticks.
+	 * Note that it is allowed to wrap.
+	 */
 	lbolt++;
 
 	/*
 	 * Handle all of the timer elements that have expired.
 	 */
-	while (!list_empty(&timer_list) &&
-	       time_after_eq(lbolt, timer_next()->expire)) {
+	while (!list_empty(&timer_list)) {
+		/*
+		 * Check timer expiration.
+		 */
+		tmr = timer_next();
+		if (time_before(lbolt, tmr->expire))
+			break;
 		/*
 		 * Remove an expired timer from the list and wakup
 		 * the appropriate thread. If it is periodic timer,
-		 * reprogram the next expiration time. Otherwize,
+		 * reprogram the next expiration time. Otherwise,
 		 * it is moved to the expired list.
 		 */
-		tmr = timer_next();
 		list_remove(&tmr->link);
 		if (tmr->interval != 0) {
 			/*
@@ -448,11 +452,12 @@ timer_tick(void)
 	sched_tick();
 
 	/*
-	 * Call a hook routine for power management or profiling work.
+	 * Call a hook routine for power management
+	 * or profiling work.
 	 */
 	if (tick_hook != NULL) {
 		idle = (cur_thread->prio == PRIO_IDLE) ? 1 : 0;
-		tick_hook(idle);
+		(*tick_hook)(idle);
 	}
 }
 
@@ -470,25 +475,6 @@ timer_info(struct info_timer *info)
 	info->hz = HZ;
 }
 
-#if defined(DEBUG) && defined(CONFIG_KDUMP)
-void
-timer_dump(void)
-{
-	struct timer *tmr;
-	list_t head, n;
-
-	printk("Timer dump:\n");
-	printk("lbolt=%d\n", lbolt);
-
-	head = &timer_list;
-	for (n = list_first(head); n != head; n = list_next(n)) {
-		tmr = list_entry(n, struct timer, link);
-		printk("timer=%x func=%x arg=%x expire=%d\n", (int)tmr,
-		       (int)tmr->func, (int)tmr->arg, (int)tmr->expire);
-	}
-}
-#endif
-
 /*
  * Initialize the timer facility, called at system startup time.
  */
@@ -501,9 +487,7 @@ timer_init(void)
 	event_init(&timer_event, "timer");
 	event_init(&delay_event, "delay");
 
-	/*
-	 * Start timer thread
-	 */
-	if (kernel_thread(PRIO_TIMER, timer_thread, 0) == NULL)
+	/* Start timer thread */
+	if (kthread_create(&timer_thread, NULL, PRIO_TIMER) == NULL)
 		panic("timer_init");
 }

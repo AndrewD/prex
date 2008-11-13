@@ -34,6 +34,10 @@
 
 #include <stddef.h>
 
+void __process_init(void);
+void __process_exit(int status, int signo);
+
+
 object_t __proc_obj;
 
 void

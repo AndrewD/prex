@@ -39,14 +39,14 @@
 #define INFO_DEVICE	4
 #define INFO_TIMER	5
 
-#define _KSTRLN		12
+#define _KSTRLN		16
 
 struct info_kernel {
-	char	sysname[_KSTRLN];	/* Kernel name */
-	char	version[_KSTRLN];	/* Version level */
-	char	blddate[_KSTRLN];	/* Build date */
-	char	machine[_KSTRLN];	/* Architecture/platform */
-	char	hostname[_KSTRLN];	/* Host name */
+	char	sysname[_KSTRLN];	/* kernel name */
+	char	version[_KSTRLN];	/* version level */
+	char	blddate[_KSTRLN];	/* build date */
+	char	machine[_KSTRLN];	/* architecture/platform */
+	char	hostname[_KSTRLN];	/* host name */
 };
 
 /*
@@ -55,7 +55,7 @@ struct info_kernel {
 struct info_memory {
 	size_t	total;		/* total memory size in bytes */
 	size_t	free;		/* current free memory size in bytes */
-	size_t	kernel;		/* memory size used by kernel in bytes */
+	size_t	bootdisk;	/* total size of boot disk */
 };
 
 /*
@@ -63,34 +63,22 @@ struct info_memory {
  */
 struct info_thread {
 	u_long	cookie;		/* index cookie - 0 for first thread */
-	int	state;		/* thread state */
 	int	policy;		/* scheduling policy */
 	int	prio;		/* current priority */
-	int	base_prio;	/* base priority */
-	int	suspend_count;	/* suspend counter */
-	u_int	total_ticks;	/* total running ticks */
-	thread_t id;		/* thread id */
+	u_int	time;		/* total running time */
 	task_t	task;		/* task id */
-	char	task_name[MAXTASKNAME];	/* task name */
-	char	sleep_event[MAXEVTNAME]; /* sleep event */
+	char	taskname[MAXTASKNAME];	/* task name */
+	char	slpevt[MAXEVTNAME];	/* sleep event */
 };
-
-#ifndef KERNEL
-/* Thread state */
-#define TH_RUN		0x00	/* running or ready to run */
-#define TH_SLEEP	0x01	/* sleep for events */
-#define TH_SUSPEND	0x02	/* suspend count is not 0 */
-#define TH_EXIT		0x04	/* terminated */
-#endif
 
 /*
  * Device information
  */
 struct info_device {
-	u_long	cookie;		/* index cookie - 0 for first thread */
+	u_long	 cookie;	/* index cookie - 0 for first thread */
 	device_t id;		/* device id */
-	int	flags;		/* device characteristics flags */
-	char	name[MAXDEVNAME];
+	int	 flags;		/* device characteristics flags */
+	char	 name[MAXDEVNAME]; /* device name */
 };
 
 /*

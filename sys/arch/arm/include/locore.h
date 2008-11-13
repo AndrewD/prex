@@ -30,9 +30,23 @@
 #ifndef _ARM_LOCORE_H
 #define _ARM_LOCORE_H
 
-extern void syscall_ret(void);
-extern void kernel_thread_entry(void);
-extern void cpu_switch(struct kern_regs *, struct kern_regs *);
-extern void interrupt_entry(void);
+#include <sys/cdefs.h>
+#include <arch.h>
+
+__BEGIN_DECLS
+void	 syscall_ret(void);
+void	 kernel_thread_entry(void);
+void	 cpu_switch(struct kern_regs *, struct kern_regs *);
+void	 interrupt_entry(void);
+void	 vector_copy(vaddr_t);
+int	 get_faultstatus(void);
+void	*get_faultaddress(void);
+void	 cpu_init(void);
+void	 known_fault1(void);
+void	 known_fault2(void);
+void	 known_fault3(void);
+void	 umem_fault(void);
+void	 cache_init(void);
+__END_DECLS
 
 #endif /* !_ARM_LOCORE_H */

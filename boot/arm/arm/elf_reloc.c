@@ -29,8 +29,6 @@
 
 #include <boot.h>
 #include <sys/elf.h>
-#include <prex/bootinfo.h>
-#include <platform.h>
 
 int
 relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
@@ -45,7 +43,7 @@ relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
 		break;
 	case R_ARM_ABS32:
 		*where += (Elf32_Addr)phys_to_virt(sym_val);
-		elf_print("R_ARM_ABS32: %x -> %x\n", where, *where);
+		ELFDBG(("R_ARM_ABS32: %x -> %x\n", where, *where));
 		break;
 	case R_ARM_PC24:
 	case R_ARM_PLT32:
@@ -57,7 +55,7 @@ relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
 		tmp = sym_val - (Elf32_Addr)where + (addend << 2);
 		tmp >>= 2;
 		*where = (*where & 0xff000000) | (tmp & 0x00ffffff);
-		elf_print("R_ARM_PC24: %x -> %x\n", where, *where);
+		ELFDBG(("R_ARM_PC24: %x -> %x\n", where, *where));
 		break;
 	default:
 		panic("relocation fail");
@@ -70,6 +68,6 @@ int
 relocate_rela(Elf32_Rela *rela, Elf32_Addr sym_val, char *target_sec)
 {
 
-	panic("Invalid relocation type");
+	panic("invalid relocation type");
 	return -1;
 }

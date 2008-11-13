@@ -2,13 +2,14 @@
 # Makefile.inc - common make rules to build Prex
 #
 
+#
 # Supported environment variables
 #
 #  SRCDIR        ... Root directory of source tree
 #  ARCH          ... Architecture name
 #  PLATFORM      ... Platform name
 #  NDEBUG        ... 0 for debug, 1 for release (default: 0)
-#  LIBGCC_PATH   ... Full path for libgcc.a
+#  LIBGCC_PATH   ... Directory for libgcc.a
 #  CROSS_COMPILE ... Prefix of tools for cross compile
 #
 # Variables in local Makefile
@@ -68,14 +69,15 @@ DEFS=		-D__$(ARCH)__ -D__$(PLATFORM)__ \
 		-D__ARCH__=$(ARCH) -D__PLATFORM__=$(PLATFORM) \
 		-U$(ARCH) -U$(PLATFORM)
 
-CFLAGS+=	-Os -ansi -pedantic -fno-strict-aliasing \
-		-Wall -Wundef -Wstrict-prototypes -Wpointer-arith \
+CFLAGS+=	-Os -ansi -pedantic -Wall -Wundef -fno-strict-aliasing \
+		-Wstrict-prototypes -Wpointer-arith \
 		$(CONFIG_CFLAGS) $(DEFS)
 
 ifeq ($(NDEBUG),1)
 CFLAGS+=	-fomit-frame-pointer
 else
-CFLAGS+=	-fno-omit-frame-pointer -DDEBUG -g
+CFLAGS+=	-fno-omit-frame-pointer -g
+DEFS+=		-DDEBUG
 endif
 
 CPPFLAGS+=	$(DEFS)
@@ -85,8 +87,9 @@ LDFLAGS+=	-Map $(MAP)
 endif
 LDFLAGS+=
 MAKEFLAGS+=	-rR --no-print-directory
-LINTFLAGS+=	-D__lint__ $(DEFS) -nolib -weak -fcnuse -nestcomment \
-		-retvalother -fullinitblock
+LINTFLAGS+=	-D__lint__ $(DEFS) -weak -nolib -retvalother -fcnuse
+
+BINFLAGS=	-O binary -R .note -R .comment -S
 
 #
 # Specify path for libgcc.a
@@ -178,7 +181,7 @@ ifeq ($(TYPE),DRIVER)
 $(TARGET):  $(OBJS) $(OBJS-y) $(LDS_SCRIPT)
 	$(LD) --error-unresolved-symbols $(LDFLAGS) -T $(LD_SCRIPT) -o $@.tmp $(OBJS) $(LIBS) $(LIBGCC)
 	rm -f $@.tmp
-	$(LD) -r $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS) $(LIBGCC)
+	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(OBJS) $(LIBS) $(LIBGCC)
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
@@ -196,7 +199,7 @@ $(TARGET): $(OBJS) $(LDS_SCRIPT)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
 endif
-	$(OBJCOPY) $(OBJCOPYFLAGS) $@
+	$(OBJCOPY) $(BINFLAGS) $@
 endif
 
 #
@@ -204,8 +207,7 @@ endif
 #
 ifeq ($(TYPE),EXEC)
 $(TARGET): $(OBJS) $(LIBS) $(LDS_SCRIPT)
-	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ \
-	$(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LIBGCC)
+	$(LD) $(LDFLAGS) -T $(LD_SCRIPT) -o $@ $(CRT0) $(OBJS) $(LIBS) $(LIBC) $(LDADD) $(LIBGCC)
 	$(ASMGEN)
 ifdef SYMBOL
 	cp $@ $(SYMBOL)
@@ -234,7 +236,9 @@ endif
 
 -include Makefile.dep
 
-C_SRCS = $(wildcard *.c) $(wildcard *.S)
+ifndef SRCS
+SRCS = $(OBJS:.o=.c)
+endif
 
 #
 # Depend
@@ -247,7 +251,7 @@ ifdef SUBDIR
 	done);
 endif
 	rm -f Makefile.dep
-	@(for d in $(C_SRCS) _ ; do \
+	@(for d in $(SRCS) _ ; do \
 	  if [ "$$d" != "_" ] ; then \
 	  $(CPP) -M $(CPPFLAGS) $$d >> Makefile.dep; fi; \
 	done);
@@ -256,8 +260,15 @@ endif
 #
 .PHONY: lint
 lint:
-	@(for d in $(C_SRCS) _ ; do \
+ifdef SUBDIR
+	@(for d in $(SUBDIR) _ ; do \
+	  if [ "$$d" != "_" ] ; then $(MAKE) -C $$d lint; fi; \
+	done);
+endif
+	@(for d in $(SRCS) _ ; do \
 	  if [ "$$d" != "_" ] ; then \
+	  echo ; \
+	  echo "Checking $$d" ; \
 	  $(LINT) $(LINTFLAGS) $(INCLUDE) $$d; fi; \
 	done);
 
@@ -271,6 +282,6 @@ ifdef SUBDIR
 	  if [ "$$d" != "_" ] ; then $(MAKE) -C $$d clean; fi; \
 	done);
 endif
-	rm -f Makefile.dep $(TARGET) $(OBJS) $(OBJS-y) $(DISASM) $(MAP) $(SYMBOL) $(CLEANS)
+	rm -f Makefile.dep $(TARGET) $(OBJS) $(OBJS-y) $(DISASM) $(MAP) $(SYMBOL) $(CLEANFILES)
 
 .PHONY: dummy

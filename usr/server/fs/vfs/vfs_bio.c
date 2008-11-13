@@ -38,7 +38,6 @@
 
 #include <prex/prex.h>
 #include <sys/list.h>
-#include <sys/syslog.h>
 #include <sys/param.h>
 #include <sys/buf.h>
 
@@ -50,7 +49,7 @@
 #include "vfs.h"
 
 /* number of buffer cache */
-#define NR_BUFS		CONFIG_BUF_CACHE
+#define NBUFS		CONFIG_BUF_CACHE
 
 /* macros to clear/set/test flags. */
 #define	SET(t, f)	(t) |= (f)
@@ -71,12 +70,11 @@ static mutex_t bio_lock = MUTEX_INITIALIZER;
 
 
 /* set of buffers */
-static char buf_base[NR_BUFS][BSIZE];
+static char buffers[NBUFS][BSIZE];
 
-static struct buf buf_table[NR_BUFS];
+static struct buf buf_table[NBUFS];
 static struct list free_list = LIST_INIT(free_list);
 
-static int nr_free;
 static sem_t free_sem;
 
 
@@ -84,59 +82,48 @@ static sem_t free_sem;
  * Insert buffer to the head of free list
  */
 static void
-binsfree_head(struct buf *bp)
+bio_insert_head(struct buf *bp)
 {
 
 	list_insert(&free_list, &bp->b_link);
-	nr_free++;
 	sem_post(&free_sem);
-
-	bio_printf("binsfree_head: free=%d\n", nr_free);
 }
 
 /*
  * Insert buffer to the tail of free list
  */
 static void
-binsfree_tail(struct buf *bp)
+bio_insert_tail(struct buf *bp)
 {
 
 	list_insert(list_prev(&free_list), &bp->b_link);
-	nr_free++;
 	sem_post(&free_sem);
-
-	bio_printf("binsfree_tail: free=%d\n", nr_free);
 }
 
 /*
  * Remove buffer from free list
  */
 static void
-bremfree(struct buf *bp)
+bio_remove(struct buf *bp)
 {
-	bio_printf("bremfree: free=%d\n", nr_free);
 
 	sem_wait(&free_sem, 0);
 	ASSERT(!list_empty(&free_list));
 	list_remove(&bp->b_link);
-	nr_free--;
 }
 
 /*
  * Remove buffer from the head of free list
  */
 static struct buf *
-bremfree_head(void)
+bio_remove_head(void)
 {
 	struct buf *bp;
 
-	bio_printf("bremfree_head: free=%d\n", nr_free);
 	sem_wait(&free_sem, 0);
 	ASSERT(!list_empty(&free_list));
-
 	bp = list_entry(list_first(&free_list), struct buf, b_link);
 	list_remove(&bp->b_link);
-	nr_free--;
 	return bp;
 }
 
@@ -149,7 +136,7 @@ incore(dev_t dev, int blkno)
 	struct buf *bp;
 	int i;
 
-	for (i = 0; i < NR_BUFS; i++) {
+	for (i = 0; i < NBUFS; i++) {
 		bp = &buf_table[i];
 		if (bp->b_blkno == blkno && bp->b_dev == dev &&
 		    !ISSET(bp->b_flags, B_INVAL))
@@ -161,37 +148,33 @@ incore(dev_t dev, int blkno)
 /*
  * Assign a buffer for the given block.
  *
- * The block is selected from the buffer list with LRU algorithm.
- * If the appropriate block already exists in the block list, return it.
- * Otherwise, the least recently used block is used.
+ * The block is selected from the buffer list with LRU
+ * algorithm.  If the appropriate block already exists in the
+ * block list, return it.  Otherwise, the least recently used
+ * block is used.
  */
 struct buf *
 getblk(dev_t dev, int blkno)
 {
 	struct buf *bp;
 
-	bio_printf("getblk: dev=%x blkno=%d\n", dev, blkno);
+	DPRINTF(VFSDB_BIO, ("getblk: dev=%x blkno=%d\n", dev, blkno));
  start:
 	BIO_LOCK();
 	bp = incore(dev, blkno);
 	if (bp != NULL) {
-		bio_printf("getblk: found in cache! bp=%x\n", bp);
-
-		/* Block exists in cache */
+		/* Block found in cache. */
 		if (ISSET(bp->b_flags, B_BUSY)) {
-			bio_printf("getblk: but busy...\n");
 			BIO_UNLOCK();
 			mutex_lock(&bp->b_lock);
 			mutex_unlock(&bp->b_lock);
-			bio_printf("getblk: scan again...\n");
+			/* Scan again if it's busy */
 			goto start;
 		}
-		bremfree(bp);
+		bio_remove(bp);
 		SET(bp->b_flags, B_BUSY);
 	} else {
-		bio_printf("getblk: find new buf\n");
-
-		bp = bremfree_head();
+		bp = bio_remove_head();
 		if (ISSET(bp->b_flags, B_DELWRI)) {
 			BIO_UNLOCK();
 			bwrite(bp);
@@ -203,7 +186,7 @@ getblk(dev_t dev, int blkno)
 	}
 	mutex_lock(&bp->b_lock);
 	BIO_UNLOCK();
-	bio_printf("getblk: done bp=%x\n", bp);
+	DPRINTF(VFSDB_BIO, ("getblk: done bp=%x\n", bp));
 	return bp;
 }
 
@@ -214,16 +197,16 @@ void
 brelse(struct buf *bp)
 {
 	ASSERT(ISSET(bp->b_flags, B_BUSY));
-	bio_printf("brelse: bp=%x dev=%x blkno=%d\n",
-		   bp, bp->b_dev, bp->b_blkno);
+	DPRINTF(VFSDB_BIO, ("brelse: bp=%x dev=%x blkno=%d\n",
+				bp, bp->b_dev, bp->b_blkno));
 
 	BIO_LOCK();
 	CLR(bp->b_flags, B_BUSY);
 	mutex_unlock(&bp->b_lock);
 	if (ISSET(bp->b_flags, B_INVAL))
-		binsfree_head(bp);
+		bio_insert_head(bp);
 	else
-		binsfree_tail(bp);
+		bio_insert_tail(bp);
 	BIO_UNLOCK();
 }
 
@@ -233,8 +216,8 @@ brelse(struct buf *bp)
  * @blkno: block number.
  * @buf:   buffer pointer to be returned.
  *
- * An actual read operation is done only when the cached buffer
- * is dirty.
+ * An actual read operation is done only when the cached
+ * buffer is dirty.
  */
 int
 bread(dev_t dev, int blkno, struct buf **bpp)
@@ -243,22 +226,21 @@ bread(dev_t dev, int blkno, struct buf **bpp)
 	size_t size;
 	int err;
 
-	bio_printf("bread: dev=%x blkno=%d\n", dev, blkno);
+	DPRINTF(VFSDB_BIO, ("bread: dev=%x blkno=%d\n", dev, blkno));
 	bp = getblk(dev, blkno);
 
 	if (!ISSET(bp->b_flags, (B_DONE | B_DELWRI))) {
-		bio_printf("bread: i/o read\n");
 		size = BSIZE;
 		err = device_read((device_t)dev, bp->b_data, &size, blkno);
 		if (err) {
-			bio_printf("bread: i/o error\n");
+			DPRINTF(VFSDB_BIO, ("bread: i/o error\n"));
 			brelse(bp);
 			return err;
 		}
 	}
 	CLR(bp->b_flags, B_INVAL);
 	SET(bp->b_flags, (B_READ | B_DONE));
-	bio_printf("bread: done bp=%x\n\n", bp);
+	DPRINTF(VFSDB_BIO, ("bread: done bp=%x\n\n", bp));
 	*bpp = bp;
 	return 0;
 }
@@ -267,7 +249,8 @@ bread(dev_t dev, int blkno, struct buf **bpp)
  * Block write with cache.
  * @buf:   buffer to write.
  *
- * The data is copied to cache block.
+ * The data is copied to the buffer.
+ * Then release the buffer.
  */
 int
 bwrite(struct buf *bp)
@@ -276,7 +259,8 @@ bwrite(struct buf *bp)
 	int err;
 
 	ASSERT(ISSET(bp->b_flags, B_BUSY));
-	bio_printf("bwrite: dev=%x blkno=%d\n", bp->b_dev, bp->b_blkno);
+	DPRINTF(VFSDB_BIO, ("bwrite: dev=%x blkno=%d\n", bp->b_dev,
+			    bp->b_blkno));
 
 	BIO_LOCK();
 	CLR(bp->b_flags, (B_READ | B_DONE | B_DELWRI));
@@ -297,9 +281,9 @@ bwrite(struct buf *bp)
 /*
  * Delayed write.
  *
- * The buffer is marked dirty, but an actial I/O is not performed.
- * This routine should be used when the buffer is expected to be
- * modified again soon.
+ * The buffer is marked dirty, but an actual I/O is not
+ * performed.  This routine should be used when the buffer
+ * is expected to be modified again soon.
  */
 void
 bdwrite(struct buf *bp)
@@ -336,7 +320,7 @@ binval(dev_t dev)
 	int i;
 
 	BIO_LOCK();
-	for (i = 0; i < NR_BUFS; i++) {
+	for (i = 0; i < NBUFS; i++) {
 		bp = &buf_table[i];
 		if (bp->b_dev == dev) {
 			if (ISSET(bp->b_flags, B_DELWRI))
@@ -350,7 +334,7 @@ binval(dev_t dev)
 }
 
 /*
- * Invalidate buffer for specified device.
+ * Invalidate all buffers.
  * This is called when unmount.
  */
 void
@@ -361,7 +345,7 @@ bio_sync(void)
 
  start:
 	BIO_LOCK();
-	for (i = 0; i < NR_BUFS; i++) {
+	for (i = 0; i < NBUFS; i++) {
 		bp = &buf_table[i];
 		if (ISSET(bp->b_flags, B_BUSY)) {
 			BIO_UNLOCK();
@@ -376,7 +360,7 @@ bio_sync(void)
 }
 
 /*
- * Initialize
+ * Initialize the buffer I/O system.
  */
 void
 bio_init(void)
@@ -384,15 +368,14 @@ bio_init(void)
 	struct buf *bp;
 	int i;
 
-	for (i = 0; i < NR_BUFS; i++) {
+	for (i = 0; i < NBUFS; i++) {
 		bp = &buf_table[i];
 		bp->b_flags = B_INVAL;
-		bp->b_data = buf_base[i];
+		bp->b_data = buffers[i];
 		mutex_init(&bp->b_lock);
 		list_insert(&free_list, &bp->b_link);
 	}
-	sem_init(&free_sem, NR_BUFS);
-	nr_free = NR_BUFS;
-	bio_printf("bio: Buffer cache size %dK bytes\n",
-		   BSIZE * NR_BUFS / 1024);
+	sem_init(&free_sem, NBUFS);
+	DPRINTF(VFSDB_BIO, ("bio: Buffer cache size %dK bytes\n",
+			    BSIZE * NBUFS / 1024));
 }

@@ -33,8 +33,10 @@
 
 #include <kernel.h>
 #include <page.h>
+#include <syspage.h>
 #include <cpu.h>
 #include <locore.h>
+#include <cpufunc.h>
 
 typedef void (*trapfn_t)(void);
 
@@ -70,7 +72,7 @@ static const trapfn_t trap_table[] = {
  * CPU enters kernel mode next time.
  */
 void
-tss_set(u_long kstack)
+tss_set(uint32_t kstack)
 {
 
 	tss.esp0 = kstack;
@@ -79,7 +81,7 @@ tss_set(u_long kstack)
 /*
  * tss_get() returns current esp0 value for trap handler.
  */
-u_long
+uint32_t
 tss_get(void)
 {
 
@@ -90,7 +92,7 @@ tss_get(void)
  * Set GDT (global descriptor table) members into specified vector
  */
 static void
-gdt_set(int vec, void *base, size_t limit, int type, int size)
+gdt_set(int vec, void *base, size_t limit, int type, u_int size)
 {
 	struct seg_desc *seg = &gdt[vec];
 
@@ -99,26 +101,27 @@ gdt_set(int vec, void *base, size_t limit, int type, int size)
 		size |= SIZE_4K;
 	}
 	seg->limit_lo = limit;
-	seg->base_lo = (int)base;
-	seg->type = type | ST_PRESENT;
+	seg->base_lo = (u_int)base & 0xffff;
+	seg->base_mid = ((u_int)base >> 16) & 0xff;
 	seg->limit_hi = limit >> 16;
+	seg->base_hi = (u_int)base >> 24;
+	seg->type = (u_int)type | ST_PRESENT;
 	seg->size = size;
-	seg->base_hi = (int)base >> 24;
 }
 
 /*
  * Set IDT (interrupt descriptor table) members into specified vector
  */
 static void
-idt_set(int vec, trapfn_t off, int sel, int type)
+idt_set(int vec, trapfn_t off, u_int sel, int type)
 {
 	struct gate_desc *gate = &idt[vec];
 
-	gate->offset_lo = (int)off;
+	gate->offset_lo = (u_int)off & 0xffff;
 	gate->selector = sel;
 	gate->nr_copy = 0;
-	gate->type = type | ST_PRESENT;
-	gate->offset_hi = (int)off >> 16;
+	gate->type = (u_int)type | ST_PRESENT;
+	gate->offset_hi = (u_int)off >> 16;
 }
 
 /*
@@ -139,13 +142,9 @@ gdt_init(void)
 	gdt[KERNEL_TSS / 8].type &= ~ST_TSS_BUSY;
 
 	/* Load GDT */
-	gdt_p.limit = sizeof(gdt) - 1;
-	gdt_p.base = (u_long)&gdt;
+	gdt_p.limit = (uint16_t)(sizeof(gdt) - 1);
+	gdt_p.base = (uint32_t)&gdt;
 	lgdt(&gdt_p);
-
-	/* Reset code, data and stack selectors */
-	set_cs(KERNEL_CS);
-	set_ds(KERNEL_DS);
 }
 
 /*
@@ -184,8 +183,8 @@ idt_init(void)
 		ST_USER | ST_TRAP_GATE);
 
 	/* Load IDT */
-	idt_p.limit = sizeof(idt) - 1;
-	idt_p.base = (u_long)&idt;
+	idt_p.limit = (uint16_t)(sizeof(idt) - 1);
+	idt_p.base = (uint32_t)&idt;
 	lidt(&idt_p);
 }
 
@@ -202,28 +201,12 @@ tss_init(void)
 	/* Setup TSS */
 	memset(&tss, 0, sizeof(struct tss));
 	tss.ss0 = KERNEL_DS;
-	tss.esp0 = (u_long)phys_to_virt(BOOT_STACK + 0x800 - 1);
-	tss.cs = USER_CS | 3;
-	tss.ds = tss.es = tss.ss = tss.fs = tss.gs = USER_CS | 3;
+	tss.esp0 = (uint32_t)BOOTSTACK_TOP;
+	tss.cs = (uint32_t)USER_CS | 3;
+	tss.ds = tss.es = tss.ss = tss.fs = tss.gs = (uint32_t)USER_CS | 3;
 	tss.io_bitmap_offset = INVALID_IO_BITMAP;
 	ltr(KERNEL_TSS);
 }
-
-#ifdef CONFIG_GDB
-/*
- * Set trap handler for GDB
- */
-void
-trap_set(int vec, void *handler)
-{
-	struct desc_p idt_p;
-
-	idt_set(vec, (trapfn_t)handler, KERNEL_CS, ST_KERN | ST_TRAP_GATE);
-	idt_p.limit = sizeof(idt) - 1;
-	idt_p.base = (u_long)&idt;
-	lidt(&idt_p);
-}
-#endif
 
 /*
  * Initialize CPU state.
@@ -250,11 +233,4 @@ cpu_init(void)
 	gdt_init();
 	idt_init();
 	tss_init();
-
-	/*
-	 * Initialize GDB stub
-	 */
-#ifdef CONFIG_GDB
-	gdb_init();
-#endif
 }

@@ -28,7 +28,7 @@
  */
 
 /*
- * mutex.c - sample program for mutex with priority inheritence.
+ * mutex.c - sample program for mutex with priority inheritance.
  */
 
 /*
@@ -36,12 +36,12 @@
  * This sample shows how the mutex priority is changed when three
  * different threads lock two mutexes at same time.
  *
- * The priority of each thread are as follow.
+ * The priority of each thread are as follows.
  *    Thread1 - priority 100 (highest)
  *    Thread2 - priority 101
  *    Thread3 - priority 102
  *
- * Thread priority and state are changed as follow.
+ * Thread priority and state are changed as follows.
  *
  *    Action                    Thread 1  Thread 2  Thread 3  Mutex A  Mutex B
  *    ------------------------  --------  --------  --------  -------  -------

@@ -35,7 +35,7 @@
 #ifndef	_SYS_UTSNAME_H
 #define	_SYS_UTSNAME_H
 
-#define _SYS_NMLN	12
+#define _SYS_NMLN	16
 
 struct utsname {
 	char	sysname[_SYS_NMLN];	/* name of this OS. */

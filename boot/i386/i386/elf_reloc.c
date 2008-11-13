@@ -28,8 +28,6 @@
  */
 #include <boot.h>
 #include <sys/elf.h>
-#include <prex/bootinfo.h>
-#include <platform.h>
 
 int
 relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
@@ -43,14 +41,14 @@ relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
 		break;
 	case R_386_32:
 		*where += (Elf32_Addr)phys_to_virt(sym_val);
-		elf_print("R_386_32: %x -> %x\n", where, *where);
+		ELFDBG(("R_386_32: %x -> %x\n", where, *where));
 		break;
 	case R_386_PC32:
 		*where += sym_val - (Elf32_Addr)where;
-		elf_print("R_386_PC32: %x -> %x\n", where, *where);
+		ELFDBG(("R_386_PC32: %x -> %x\n", where, *where));
 		break;
 	default:
-		panic("relocation fail\n");
+		panic("relocation fail");
 		return -1;
 	}
 	return 0;
@@ -60,6 +58,6 @@ int
 relocate_rela(Elf32_Rela *rela, Elf32_Addr sym_val, char *target_sec)
 {
 
-	panic("Invalid relocation type\n");
+	panic("invalid relocation type");
 	return -1;
 }

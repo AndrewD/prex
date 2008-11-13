@@ -6,11 +6,7 @@ INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/sys/arch/$(ARCH)/include \
 ASFLAGS+=	$(INCLUDE)
 CFLAGS+=	$(INCLUDE) -nostdinc -fno-builtin -DKERNEL
 CPPFLAGS+=	$(INCLUDE) -DKERNEL
-LDFLAGS+=	-static -nostdlib
+LDFLAGS+=	-static -nostdlib -L$(SRCDIR)/conf
 LINTFLAGS+=	-DKERNEL
-
-ifeq ($(CONFIG_KTRACE),y)
-CFLAGS+= -finstrument-functions
-endif
 
 include $(SRCDIR)/mk/Makefile.inc

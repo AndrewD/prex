@@ -42,7 +42,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: test [object]\n");
+	fprintf(stderr, "usage: debug [object]\n");
 	exit(1);
 }
 
@@ -56,7 +56,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if (object_lookup(argv[1], &obj) != 0) {
-		fprintf(stderr, "test: can not find object %s\n", argv[1]);
+		fprintf(stderr, "debug: can not find object %s\n", argv[1]);
 		exit(1);
 	}
 	m.hdr.code = STD_DEBUG;

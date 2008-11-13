@@ -37,7 +37,7 @@ int
 vsscanf(str, fmt, ap)
 	const char *str;
 	const char *fmt;
-	_BSD_VA_LIST_ ap;
+	va_list ap;
 {
 	FILE f;
 

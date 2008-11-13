@@ -32,32 +32,29 @@
  */
 
 #include <kernel.h>
+#include <page.h>
+#include <syspage.h>
 #include <cpu.h>
+#include <locore.h>
+#include <cpufunc.h>
+#include <irq.h>
 
+#ifdef CONFIG_MMU
 /*
- * Setup pages.
- * This reserves some kernel pages which includes a page for
- * kernel page directory, interrupt stack, boot stack, etc.
+ * Virtual and physical address mapping
+ *
+ *      { virtual, physical, size, type }
  */
-static void
-page_setup(void)
+static struct mmumap mmumap_table[] =
 {
-	struct mem_map *mem;
-	int i;
-
 	/*
-	 * Find empty slot, and set reserved pages
+	 * RAM
 	 */
-	for (i = 0; i < NRESMEM; i++) {
-		mem = &boot_info->reserved[i];
-		if (mem->size == 0) {
-			mem->start = RESERVED_BASE;
-			mem->size = (RESERVED_MAX - RESERVED_BASE);
-			break;
-		}
-	}
-	ASSERT(i != NRESMEM);
-}
+	{ 0x80000000, 0x00000000, AUTOSIZE, VMT_RAM },
+
+	{ 0,0,0,0 }
+};
+#endif
 
 /*
  * Cause an i386 machine reset.
@@ -70,7 +67,7 @@ machine_reset(void)
 	/*
 	 * Try to do keyboard reset.
 	 */
-	cli();
+	interrupt_disable();
 	outb(0xfe, 0x64);
 	for (i = 0; i < 10000; i++)
 		outb(0, 0x80);
@@ -83,17 +80,58 @@ machine_reset(void)
 }
 
 /*
+ * Idle
+ */
+void
+machine_idle(void)
+{
+
+	cpu_idle();
+}
+
+/*
+ * Set system power
+ */
+void
+machine_setpower(int state)
+{
+
+	irq_lock();
+#ifdef DEBUG
+	printf("The system is halted. You can turn off power.");
+#endif
+	for (;;)
+		machine_idle();
+}
+
+/*
  * Machine-dependent startup code
  */
 void
 machine_init(void)
 {
 
+	/*
+	 * Initialize CPU and basic hardware.
+	 */
 	cpu_init();
+	cache_init();
 
-#ifdef CONFIG_GDB
-	gdb_init();
+	/*
+	 * Reserve system pages.
+	 */
+	page_reserve(virt_to_phys(SYSPAGE_BASE), SYSPAGE_SIZE);
+
+#ifdef CONFIG_MMU
+	/*
+	 * Modify page mapping
+	 * We assume the first block in ram[] for i386 is main memory.
+	 */
+	mmumap_table[0].size = bootinfo->ram[0].size;
+
+	/*
+	 * Initialize MMU
+	 */
+	mmu_init(mmumap_table);
 #endif
-	page_setup();
-	interrupt_init();
 }

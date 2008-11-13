@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 	 */
 	len = 1;
 	for (i = 0; i < 100; i++)
-		device_write(console_dev, buf, &len, 0);	
+		device_write(console_dev, buf, &len, 0);
 
 	/*
 	 * Try to pass invalid pointer.

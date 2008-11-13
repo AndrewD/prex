@@ -68,6 +68,9 @@ static mutex_t mount_lock = MUTEX_INITIALIZER;
 #define MOUNT_UNLOCK()
 #endif
 
+/*
+ * Lookup file system.
+ */
 static const struct vfssw *
 fs_lookup(char *name)
 {
@@ -205,7 +208,7 @@ sys_umount(char *path)
 	list_t head, n;
 	int err;
 
-	dprintf("sys_umount: path=%s\n", path);
+	DPRINTF(VFSDB_SYSCALL, ("sys_umount: path=%s\n", path));
 
 	MOUNT_LOCK();
 
@@ -376,13 +379,13 @@ mount_dump(void)
 
 	MOUNT_LOCK();
 
-	printf("mount_dump\n");
-	printf("dev      count root\n");
-	printf("-------- ----- --------\n");
+	dprintf("mount_dump\n");
+	dprintf("dev      count root\n");
+	dprintf("-------- ----- --------\n");
 	head = &mount_list;
 	for (n = list_first(head); n != head; n = list_next(n)) {
 		mp = list_entry(n, struct mount, m_link);
-		printf("%8x %5d %s\n", mp->m_dev, mp->m_count, mp->m_path);
+		dprintf("%8x %5d %s\n", mp->m_dev, mp->m_count, mp->m_path);
 	}
 	MOUNT_UNLOCK();
 }

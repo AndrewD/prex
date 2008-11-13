@@ -33,8 +33,8 @@
 
 #include <driver.h>
 
-static int zero_read(device_t dev, char *buf, size_t *nbyte, int blkno);
-static int zero_write(device_t dev, char *buf, size_t *nbyte, int blkno);
+static int zero_read(device_t, char *, size_t *, int);
+static int zero_write(device_t, char *, size_t *, int);
 static int zero_init(void);
 
 /*
@@ -46,6 +46,9 @@ struct driver zero_drv = {
 	/* init */	zero_init,
 };
 
+/*
+ * Device I/O table
+ */
 static struct devio zero_io = {
 	/* open */	NULL,
 	/* close */	NULL,
@@ -63,9 +66,13 @@ static device_t zero_dev;	/* Device object */
 static int
 zero_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 {
+	void *kbuf;
 
-	/* User buffer was already verified by kernel.  */
-	memset(buf, 0, *nbyte);
+	/* Translate buffer address to kernel address */
+	kbuf = kmem_map(buf, *nbyte);
+	if (kbuf == NULL)
+		return EFAULT;
+	memset(kbuf, 0, *nbyte);
 	return 0;
 }
 

@@ -64,7 +64,7 @@ struct vnode {
 	struct list	v_link;		/* link for hash list */
 	struct mount	*v_mount;	/* mounted vfs pointer */
 	struct vnops	*v_op;		/* vnode operations */
-	int		v_refcount;	/* reference count */
+	int		v_refcnt;	/* reference count */
 	int		v_type;		/* vnode type */
 	int		v_flags;	/* vnode flag */
 	mode_t		v_mode;		/* file mode */
@@ -99,32 +99,32 @@ struct vattr {
  * vnode operations
  */
 struct vnops {
-	int (*open)	(vnode_t vp, mode_t mode);
-	int (*close)	(vnode_t vp, file_t fp);
-	int (*read)	(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result);
-	int (*write)	(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result);
-	int (*seek)	(vnode_t vp, file_t fp, off_t oldoff, off_t newoff);
-	int (*ioctl)	(vnode_t vp, file_t fp, int cmd, u_long arg);
-	int (*fsync)	(vnode_t vp, file_t fp);
-	int (*readdir)	(vnode_t vp, file_t fp, struct dirent *dirent);
-	int (*lookup)	(vnode_t dvp, char *name, vnode_t vp);
-	int (*create)	(vnode_t dvp, char *name, mode_t mode);
-	int (*remove)	(vnode_t dvp, vnode_t vp, char *name);
-	int (*rename)	(vnode_t dvp1, vnode_t vp1, char *name1, vnode_t dvp2, vnode_t vp2, char *name2);
-	int (*mkdir)	(vnode_t dvp, char *name, mode_t mode);
-	int (*rmdir)	(vnode_t dvp, vnode_t vp, char *name);
-	int (*getattr)	(vnode_t vp, struct vattr *vap);
-	int (*setattr)	(vnode_t vp, struct vattr *vap);
-	int (*inactive)	(vnode_t vp);
-	int (*truncate)	(vnode_t vp);
+	int (*vop_open)		(vnode_t vp, int flags);
+	int (*vop_close)	(vnode_t vp, file_t fp);
+	int (*vop_read)		(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result);
+	int (*vop_write)	(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result);
+	int (*vop_seek)		(vnode_t vp, file_t fp, off_t oldoff, off_t newoff);
+	int (*vop_ioctl)	(vnode_t vp, file_t fp, u_long cmd, void *arg);
+	int (*vop_fsync)	(vnode_t vp, file_t fp);
+	int (*vop_readdir)	(vnode_t vp, file_t fp, struct dirent *dirent);
+	int (*vop_lookup)	(vnode_t dvp, char *name, vnode_t vp);
+	int (*vop_create)	(vnode_t dvp, char *name, mode_t mode);
+	int (*vop_remove)	(vnode_t dvp, vnode_t vp, char *name);
+	int (*vop_rename)	(vnode_t dvp1, vnode_t vp1, char *name1, vnode_t dvp2, vnode_t vp2, char *name2);
+	int (*vop_mkdir)	(vnode_t dvp, char *name, mode_t mode);
+	int (*vop_rmdir)	(vnode_t dvp, vnode_t vp, char *name);
+	int (*vop_getattr)	(vnode_t vp, struct vattr *vap);
+	int (*vop_setattr)	(vnode_t vp, struct vattr *vap);
+	int (*vop_inactive)	(vnode_t vp);
+	int (*vop_truncate)	(vnode_t vp);
 };
 
-typedef	int (*vnop_open_t)	(vnode_t, mode_t);
+typedef	int (*vnop_open_t)	(vnode_t, int);
 typedef	int (*vnop_close_t)	(vnode_t, file_t);
 typedef	int (*vnop_read_t)	(vnode_t, file_t, void *, size_t, size_t *);
 typedef	int (*vnop_write_t)	(vnode_t, file_t, void *, size_t, size_t *);
 typedef	int (*vnop_seek_t)	(vnode_t, file_t, off_t, off_t);
-typedef	int (*vnop_ioctl_t)	(vnode_t, file_t, int, u_long);
+typedef	int (*vnop_ioctl_t)	(vnode_t, file_t, u_long, void *);
 typedef	int (*vnop_fsync_t)	(vnode_t, file_t);
 typedef	int (*vnop_readdir_t)	(vnode_t, file_t, struct dirent *);
 typedef	int (*vnop_lookup_t)	(vnode_t, char *, vnode_t);
@@ -141,29 +141,41 @@ typedef	int (*vnop_truncate_t)	(vnode_t);
 /*
  * vnode interface
  */
-#define VOP_OPEN(VP, M)		   ((VP)->v_op->open)(VP, M)
-#define VOP_CLOSE(VP, FP)	   ((VP)->v_op->close)(VP, FP)
-#define VOP_READ(VP, FP, B, S, C)  ((VP)->v_op->read)(VP, FP, B, S, C)
-#define VOP_WRITE(VP, FP, B, S, C) ((VP)->v_op->write)(VP, FP, B, S, C)
-#define VOP_SEEK(VP, FP, OLD, NEW) ((VP)->v_op->seek)(VP, FP, OLD, NEW)
-#define VOP_IOCTL(VP, FP, C, A)	   ((VP)->v_op->ioctl)(VP, FP, C, A)
-#define VOP_FSYNC(VP, FP)	   ((VP)->v_op->fsync)(VP, FP)
-#define VOP_READDIR(VP, FP, DIR)   ((VP)->v_op->readdir)(VP, FP, DIR)
-#define VOP_LOOKUP(DVP, N, VP)	   ((DVP)->v_op->lookup)(DVP, N, VP)
-#define VOP_CREATE(DVP, N, M)	   ((DVP)->v_op->create)(DVP, N, M)
-#define VOP_REMOVE(DVP, VP, N)	   ((DVP)->v_op->remove)(DVP, VP, N)
+#define VOP_OPEN(VP, F)		   ((VP)->v_op->vop_open)(VP, F)
+#define VOP_CLOSE(VP, FP)	   ((VP)->v_op->vop_close)(VP, FP)
+#define VOP_READ(VP, FP, B, S, C)  ((VP)->v_op->vop_read)(VP, FP, B, S, C)
+#define VOP_WRITE(VP, FP, B, S, C) ((VP)->v_op->vop_write)(VP, FP, B, S, C)
+#define VOP_SEEK(VP, FP, OLD, NEW) ((VP)->v_op->vop_seek)(VP, FP, OLD, NEW)
+#define VOP_IOCTL(VP, FP, C, A)	   ((VP)->v_op->vop_ioctl)(VP, FP, C, A)
+#define VOP_FSYNC(VP, FP)	   ((VP)->v_op->vop_fsync)(VP, FP)
+#define VOP_READDIR(VP, FP, DIR)   ((VP)->v_op->vop_readdir)(VP, FP, DIR)
+#define VOP_LOOKUP(DVP, N, VP)	   ((DVP)->v_op->vop_lookup)(DVP, N, VP)
+#define VOP_CREATE(DVP, N, M)	   ((DVP)->v_op->vop_create)(DVP, N, M)
+#define VOP_REMOVE(DVP, VP, N)	   ((DVP)->v_op->vop_remove)(DVP, VP, N)
 #define VOP_RENAME(DVP1, VP1, N1, DVP2, VP2, N2) \
-			   ((DVP1)->v_op->rename)(DVP1, VP1, N1, DVP2, VP2, N2)
-#define VOP_MKDIR(DVP, N, M)	   ((DVP)->v_op->mkdir)(DVP, N, M)
-#define VOP_RMDIR(DVP, VP, N)	   ((DVP)->v_op->rmdir)(DVP, VP, N)
-#define VOP_GETATTR(VP, VAP)	   ((VP)->v_op->getattr)(VP, VAP)
-#define VOP_SETATTR(VP, VAP)	   ((VP)->v_op->setattr)(VP, VAP)
-#define VOP_INACTIVE(VP)	   ((VP)->v_op->inactive)(VP)
-#define VOP_TRUNCATE(VP)	   ((VP)->v_op->truncate)(VP)
+			   ((DVP1)->v_op->vop_rename)(DVP1, VP1, N1, DVP2, VP2, N2)
+#define VOP_MKDIR(DVP, N, M)	   ((DVP)->v_op->vop_mkdir)(DVP, N, M)
+#define VOP_RMDIR(DVP, VP, N)	   ((DVP)->v_op->vop_rmdir)(DVP, VP, N)
+#define VOP_GETATTR(VP, VAP)	   ((VP)->v_op->vop_getattr)(VP, VAP)
+#define VOP_SETATTR(VP, VAP)	   ((VP)->v_op->vop_setattr)(VP, VAP)
+#define VOP_INACTIVE(VP)	   ((VP)->v_op->vop_inactive)(VP)
+#define VOP_TRUNCATE(VP)	   ((VP)->v_op->vop_truncate)(VP)
 
 __BEGIN_DECLS
 int	 vop_nullop(void);
 int	 vop_einval(void);
+
+vnode_t	 vn_lookup(struct mount *mp, char *path);
+void	 vn_lock(vnode_t vp);
+void	 vn_unlock(vnode_t vp);
+int	 vn_stat(vnode_t vp, struct stat *st);
+vnode_t	 vget(struct mount *mp, char *path);
+void	 vput(vnode_t vp);
+void	 vgone(vnode_t vp);
+void	 vref(vnode_t vp);
+void	 vrele(vnode_t vp);
+int	 vcount(vnode_t vp);
+void	 vflush(struct mount *mp);
 __END_DECLS
 
 #endif /* !_SYS_VNODE_H */

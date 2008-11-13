@@ -34,6 +34,9 @@
 #include <signal.h>
 #include <stdlib.h>
 
+void __exception_init(void);
+void __exception_exit(void);
+
 struct sigaction __sig_act[NSIG];
 sigset_t __sig_mask;
 sigset_t __sig_pending;
@@ -120,7 +123,7 @@ __sig_flush(void)
  * Exception handler for signal emulation
  */
 static void
-__exception_handler(int excpt, void *regs)
+__exception_handler(int excpt)
 {
 
 	if (excpt > 0 && excpt <= NSIG) {
@@ -133,7 +136,7 @@ __exception_handler(int excpt, void *regs)
 		SIGNAL_UNLOCK();
 	}
 	__sig_flush();
-	exception_return(regs);
+	exception_return();
 }
 
 /*

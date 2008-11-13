@@ -32,19 +32,14 @@
 #ifndef _STDLIB_H_
 #define _STDLIB_H_
 
-#include <machine/ansi.h>
-
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#if !defined(_SIZE_T)
+#define _SIZE_T
+typedef	unsigned int	size_t;		/* size of something in bytes */
 #endif
 
-#ifdef	_BSD_WCHAR_T_
-#ifndef _ANSI_SOURCE
-typedef	_BSD_WCHAR_T_	rune_t;
-#endif
-typedef	_BSD_WCHAR_T_	wchar_t;
-#undef	_BSD_WCHAR_T_
+#if !defined(_WCHAR_T)
+#define _WCHAR_T
+typedef int		wchar_t;
 #endif
 
 typedef struct {
