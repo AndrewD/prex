@@ -266,13 +266,13 @@ page_dump(void)
 	printf(" --------   -------- --------\n");
 
 	blk = page_head.next;
-	do {
+	while (blk != &page_head) {
 		free += blk->size;
 		addr = virt_to_phys(blk);
 		printf(" %08x - %08x %7dK\n", addr, (char *)addr + blk->size,
 		       blk->size / 1024);
 		blk = blk->next;
-	} while (blk != &page_head);
+	}
 
 	printf(" used=%dK free=%dK total=%dK\n",
 	       (total_size - free) / 1024, free / 1024, total_size / 1024);

@@ -3,18 +3,16 @@
  * Public domain.
  */
 
-#include <driver.h>
 #include <sys/types.h>
 
-#undef ntohl
+#undef htons
 
-uint32_t
-ntohl(x)
-	uint32_t x;
+uint16_t
+htons(uint16_t x)
 {
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_char *s = (u_char *)&x;
-	return (uint32_t)(s[0] << 24 | s[1] << 16 | s[2] << 8 | s[3]);
+	u_char *s = (u_char *) &x;
+	return (uint16_t)(s[0] << 8 | s[1]);
 #else
 	return x;
 #endif

@@ -29,7 +29,7 @@
 
 #ifndef _PREX_H
 #define _PREX_H
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #include <conf/config.h>
 
@@ -87,14 +87,24 @@
 #define DUMP_THREAD	1
 #define DUMP_TASK	2
 #define DUMP_VM		3
+#define DUMP_KSYM	4
+
+/*
+ * Useful macros
+ */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+/* macros to provide information to optimiser */
+#define likely(x) __builtin_expect((!!(x)),1)
+#define unlikely(x) __builtin_expect((!!(x)),0)
 
 __BEGIN_DECLS
 int	object_create(const char *name, object_t *obj);
 int	object_destroy(object_t obj);
 int	object_lookup(const char *name, object_t *obj);
 
-int	msg_send(object_t obj, void *msg, size_t size);
-int	msg_receive(object_t obj, void *msg, size_t size);
+int	msg_send(object_t obj, void *msg, size_t size, u_long timeout);
+int	msg_receive(object_t obj, void *msg, size_t size, u_long timeout);
 int	msg_reply(object_t obj, void *msg, size_t size);
 
 int	vm_allocate(task_t task, void **addr, size_t size, int anywhere);
@@ -118,6 +128,7 @@ thread_t thread_self(void);
 void	thread_yield(void);
 int	thread_suspend(thread_t th);
 int	thread_resume(thread_t th);
+int	thread_name(thread_t th, const char *name);
 int	thread_getprio(thread_t th, int *prio);
 int	thread_setprio(thread_t th, int	prio);
 int	thread_getpolicy(thread_t th, int *policy);
@@ -147,7 +158,7 @@ int	mutex_unlock(mutex_t *mu);
 
 int	cond_init(cond_t *cond);
 int	cond_destroy(cond_t *cond);
-int	cond_wait(cond_t *cond, mutex_t *mu);
+int	cond_wait(cond_t *cond, mutex_t *mu, u_long timeout);
 int	cond_signal(cond_t *cond);
 int	cond_broadcast(cond_t *cond);
 
@@ -160,14 +171,13 @@ int	sem_getvalue(sem_t *sem, u_int *value);
 
 int	sys_info(int type, void *buf);
 int	sys_log(const char *msg);
-void	sys_panic(const char *msg);
+void	sys_panic(const char *msg) __noreturn;
 int	sys_time(u_long *ticks);
 int	sys_debug(int cmd, void *data);
-void	sys_panic(const char *msg);
 
 void	panic(const char *fmt, ...);
 void	dprintf(const char *fmt, ...);
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* __KERNEL__ */
 #endif /* !_PREX_H */

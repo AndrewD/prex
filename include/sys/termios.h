@@ -191,7 +191,7 @@ struct termios {
 #define B19200	19200
 #define B38400	38400
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #define	TCIFLUSH	1
 #define	TCOFLUSH	2
@@ -221,7 +221,7 @@ int	cfsetspeed(struct termios *, speed_t);
 #endif /* !_POSIX_SOURCE */
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !__KERNEL__ */
 
 
 /*
@@ -345,7 +345,7 @@ struct winsize {
 #define CRPRNT		CREPRINT
 #define	CFLUSH		CDISCARD
 
-#ifdef KERNEL
+#ifdef __KERNEL__
 /*
  * #define TTYDEFCHARS to include an array of default control characters.
  */
@@ -355,7 +355,7 @@ struct winsize {
 	_POSIX_VDISABLE, CINTR,	CQUIT,	CSUSP,	CDSUSP,	CSTART,	CSTOP,	CLNEXT, \
 	CDISCARD, CMIN,	CTIME,  CSTATUS, _POSIX_VDISABLE \
 }
-#endif /* KERNEL */
+#endif /* __KERNEL__ */
 
 /*
  * END OF PROTECTED INCLUDE.

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2008-2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,27 +27,12 @@
  * SUCH DAMAGE.
  */
 
-/*
- * assert.c - assertion routine
- */
+#include <pthread.h>
+#include <string.h>
 
-#include <driver.h>
-
-/*
- * Assertion routine
- *
- * Do not call this routine, but use ASSERT() macro.
- * assert() is called only when the expression is
- * false in ASSERT() macro.
- */
-void
-assert(const char *file, int line, const char *exp)
+/* prex extension */
+int pthread_attr_setname(pthread_attr_t *attr, const char *name)
 {
-
-	irq_lock();
-#ifdef DEBUG
-	printf("\nAssertion failed: %s line:%d '%s'\n", file, line, exp);
-#endif
-	panic("driver panic");
-	/* NOTREACHED */
+	strncpy(attr->name, name, sizeof(attr->name));
+	return 0;
 }

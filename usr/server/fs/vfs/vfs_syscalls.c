@@ -51,6 +51,8 @@
 
 #include "vfs.h"
 
+int blocking_count;
+
 int
 sys_open(char *path, int flags, mode_t mode, file_t *pfp)
 {
@@ -77,7 +79,7 @@ sys_open(char *path, int flags, mode_t mode, file_t *pfp)
 			}
 			mode &= ~S_IFMT;
 			mode |= S_IFREG;
-			err = VOP_CREATE(dvp, filename, mode);
+			err = VOP_CREATE(dvp, filename, flags, mode);
 			vput(dvp);
 			if (err)
 				return err;
@@ -131,7 +133,7 @@ sys_open(char *path, int flags, mode_t mode, file_t *pfp)
 		return ENOMEM;
 	}
 	/* Request to file system */
-	if ((err = VOP_OPEN(vp, flags)) != 0) {
+	if ((err = VOP_OPEN(vp, flags, mode)) != 0) {
 		free(fp);
 		vput(vp);
 		return err;
@@ -225,8 +227,7 @@ sys_lseek(file_t fp, off_t off, int type, off_t *origin)
 	case SEEK_SET:
 		if (off < 0)
 			off = 0;
-		if (off > (off_t)vp->v_size)
-			off = vp->v_size;
+		/* off > vp->v_size is valid: sparse file */
 		break;
 	case SEEK_CUR:
 		if (fp->f_offset + off > (off_t)vp->v_size)
@@ -249,14 +250,13 @@ sys_lseek(file_t fp, off_t off, int type, off_t *origin)
 		return EINVAL;
 	}
 	/* Request to check the file offset */
-	if (VOP_SEEK(vp, fp, fp->f_offset, off) != 0) {
-		vn_unlock(vp);
-		return EINVAL;
+	int err = VOP_SEEK(vp, fp, fp->f_offset, off);
+	if (err == 0) {
+		*origin = off;
+		fp->f_offset = off;
 	}
-	*origin = off;
-	fp->f_offset = off;
 	vn_unlock(vp);
-	return 0;
+	return err;
 }
 
 int
@@ -522,6 +522,49 @@ sys_rmdir(char *path)
 }
 
 int
+sys_mkfifo(char *path, mode_t mode)
+{
+	char *name;
+	vnode_t vp, dvp;
+	int err;
+
+	dprintf("sys_mkfifo: path=%s mode=%d\n", path, mode);
+
+	if ((err = namei(path, &vp)) == 0) {
+		/* File already exists */
+		vput(vp);
+		return EEXIST;
+	}
+	/* Notice: vp is invalid here! */
+
+	if ((err = lookup(path, &dvp, &name)) != 0) {
+		/* Directory already exists */
+		return err;
+	}
+	if (dvp->v_mount->m_flags & MNT_RDONLY) {
+		err = EROFS;
+		goto out;
+	}
+	/* fifos can block: need at least one thread per blocking
+	   handle plus one or the filesystem layer can deadlock. */
+	/* REVISIT: could detect this when an attempt is made to open
+	   too many blocking handles and create another fs thread? */
+	if (++blocking_count >= CONFIG_FS_THREADS) {
+		blocking_count--;
+		err = EDEADLK;
+		goto out;
+	}
+
+	mode &= ~S_IFMT;
+	mode |= S_IFIFO;
+
+	err = VOP_MKFIFO(dvp, name, mode);
+ out:
+	vput(dvp);
+	return err;
+}
+
+int
 sys_mknod(char *path, mode_t mode)
 {
 	char *name;
@@ -553,10 +596,15 @@ sys_mknod(char *path, mode_t mode)
 		err = EROFS;
 		goto out;
 	}
+
+	const int flags = 0;
 	if (S_ISDIR(mode))
 		err = VOP_MKDIR(dvp, name, mode);
+	else if (S_ISFIFO(mode))
+		err = VOP_MKFIFO(dvp, name, mode);
 	else
-		err = VOP_CREATE(dvp, name, mode);
+		err = VOP_CREATE(dvp, name, flags, mode);
+
  out:
 	vput(dvp);
 	return err;
@@ -677,6 +725,9 @@ sys_unlink(char *path)
 	}
 	if ((err = lookup(path, &dvp, &name)) != 0)
 		goto out;
+
+	if (vp->v_type == VFIFO)
+		blocking_count--;
 
 	err = VOP_REMOVE(dvp, vp, name);
 

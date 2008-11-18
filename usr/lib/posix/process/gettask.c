@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+/*
+ * Copyright (c) 2005, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +27,23 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <drvlib.h>
+#include <prex/posix.h>
+#include <server/proc.h>
+#include <server/stdmsg.h>
 
-size_t
-strnlen(const char *str, size_t count)
+#include <stddef.h>
+#include <unistd.h>
+#include <errno.h>
+
+task_t
+gettask(pid_t pid)
 {
-	const char *tmp;
+	struct msg m;
 
-	for (tmp = str; count-- && *tmp != '\0'; ++tmp);
-	return (size_t)(tmp - str);
+	m.hdr.code = PS_GETTASK;
+	m.data[0] = pid ? pid : getpid();
+	if (__posix_call(__proc_obj, &m, sizeof(m), 1))
+		return -1;
+
+	return m.data[0];
 }

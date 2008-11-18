@@ -33,6 +33,19 @@
 #include <sys/cdefs.h>
 
 /*
+ * Driver structure
+ *
+ * "order" is initialize order which must be between 0 and 15.
+ * The driver with order 0 is called first.
+ */
+struct driver {
+	const char	*name;		/* Name of device driver */
+	const int	order;		/* Initialize order */
+	int		(*init)(void);	/* Initialize routine */
+};
+typedef struct driver *driver_t;
+
+/*
  * Device I/O table
  */
 struct devio {
@@ -52,14 +65,14 @@ struct device {
 	int		refcnt;		/* reference count */
 	int		flags;		/* device characteristics */
 	struct list	link;		/* linkage on device list */
-	struct devio	*devio;		/* device i/o table */
+	const struct devio *devio;		/* device i/o table */
 	char		name[MAXDEVNAME]; /* name of device */
 };
 
 #define device_valid(dev) (kern_area(dev) && ((dev)->magic == DEVICE_MAGIC))
 
 __BEGIN_DECLS
-device_t device_create(struct devio *, const char *, int);
+device_t device_create(const struct devio *, const char *, int);
 int	 device_destroy(device_t);
 int	 device_broadcast(int, int);
 int	 device_open(const char *, int, device_t *);

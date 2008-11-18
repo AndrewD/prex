@@ -60,9 +60,20 @@
 #define ELFDBG(a)
 #endif
 
+#ifdef DEBUG
+#define ASSERT(exp)	do 						\
+		if (!(exp)) {						\
+			printf("\nAssertion failed: %s line:%d '%s'\n", \
+			       __FILE__, __LINE__, #exp);		\
+			panic(NULL);					\
+		} while (0)
+#else
+#define ASSERT(exp)	do {} while (0)
+#endif
+
 /* Address translation */
-#define phys_to_virt(pa)	(void *)((paddr_t)(pa) + PAGE_OFFSET)
-#define virt_to_phys(va)	(void *)((vaddr_t)(va) - PAGE_OFFSET)
+#define phys_to_virt(pa)	(vaddr_t)((paddr_t)(pa) + PAGE_OFFSET)
+#define virt_to_phys(va)	(paddr_t)((vaddr_t)(va) - PAGE_OFFSET)
 
 extern paddr_t load_base;
 extern paddr_t load_start;
@@ -73,11 +84,21 @@ __BEGIN_DECLS
 #ifdef DEBUG
 void	printf(const char *fmt, ...);
 #endif
-void	panic(const char *msg);
+void	panic(const char *msg) __noreturn;
 void	setup_image(void);
 int	elf_load(char *img, struct module *mod);
 void	start_kernel(paddr_t entry);
 void	loader_main(void);
 __END_DECLS
 
+struct kernel_symbol
+{
+	u_long value;
+	const char *name;
+};
+
+/*
+ * Useful macros
+ */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif /* !_BOOT_H */

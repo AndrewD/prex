@@ -143,7 +143,7 @@ sem_destroy(sem_t *sem)
 		sched_unlock();
 		return err;
 	}
-	if (event_waiting(&s->event) || s->value == 0) {
+	if (event_waiting(&s->event)) {
 		sched_unlock();
 		return EBUSY;
 	}

@@ -103,6 +103,7 @@ fork(void)
 			errno = err;
 			return -1;
 		}
+		thread_name(th, "fork");
 		/*
 		 * Notify to process server
 		 */

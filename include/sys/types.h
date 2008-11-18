@@ -40,6 +40,7 @@
 /* Machine type dependent parameters. */
 #include <machine/types.h>
 #include <prex/types.h>
+#include <prex/pthreadtypes.h>
 
 typedef	unsigned char	u_char;
 typedef	unsigned short	u_short;
@@ -80,7 +81,7 @@ typedef	long		time_t;		/* time of day in seconds */
 
 #define	NBBY	8		/* number of bits in a byte */
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 /*
  * Select uses bit masks of file descriptors in longs.  These macros
  * manipulate such bit fields (the filesystem macros use chars).
@@ -107,6 +108,6 @@ typedef	struct fd_set {
 #define	FD_ISSET(n, p)	((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
 #define	FD_COPY(f, t)	bcopy(f, t, sizeof(*(f)))
 #define	FD_ZERO(p)	bzero(p, sizeof(*(p)))
-#endif /* !KERNEL */
+#endif /* !__KERNEL__ */
 
 #endif /* !_SYS_TYPES_H_ */

@@ -126,7 +126,7 @@ setup_image(void)
 	/*
 	 * Load kernel image
 	 */
-	hdr = (char *)((paddr_t)magic + 8);
+	hdr = (char *)((paddr_t)magic + SARMAG);
 	if (load_image((struct ar_hdr *)hdr, &bootinfo->kernel))
 		panic("Can not load kernel");
 

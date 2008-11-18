@@ -67,6 +67,8 @@ struct ramfs_node {
 	size_t	 rn_size;	/* file size */
 	char	*rn_buf;	/* buffer to the file data */
 	size_t	 rn_bufsize;	/* allocated buffer size */
+	int	 rn_read_fds;	/* fifo: number of fd open for reading */
+	int	 rn_write_fds;	/* fifo: number of fd open for writing */
 };
 
 __BEGIN_DECLS

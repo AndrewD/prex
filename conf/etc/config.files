@@ -1,66 +1,66 @@
 #
 # Driver modules
 #
-drivers		$(SRCDIR)/dev/dev.ko
+drivers		$(BUILDDIR)/dev/dev.ko
 
 #
 # Boot tasks
 #
-boottasks	$(SRCDIR)/usr/server/boot/boot
-boottasks	$(SRCDIR)/usr/server/proc/proc
-boottasks	$(SRCDIR)/usr/server/fs/fs
-boottasks	$(SRCDIR)/usr/server/exec/exec
+boottasks	$(BUILDDIR)/usr/server/boot/boot
+boottasks	$(BUILDDIR)/usr/server/proc/proc
+boottasks	$(BUILDDIR)/usr/server/fs/fs
+boottasks	$(BUILDDIR)/usr/server/exec/exec
 
-#boottasks	$(SRCDIR)/usr/sample/alarm/alarm
-#boottasks	$(SRCDIR)/usr/sample/bench/bench
-#boottasks	$(SRCDIR)/usr/sample/ipc/ipc
-#boottasks	$(SRCDIR)/usr/sample/mutex/mutex
-#boottasks	$(SRCDIR)/usr/sample/sem/sem
-#boottasks	$(SRCDIR)/usr/sample/task/task
-#boottasks	$(SRCDIR)/usr/sample/thread/thread
-#boottasks	$(SRCDIR)/usr/sample/balls/balls
+#boottasks	$(BUILDDIR)/usr/sample/alarm/alarm
+#boottasks	$(BUILDDIR)/usr/sample/bench/bench
+#boottasks	$(BUILDDIR)/usr/sample/ipc/ipc
+#boottasks	$(BUILDDIR)/usr/sample/mutex/mutex
+#boottasks	$(BUILDDIR)/usr/sample/sem/sem
+#boottasks	$(BUILDDIR)/usr/sample/task/task
+#boottasks	$(BUILDDIR)/usr/sample/thread/thread
+#boottasks	$(BUILDDIR)/usr/sample/balls/balls
 
-#boottasks	$(SRCDIR)/usr/test/cap/cap
-#boottasks	$(SRCDIR)/usr/test/console/console
-#boottasks	$(SRCDIR)/usr/test/deadlock/deadlock
-#boottasks	$(SRCDIR)/usr/test/errno/errno
-#boottasks	$(SRCDIR)/usr/test/exception/exception
-#boottasks	$(SRCDIR)/usr/test/fault/fault
-#boottasks	$(SRCDIR)/usr/test/fdd/fdd
-#boottasks	$(SRCDIR)/usr/test/ipc/ipc
-#boottasks	$(SRCDIR)/usr/test/ipc_mt/ipc_mt
-#boottasks	$(SRCDIR)/usr/test/kbd/kbd
-#boottasks	$(SRCDIR)/usr/test/kmon/kmon
-#boottasks	$(SRCDIR)/usr/test/malloc/malloc
-#boottasks	$(SRCDIR)/usr/test/mutex/mutex
-#boottasks	$(SRCDIR)/usr/test/sem/sem
-#boottasks	$(SRCDIR)/usr/test/task/task
-#boottasks	$(SRCDIR)/usr/test/thread/thread
-#boottasks	$(SRCDIR)/usr/test/time/time
-#boottasks	$(SRCDIR)/usr/test/timer/timer
-#boottasks	$(SRCDIR)/usr/test/zero/zero
-#boottasks	$(SRCDIR)/usr/test/ramdisk/ramdisk
-#boottasks	$(SRCDIR)/usr/test/reset/reset
+#boottasks	$(BUILDDIR)/usr/test/cap/cap
+#boottasks	$(BUILDDIR)/usr/test/console/console
+#boottasks	$(BUILDDIR)/usr/test/deadlock/deadlock
+#boottasks	$(BUILDDIR)/usr/test/errno/errno
+#boottasks	$(BUILDDIR)/usr/test/exception/exception
+#boottasks	$(BUILDDIR)/usr/test/fault/fault
+#boottasks	$(BUILDDIR)/usr/test/fdd/fdd
+#boottasks	$(BUILDDIR)/usr/test/ipc/ipc
+#boottasks	$(BUILDDIR)/usr/test/ipc_mt/ipc_mt
+#boottasks	$(BUILDDIR)/usr/test/kbd/kbd
+#boottasks	$(BUILDDIR)/usr/test/kmon/kmon
+#boottasks	$(BUILDDIR)/usr/test/malloc/malloc
+#boottasks	$(BUILDDIR)/usr/test/mutex/mutex
+#boottasks	$(BUILDDIR)/usr/test/sem/sem
+#boottasks	$(BUILDDIR)/usr/test/task/task
+#boottasks	$(BUILDDIR)/usr/test/thread/thread
+#boottasks	$(BUILDDIR)/usr/test/time/time
+#boottasks	$(BUILDDIR)/usr/test/timer/timer
+#boottasks	$(BUILDDIR)/usr/test/zero/zero
+#boottasks	$(BUILDDIR)/usr/test/ramdisk/ramdisk
+#boottasks	$(BUILDDIR)/usr/test/reset/reset
 
-#boottasks	$(SRCDIR)/usr/test/dvs/dvs
-#boottasks	$(SRCDIR)/usr/sample/cpumon/cpumon
+#boottasks	$(BUILDDIR)/usr/test/dvs/dvs
+#boottasks	$(BUILDDIR)/usr/sample/cpumon/cpumon
 
-#boottasks	$(SRCDIR)/usr/server/fs/fs
-#boottasks	$(SRCDIR)/usr/test/fileio/fileio
+#boottasks	$(BUILDDIR)/usr/server/fs/fs
+#boottasks	$(BUILDDIR)/usr/test/fileio/fileio
 
 #
 # Files in RAM disk (stored in /boot)
 #
-bootfiles	$(SRCDIR)/usr/bin/init/init
-bootfiles	$(SRCDIR)/usr/bin/cmdbox/cmdbox
+bootfiles	$(BUILDDIR)/usr/bin/init/init
+bootfiles	$(BUILDDIR)/usr/bin/cmdbox/cmdbox
 bootfiles	$(SRCDIR)/doc/LICENSE
-bootfiles	$(SRCDIR)/usr/sample/hello/hello
+bootfiles	$(BUILDDIR)/usr/sample/hello/hello
 
-#bootfiles	$(SRCDIR)/usr/test/args/args
-#bootfiles	$(SRCDIR)/usr/test/debug/debug
-#bootfiles	$(SRCDIR)/usr/test/stderr/stderr
-#bootfiles	$(SRCDIR)/usr/test/signal/signal
-#bootfiles	$(SRCDIR)/usr/test/vfork/vfork
-#bootfiles	$(SRCDIR)/usr/test/fifo/fifo
-#bootfiles	$(SRCDIR)/usr/test/pipe/pipe
-#bootfiles	$(SRCDIR)/usr/sample/tetris/tetris
+#bootfiles	$(BUILDDIR)/usr/test/args/args
+#bootfiles	$(BUILDDIR)/usr/test/debug/debug
+#bootfiles	$(BUILDDIR)/usr/test/stderr/stderr
+#bootfiles	$(BUILDDIR)/usr/test/signal/signal
+#bootfiles	$(BUILDDIR)/usr/test/vfork/vfork
+#bootfiles	$(BUILDDIR)/usr/test/fifo/fifo
+#bootfiles	$(BUILDDIR)/usr/test/pipe/pipe
+#bootfiles	$(BUILDDIR)/usr/sample/tetris/tetris

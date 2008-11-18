@@ -15,6 +15,7 @@ options 	CMD_HOSTNAME
 options 	CMD_KILL
 options 	CMD_LS
 options 	CMD_MKDIR
+options 	CMD_MKFIFO
 options 	CMD_MOUNT
 options 	CMD_MV
 options 	CMD_NICE

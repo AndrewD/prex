@@ -1,4 +1,3 @@
-include $(SRCDIR)/mk/own.mk
 SUBDIR=		init
 
 ifeq ($(CONFIG_CMDBOX),y)
@@ -19,6 +18,7 @@ SUBDIR-$(CONFIG_CMD_HOSTNAME)+=	hostname
 SUBDIR-$(CONFIG_CMD_KILL)+=	kill
 SUBDIR-$(CONFIG_CMD_LS)+=	ls
 SUBDIR-$(CONFIG_CMD_MKDIR)+=	mkdir
+SUBDIR-$(CONFIG_CMD_MKFIFO)+=	mkfifo
 SUBDIR-$(CONFIG_CMD_MOUNT)+=	mount
 SUBDIR-$(CONFIG_CMD_MV)+=	mv
 SUBDIR-$(CONFIG_CMD_NICE)+=	nice

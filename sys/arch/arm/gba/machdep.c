@@ -34,6 +34,7 @@
 #include <kernel.h>
 #include <cpu.h>
 #include <locore.h>
+#include <irq.h>
 
 /*
  * Set system power

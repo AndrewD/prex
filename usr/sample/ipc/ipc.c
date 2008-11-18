@@ -84,7 +84,7 @@ send_message(object_t obj, const char *str)
 
 	timer_sleep(2000, 0);
 	strcpy(msg.str, str);
-	msg_send(obj, &msg, sizeof(msg));
+	msg_send(obj, &msg, sizeof(msg), 0);
 	printf("client: Received \"%s\"\n", msg.str);
 }
 
@@ -157,7 +157,7 @@ main(int argc, char *argv[])
 		/*
 		 * Wait for an incoming request.
 		 */
-		err = msg_receive(obj, &msg, sizeof(msg));
+		err = msg_receive(obj, &msg, sizeof(msg), 0);
 		if (err)
 			continue;
 		/*

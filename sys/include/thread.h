@@ -43,6 +43,7 @@ struct mutex;
  */
 struct thread {
 	int		magic;		/* magic number */
+	char		name[MAXTHNAME]; /* thread name */
 	task_t		task;		/* pointer to owner task */
 	struct list 	task_link;	/* link for threads in same task */
 	struct queue 	link;		/* linkage on scheduling queue */
@@ -73,7 +74,20 @@ struct thread {
 	struct context 	ctx;		/* machine specific context */
 };
 
-#define thread_valid(th) (kern_area(th) && ((th)->magic == THREAD_MAGIC))
+#ifdef CONFIG_KSTACK_CHECK
+
+#define KSTACK_CHECK_INIT(th) *(u32*)(th)->kstack = THREAD_MAGIC
+#define KSTACK_CHECK(th) (*(u32*)(th)->kstack == THREAD_MAGIC)
+
+#else  /* !CONFIG_KSTACK_CHECK */
+
+#define KSTACK_CHECK_INIT(th)
+#define KSTACK_CHECK(th) 1
+
+#endif	/* !CONFIG_KSTACK_CHECK */
+
+#define thread_valid(th)						\
+	(kern_area(th) && ((th)->magic == THREAD_MAGIC) && KSTACK_CHECK(th))
 
 /*
  * Thread state
@@ -100,7 +114,6 @@ struct thread {
 #define PRIO_IST	16	/* top priority for interrupt threads */
 #define PRIO_DPC	33	/* priority for Deferred Procedure Call */
 #define PRIO_IDLE	255	/* priority for idle thread */
-#define PRIO_USER	PRIO_DFLT	/* default priority for user thread */
 
 #define MAX_PRIO	0
 #define MIN_PRIO	255
@@ -116,6 +129,7 @@ struct thread {
 
 __BEGIN_DECLS
 int	 thread_create(task_t, thread_t *);
+int	 thread_name(thread_t, const char *);
 int	 thread_terminate(thread_t);
 int	 thread_load(thread_t, void (*)(void), void *);
 thread_t thread_self(void);
@@ -123,7 +137,7 @@ void	 thread_yield(void);
 int	 thread_suspend(thread_t);
 int	 thread_resume(thread_t);
 int	 thread_schedparam(thread_t, int, int *);
-void	 thread_idle(void);
+void	 thread_idle(void) __noreturn;
 int	 thread_info(struct info_thread *);
 void	 thread_dump(void);
 void	 thread_init(void);
@@ -131,5 +145,12 @@ void	 thread_init(void);
 thread_t kthread_create(void (*)(void *), void *, int);
 void	 kthread_terminate(thread_t);
 __END_DECLS
+
+#if defined (DEBUG) && defined(CONFIG_THREAD_CHECK)
+extern void thread_check(void);
+#define THREAD_CHECK() thread_check()
+#else
+#define THREAD_CHECK()
+#endif
 
 #endif /* !_THREAD_H */

@@ -27,15 +27,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <drvlib.h>
+#include <kernel.h>
 
 void *
-memcpy(void *dest, const void *src, size_t count)
+memset(void *dest, int ch, size_t count)
 {
-	char *tmp = (char *)dest, *s = (char *)src;
+	char *p = (char *)dest;
 
 	while (count--)
-		*tmp++ = *s++;
+		*p++ = (char)ch;
 	return dest;
 }

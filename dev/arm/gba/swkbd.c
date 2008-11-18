@@ -89,7 +89,7 @@ static void move_cursor(void);
 /*
  * Driver structure
  */
-struct driver kbd_drv = {
+struct driver kbd_drv __driver_entry = {
 	/* name */	"GBA S/W Keyboard",
 	/* order */	11,
 	/* init */	kbd_init,

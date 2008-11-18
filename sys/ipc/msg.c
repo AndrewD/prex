@@ -86,7 +86,7 @@ static struct event ipc_event;
  * it knows the object id.
  */
 int
-msg_send(object_t obj, void *msg, size_t size)
+msg_send(object_t obj, void *msg, size_t size, u_long timeout)
 {
 	struct msg_header *hdr;
 	thread_t th;
@@ -157,7 +157,7 @@ msg_send(object_t obj, void *msg, size_t size)
 	 */
 	cur_thread->sendobj = obj;
 	msg_enqueue(&obj->sendq, cur_thread);
-	rc = sched_sleep(&ipc_event);
+	rc = sched_tsleep(&ipc_event, timeout);
 	if (rc == SLP_INTR)
 		queue_remove(&cur_thread->ipc_link);
 	cur_thread->sendobj = NULL;
@@ -174,6 +174,8 @@ msg_send(object_t obj, void *msg, size_t size)
 		return EINVAL;	/* Object has been deleted */
 	case SLP_INTR:
 		return EINTR;	/* Exception */
+	case SLP_TIMEOUT:
+		return ETIMEDOUT;	/* Timeout */
 	default:
 		/* DO NOTHING */
 		break;
@@ -200,7 +202,7 @@ msg_send(object_t obj, void *msg, size_t size)
  * simultaneously.
  */
 int
-msg_receive(object_t obj, void *msg, size_t size)
+msg_receive(object_t obj, void *msg, size_t size, u_long timeout)
 {
 	thread_t th;
 	size_t len;
@@ -238,7 +240,7 @@ msg_receive(object_t obj, void *msg, size_t size)
 		 * Block until someone sends the message.
 		 */
 		msg_enqueue(&obj->recvq, cur_thread);
-		rc = sched_sleep(&ipc_event);
+		rc = sched_tsleep(&ipc_event, timeout);
 		if (rc != 0) {
 			/*
 			 * Receive is failed due to some reasons.
@@ -250,6 +252,9 @@ msg_receive(object_t obj, void *msg, size_t size)
 			case SLP_INTR:
 				queue_remove(&cur_thread->ipc_link);
 				err = EINTR;	/* Got exception */
+				break;
+			case SLP_TIMEOUT:
+				err = ETIMEDOUT;	/* Timeout */
 				break;
 			default:
 				panic("msg_receive");

@@ -85,11 +85,12 @@ int	 mutex_destroy(mutex_t *);
 int	 mutex_lock(mutex_t *);
 int	 mutex_trylock(mutex_t *);
 int	 mutex_unlock(mutex_t *);
+int	 mutex_unlock_count(mutex_t *);
 void	 mutex_cleanup(thread_t);
 void	 mutex_setprio(thread_t, int);
 int	 cond_init(cond_t *);
 int	 cond_destroy(cond_t *);
-int	 cond_wait(cond_t *, mutex_t *);
+int	 cond_wait(cond_t *, mutex_t *, u_long);
 int	 cond_signal(cond_t *);
 int	 cond_broadcast(cond_t *);
 __END_DECLS

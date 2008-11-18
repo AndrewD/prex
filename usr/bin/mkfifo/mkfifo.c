@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2008, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +27,50 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <drvlib.h>
+#include <sys/mount.h>
 
-void *
-memset(void *dest, int ch, size_t count)
+#include <unistd.h>
+#include <err.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
+#ifdef CMDBOX
+#define main(argc, argv)	mkfifo_main(argc, argv)
+#endif
+
+static void	usage(void);
+
+int
+main(int argc, char *argv[])
 {
-	char *p = (char *)dest;
+	int ch, exitval;
 
-	while (count--)
-		*p++ = (char)ch;
-	return dest;
+	while ((ch = getopt(argc, argv, "")) != EOF)
+		switch(ch) {
+		case '?':
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+
+	if (argv[0] == NULL)
+		usage();
+
+	for (exitval = 0; *argv != NULL; ++argv) {
+		if (mkfifo(*argv, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+			warn("%s", *argv);
+			exitval = 1;
+		}
+	}
+	exit(exitval);
+	/* NOTREACHED */
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: mkfifo [-m mode] file ...\n");
+	exit (1);
 }

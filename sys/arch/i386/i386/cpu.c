@@ -160,7 +160,7 @@ static void
 idt_init(void)
 {
 	struct desc_p idt_p;
-	int i;
+	u_int i;
 
 	/* Fill all vectors with default handler */
 	for (i = 0; i < NIDTS; i++)

@@ -1,14 +1,12 @@
-include $(SRCDIR)/mk/own.mk
-
-INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/include -I$(SRCDIR)/usr/include
+INCLUDE=	-I$(BUILDDIR) -I$(SRCDIR) -I$(SRCDIR)/include -I$(SRCDIR)/usr/include
 
 ASFLAGS+=	$(INCLUDE)
 CFLAGS+=	$(INCLUDE) -nostdinc -D_STANDALONE
 CPPFLAGS+=	$(INCLUDE) -nostdinc -D_STANDALONE
 LDFLAGS+=	-static $(USR_LDFLAGS)
 
-LIBC=		$(SRCDIR)/usr/lib/libsa.a
-CRT0=		$(SRCDIR)/usr/lib/crt0.o
+LIBC=		$(BUILDDIR)/usr/lib/libsa.a
+CRT0=		$(BUILDDIR)/usr/lib/crt0.o
 TYPE=		EXEC
 
 ifeq ($(CONFIG_MMU), y)

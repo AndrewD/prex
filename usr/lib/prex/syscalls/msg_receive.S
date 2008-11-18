@@ -30,4 +30,4 @@
 #include <machine/systrap.h>
 #include "syscall.h"
 
-SYSCALL3(msg_receive)
+SYSCALL4(msg_receive)

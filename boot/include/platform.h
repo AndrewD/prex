@@ -35,7 +35,7 @@
 __BEGIN_DECLS
 void	machine_putc(int);
 void	machine_setup(void);
-void	machine_panic(void);
+void	machine_panic(void) __noreturn;
 __END_DECLS
 
 #endif /* !_PLATFORM_H */

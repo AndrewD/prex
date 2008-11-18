@@ -59,7 +59,7 @@ static int pm_init(void);
 /*
  * Driver structure
  */
-struct driver pm_drv = {
+struct driver pm_drv __driver_entry = {
 	/* name */	"Power Management",
 	/* order */	2,
 	/* init */	pm_init,

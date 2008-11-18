@@ -35,6 +35,20 @@ SECTIONS
 		*(.rodata.*)
 	} : text
 
+	.kstrtab : {
+		*(.kstrtab)
+	} : text
+
+	.ksymtab ALIGN(4) : {
+		*(.ksymtab)
+	} : text
+
+	.driver_table ALIGN(4) : {
+		__driver_table = . ;
+		*(.driver_table)
+		__driver_table_end = . ;
+	} : text
+
 	.data ALIGN(4) : {
 		*(.data)
 	} : data = 0xff

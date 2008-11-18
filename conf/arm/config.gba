@@ -21,6 +21,7 @@ makeoptions	CFLAGS+= -mcpu=arm7tdmi -mtune=arm7tdmi
 #
 options 	HZ=100		# Ticks/second of the clock
 options 	TIME_SLICE=100	# Context switch ratio (msec)
+options 	KSTACK_SIZE=768	# Kernel stack size
 options 	OPEN_MAX=8	# Max open files per process
 options 	BUF_CACHE=8	# Blocks for buffer cache
 options 	FS_THREADS=1	# Number of file system threads
@@ -37,17 +38,17 @@ options 	BOOTDISK	# Disk for /boot directory
 #
 # Device drivers
 #
-options 	KEYBOARD	# Keyboard
-options 	CONSOLE		# Console
-#options 	MOUSE		# Mouse
-#options 	RTC		# Real time clock
-options 	KEYPAD		# GBA Keypad
-options 	RAMDISK		# RAM disk
-options 	TTY		# TTY driver
-options 	PM		# Power management
-#options 	CPUFREQ		# CPU frequency control
-#options 	NULL		# NULL device
-#options 	ZERO		# Zero device
+options 	KEYBOARD=m	# Keyboard
+options 	CONSOLE=m	# Console
+#options 	MOUSE=m		# Mouse
+#options 	RTC=m		# Real time clock
+options 	KEYPAD=m	# GBA Keypad
+options 	RAMDISK=m	# RAM disk
+options 	TTY=m		# TTY driver
+options 	PM=m		# Power management
+#options 	CPUFREQ=m	# CPU frequency control
+#options 	NULL=m		# NULL device
+#options 	ZERO=m		# Zero device
 
 #
 # Power management

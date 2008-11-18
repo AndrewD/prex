@@ -344,7 +344,7 @@ thread_t
 sched_wakeone(struct event *evt)
 {
 	queue_t head, q;
-	thread_t top, th = NULL;
+	thread_t top = NULL, th;
 
 	sched_lock();
 	irq_lock();
@@ -366,11 +366,10 @@ sched_wakeone(struct event *evt)
 		top->slpret = 0;
 		enqueue(&wakeq, &top->link);
 		timer_stop(&top->timeout);
-		th = top;
 	}
 	irq_unlock();
 	sched_unlock();
-	return th;
+	return top;
 }
 
 /*
@@ -479,8 +478,8 @@ sched_start(thread_t th)
 
 	th->state = TH_RUN | TH_SUSPEND;
 	th->policy = SCHED_RR;
-	th->prio = PRIO_USER;
-	th->baseprio = PRIO_USER;
+	th->prio = PRIO_DFLT;
+	th->baseprio = PRIO_DFLT;
 	th->timeleft = QUANTUM;
 }
 
@@ -528,6 +527,7 @@ sched_lock(void)
 {
 
 	cur_thread->locks++;
+	THREAD_CHECK();
 }
 
 /*
@@ -545,6 +545,7 @@ sched_unlock(void)
 	int s;
 
 	ASSERT(cur_thread->locks > 0);
+	THREAD_CHECK();
 
 	interrupt_save(&s);
 	interrupt_disable();

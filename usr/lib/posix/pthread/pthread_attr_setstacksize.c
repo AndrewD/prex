@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2008-2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,18 +27,15 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <drvlib.h>
+#include <pthread.h>
+#include <verbose.h>
+#include <errno.h>
 
-int
-strncmp(const char *src, const char *tgt, size_t count)
+int pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 {
-	signed char res = 0;
+	if (stacksize < USTACK_SIZE)
+		return DERR(EINVAL);
 
-	while (count) {
-		if ((res = *src - *tgt++) != 0 || !*src++)
-			break;
-		count--;
-	}
-	return res;
+	attr->stacksize = stacksize;
+	return 0;
 }

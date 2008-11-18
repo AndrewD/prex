@@ -114,5 +114,9 @@ const char *const sys_errlist[] = {
 /* quotas & mush */
 	"Too many processes",			/* 67 - EPROCLIM */
 	"Function not implemented",		/* 68 - ENOSYS */
+
+/* posix */
+	"Not supported",			/* 69 - ENOTSUP */
+
 };
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);

@@ -33,7 +33,7 @@
 #include <sys/cdefs.h>
 
 #define LOGBUF_SIZE	2048	/* size of log buffer */ 
-#define DBGMSG_SIZE	128	/* Size of one kernel message */
+#define DBGMSG_SIZE	128 + MAXTHNAME	/* Size of one kernel message */
 
 #ifdef DEBUG
 #define DPRINTF(a)	printf a
@@ -58,6 +58,7 @@
 #define DUMP_THREAD	1
 #define DUMP_TASK	2
 #define DUMP_VM		3
+#define DUMP_KSYM	4
 
 #ifdef DEBUG
 __BEGIN_DECLS
@@ -67,6 +68,7 @@ int	debug_dump(int);
 void	debug_attach(void (*)(char *));
 void	assert(const char *, int, const char *);
 int	debug_getlog(char *);
+void	ksym_dump(void);
 __END_DECLS
 #endif
 

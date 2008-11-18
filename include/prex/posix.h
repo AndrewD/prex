@@ -29,7 +29,7 @@
 
 #ifndef _PREX_POSIX_H
 #define _PREX_POSIX_H
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #include <sys/types.h>
 #include <prex/types.h>
@@ -41,5 +41,5 @@ __BEGIN_DECLS
 int __posix_call(object_t obj, void *msg, size_t size, int restart);
 __END_DECLS
 
-#endif	/* KERNEL */
+#endif	/* __KERNEL__ */
 #endif	/* !_PREX_POSIX_H */

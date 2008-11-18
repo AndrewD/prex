@@ -605,7 +605,7 @@ region_init(struct region *reg)
 }
 
 #ifdef DEBUG
-static void
+void
 vm_dump_one(task_t task)
 {
 	vm_map_t map;

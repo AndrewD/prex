@@ -1,3 +1,3 @@
-SUBDIR=	crt libsa libc
+SUBDIR=	crt libsa libc libpthread
 
 include $(SRCDIR)/mk/subdir.mk

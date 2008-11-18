@@ -85,6 +85,7 @@ device_release(device_t dev)
 
 	sched_lock();
 	if (--dev->refcnt == 0) {
+		dev->magic = 0;
 		list_remove(&dev->link);
 		kmem_free(dev);
 	}
@@ -122,7 +123,7 @@ device_lookup(const char *name)
  * Returns device ID on success, or 0 on failure.
  */
 device_t
-device_create(struct devio *io, const char *name, int flags)
+device_create(const struct devio *io, const char *name, int flags)
 {
 	struct device *dev;
 	size_t len;
@@ -390,7 +391,6 @@ device_info(struct info_device *info)
 {
 	u_long index, target = info->cookie;
 	device_t dev;
-	struct devio *io;
 	list_t head, n;
 	int err = ESRCH;
 
@@ -399,7 +399,6 @@ device_info(struct info_device *info)
 	head = &device_list;
 	for (n = list_first(head); n != head; n = list_next(n)) {
 		dev = list_entry(n, struct device, link);
-		io = dev->devio;
 		if (index == target) {
 			info->id = dev;
 			info->flags = dev->flags;
@@ -414,15 +413,51 @@ device_info(struct info_device *info)
 }
 
 /*
+ * Initialize static device drivers.
+ */
+static void
+driver_init(void)
+{
+	struct driver *drv;
+	int order, err;
+	extern struct driver __driver_table, __driver_table_end;
+
+	DPRINTF(("Load static drivers\n"));
+
+	/*
+	 * Initialize library components.
+	 */
+	calibrate_delay();
+
+	/*
+	 * Call init routine for all device drivers with init order.
+	 * Smaller value will be run first.
+	 */
+	for (order = 0; order < 16; order++) {
+		for (drv = &__driver_table; drv != &__driver_table_end;
+		     drv++) {
+			ASSERT(drv->order < 16);
+			if (drv->order == order) {
+				if (drv->init) {
+					DPRINTF(("Initializing %s\n", drv->name));
+					err = drv->init();
+				}
+			}
+		}
+	}
+}
+
+/*
  * Initialize device driver module.
  */
 void
 device_init(void)
 {
 	struct module *mod;
-	void (*drv_entry)(const dkifn_t *);
+	void (*drv_entry)(void);
 
 	list_init(&device_list);
+	driver_init();
 
 	mod = &bootinfo->driver;
 	if (mod == NULL) {
@@ -430,7 +465,7 @@ device_init(void)
 		return;
 	}
 
-	drv_entry = (void (*)(const dkifn_t *))mod->entry;
+	drv_entry = (void (*)(void))mod->entry;
 	ASSERT(drv_entry);
 	if (drv_entry == NULL)
 		return;
@@ -438,5 +473,5 @@ device_init(void)
 	/*
 	 * Call all initialization functions in drivers.
 	 */
-	(*drv_entry)(driver_service);
+	(*drv_entry)();
 }

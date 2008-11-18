@@ -71,7 +71,7 @@ build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
 	int i, err;
 	u_long arg_top, mapped, sp;
 
-	argc = msg->argc;
+	argc = msg->argc + 1;	/* allow for filename */
 	envc = msg->envc;
 	path = (char *)&msg->path;
 
@@ -111,7 +111,7 @@ build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
 
 	/* argc */
 	sp -= sizeof(int);
-	*(int *)(sp) = argc + 1;
+	*(int *)(sp) = argc;
 
 	/*
 	 * Build argument list
@@ -119,12 +119,12 @@ build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
 	argv[0] = (char *)((u_long)stack + (u_long)file - mapped);
 	DPRINTF(("exec: argv[0] = %s\n", argv[0]));
 
-	for (i = 1; i <= argc; i++) {
+	for (i = 1; i < argc; i++) { /* start after filename */
 		argv[i] = (char *)((u_long)stack + (arg_top - mapped));
 		while ((*(char *)arg_top++) != '\0');
 		DPRINTF(("exec: argv[%d] = %s\n", i, argv[i]));
 	}
-	argv[argc + 1] = NULL;
+	argv[argc] = NULL;
 
 	for (i = 0; i < envc; i++) {
 		envp[i] = (char *)((u_long)stack + (arg_top - mapped));

@@ -5,7 +5,7 @@
 
 quit()
 {
-    cat >&2 <<ERRORMSG
+	cat >&2 <<ERRORMSG
 
 ERROR: $@
 ERRORMSG
@@ -40,17 +40,23 @@ setdefaults()
 	profile=""
 	cross=""
 	srcdir=`pwd`
+
+	if [ "x$BUILDDIR" = x ]; then
+		BUILDDIR=`pwd`
+	else
+		mkdir -p $BUILDDIR/conf ||
+			quit "can not create $BUILDDIR/conf"
+	fi
 }
 
 checkpath()
 {
 	CONFIG_IN=$srcdir/conf/$arch/config.$platform$profile
 	CONFIG_FILES=$srcdir/conf/etc/config.files
-	MAKEFILE_IN=$srcdir/conf/$arch/Makefile.$platform$profile
 	CMDBOX_IN=$srcdir/conf/etc/config.cmdbox
-	CONFIG_MK=$srcdir/conf/config.mk
-	CONFIG_H=$srcdir/conf/config.h
-	CONFIG_LD=$srcdir/conf/config.ld
+	CONFIG_MK=$BUILDDIR/conf/config.mk
+	CONFIG_H=$BUILDDIR/conf/config.h
+	CONFIG_LD=$BUILDDIR/conf/config.ld
 
 	[ -f $CONFIG_IN ] ||
 		quit "can not find $CONFIG_IN"
@@ -140,25 +146,26 @@ setgccoption()
 setparm()
 {
 	echo "$1=$2"
-	echo "$1=$2" >> $CONFIG_MK
 	if [ "$2" = "n" ] ; then
 		echo "#undef $1" >> $CONFIG_H
 	else
+		echo "export $1=$2" >> $CONFIG_MK
 		echo "#define $1 $2" >> $CONFIG_H
 	fi
 }
 
 options()
 {
-	param=`expr "x$1" : 'x\([^= ]*\)'`
-	value=`expr "x$1" : 'x[^=]*=\([A-Za-z0-9]*\)'`
+	word=`expr "x$1" : 'x\([^ ]*\)'`
+	param=`expr "x$word" : 'x\([^= ]*\)'`
+	value=`expr "x$word" : 'x[^=]*=\(.*\)'`
 	if [ "x$value" = x ] ; then
 		echo "CONFIG_$param=y"
-		echo "CONFIG_$param=y" >> $CONFIG_MK
+		echo "export CONFIG_$param=y" >> $CONFIG_MK
 		echo "#define CONFIG_$param y" >> $CONFIG_H
 	else
 		echo "CONFIG_$param=$value"
-		echo "CONFIG_$param=$value" >> $CONFIG_MK
+		echo "export CONFIG_$param=$value" >> $CONFIG_MK
 		echo "#define CONFIG_$param $value" >> $CONFIG_H
 	fi
 }
@@ -166,7 +173,7 @@ options()
 memory()
 {
 	echo "$1=$2"
-	echo "$1=$2" >> $CONFIG_MK
+	echo "export $1=$2" >> $CONFIG_MK
 	echo "$1 = $2 ;" >> $CONFIG_LD
 	echo "#define $1 $2" >> $CONFIG_H
 }
@@ -256,12 +263,13 @@ main()
 	#
 	# Setup build settings
 	#
-	echo "SRCDIR=$srcdir" >> $CONFIG_MK
-	echo "ARCH=$arch" >> $CONFIG_MK
-	echo "PLATFORM=$platform" >> $CONFIG_MK
-	echo "PROFILE=$platform$profile" >> $CONFIG_MK
-	[ "x$cross" != x ] && echo "CROSS_COMPILE=$cross" >> $CONFIG_MK
-	[ "x$nodebug" != x ] && echo "NDEBUG=1" >> $CONFIG_MK
+	echo "export SRCDIR=$srcdir" >> $CONFIG_MK
+	echo "export BUILDDIR=$BUILDDIR" >> $CONFIG_MK
+	echo "export ARCH=$arch" >> $CONFIG_MK
+	echo "export PLATFORM=$platform" >> $CONFIG_MK
+	echo "export PROFILE=$platform$profile" >> $CONFIG_MK
+	[ "x$cross" != x ] && echo "export CROSS_COMPILE=$cross" >> $CONFIG_MK
+	[ "x$nodebug" != x ] && echo "exprot NDEBUG=1" >> $CONFIG_MK
 	echo "" >> $CONFIG_MK
 
 	#

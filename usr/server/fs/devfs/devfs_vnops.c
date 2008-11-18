@@ -55,7 +55,7 @@
 #define devfs_vget	((vfsop_vget_t)vfs_nullop)
 #define devfs_statfs	((vfsop_statfs_t)vfs_nullop)
 
-static int devfs_open	(vnode_t, int);
+static int devfs_open	(vnode_t, int, mode_t);
 static int devfs_close	(vnode_t, file_t);
 static int devfs_read	(vnode_t, file_t, void *, size_t, size_t *);
 static int devfs_write	(vnode_t, file_t, void *, size_t, size_t *);
@@ -69,6 +69,7 @@ static int devfs_lookup	(vnode_t, char *, vnode_t);
 #define devfs_rename	((vnop_rename_t)vop_einval)
 #define devfs_mkdir	((vnop_mkdir_t)vop_einval)
 #define devfs_rmdir	((vnop_rmdir_t)vop_einval)
+#define devfs_mkfifo	((vnop_mkfifo_t)vop_einval)
 #define devfs_getattr	((vnop_getattr_t)vop_nullop)
 #define devfs_setattr	((vnop_setattr_t)vop_nullop)
 #define devfs_inactive	((vnop_inactive_t)vop_nullop)
@@ -106,6 +107,7 @@ struct vnops devfs_vnops = {
 	devfs_rename,		/* remame */
 	devfs_mkdir,		/* mkdir */
 	devfs_rmdir,		/* rmdir */
+	devfs_mkfifo,		/* mkfifo */
 	devfs_getattr,		/* getattr */
 	devfs_setattr,		/* setattr */
 	devfs_inactive,		/* inactive */
@@ -113,7 +115,7 @@ struct vnops devfs_vnops = {
 };
 
 static int
-devfs_open(vnode_t vp, int flags)
+devfs_open(vnode_t vp, int flags, mode_t mode)
 {
 	char *path;
 	device_t dev;
@@ -179,8 +181,16 @@ devfs_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 static int
 devfs_ioctl(vnode_t vp, file_t fp, u_long cmd, void *arg)
 {
-	DPRINTF(("devfs_ioctl\n"));
-	return EINVAL;
+	int err;
+	/*
+	 * REVISIT: may cause problems with mmu based systems if arg
+	 * is a pointer - driver needs to know which task the pointer
+	 * is for
+	 */
+	err = device_ioctl((device_t)vp->v_data, cmd, arg);
+
+	DPRINTF(("devfs_ioctl: err=%d\n", err));
+	return err;
 }
 
 static int
@@ -218,7 +228,8 @@ static int
 devfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 {
 	struct info_device info;
-	int err, i;
+	int err;
+	off_t i;
 
 	DPRINTF(("devfs_readdir offset=%d\n", fp->f_offset));
 

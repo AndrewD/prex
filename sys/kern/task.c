@@ -37,7 +37,6 @@
 #include <thread.h>
 #include <ipc.h>
 #include <vm.h>
-#include <page.h>
 #include <task.h>
 
 /*
@@ -183,9 +182,6 @@ task_terminate(task_t task)
 		return EPERM;
 	}
 
-	/* Invalidate the task. */
-	task->magic = 0;
-
 	/*
 	 * Terminate all threads except a current thread.
 	 */
@@ -211,10 +207,11 @@ task_terminate(task_t task)
 		object_destroy(obj);
 	}
 	/*
-	 * Release all other task related resources.
+	 * Invalidate task and release all other task related resources.
 	 */
 	timer_stop(&task->alarm);
 	vm_terminate(task->map);
+	task->magic = 0;	/* after last operation on task */
 	list_remove(&task->link);
 	kmem_free(task);
 
@@ -448,7 +445,9 @@ task_bootstrap(void)
 		 */
 		if (thread_create(task, &th))
 			break;
+		thread_name(th, "main");
 		sp = (char *)stack + USTACK_SIZE - (sizeof(int) * 3);
+		*(u_long *)sp = 0; /* arg = 0 */
 		if (thread_load(th, (void (*)(void))mod->entry, sp))
 			break;
 		thread_resume(th);
@@ -488,6 +487,28 @@ task_dump(void)
 
 		i = list_next(i);
 	} while (i != &kern_task.link);
+}
+
+void ksym_dump(void)
+{
+	struct module *m;
+	int i;
+
+	printf(" ksym addr name			 task name\n");
+	printf(" --------- --------------------- ----------\n");
+
+	m = &bootinfo->kernel;
+	for (i = 0; i < 2; i++, m++) {
+		struct kernel_symbol *ksym, *ksym_end;
+		if (m->ksym == 0 || m->ksymsz == 0)
+			continue;
+
+		ksym_end = (void *)(m->ksym + m->ksymsz);
+		for (ksym = (void *)m->ksym; ksym < ksym_end; ksym++) {
+			printf("  %8x  %20s  %s\n",
+			       ksym->value, ksym->name, m->name);
+		}
+	}
 }
 #endif
 

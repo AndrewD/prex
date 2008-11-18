@@ -77,6 +77,7 @@
 #define FS_EXIT		0x00000220
 #define FS_REGISTER	0x00000221
 #define FS_PIPE		0x00000222
+#define FS_MKFIFO	0x00000223
 
 /*
  * Mount message

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2008-2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +27,35 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <drvlib.h>
+#ifndef _PREX_PTHREADTYPES_H
+#define _PREX_PTHREADTYPES_H
+#ifndef __KERNEL__
 
-char *
-strncpy(char *dest, const char *src, size_t count)
-{
-	char *tmp = dest;
+typedef struct pthread_attr {
+	int sched_priority;
+	int sched_policy;
+	int detached;
+	unsigned long stacksize;
+	unsigned long magic;
+	char name[12];
+	const void *key;	/* REVISIT: do keys better! */
+} pthread_attr_t;
 
-	while (count-- && (*dest++ = *src++) != '\0');
-	return tmp;
-}
+#if 0
+typedef unsigned long	pthread_cond_t;
+typedef unsigned long	pthread_condattr_t;
+#endif
+typedef unsigned long	pthread_key_t;
+#if 0
+typedef unsigned long	pthread_mutex_t;
+typedef unsigned long	pthread_mutexattr_t;
+typedef unsigned long	pthread_once_t;
+typedef unsigned long	pthread_rwlock_t;
+typedef unsigned long	pthread_rwlockattr_t;
+#endif
+
+struct pthread_info;
+typedef struct pthread_info* pthread_t;
+
+#endif /* __KERNEL__ */
+#endif /* !_PREX_PTHREADTYPES_H */

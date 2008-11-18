@@ -36,6 +36,7 @@
 #include <thread.h>
 #include <timer.h>
 #include <page.h>
+#include <kpage.h>
 #include <kmem.h>
 #include <vm.h>
 #include <sched.h>
@@ -69,6 +70,7 @@ main(void)
 	sched_lock();
 	diag_init();
 	DPRINTF((BANNER));
+	kpage_init();
 	page_init();
 	machine_init();
 

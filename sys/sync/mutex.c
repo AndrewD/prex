@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2007-2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +76,7 @@
 #include <thread.h>
 #include <task.h>
 #include <sync.h>
+#include <verbose.h>
 
 /* max mutex count to inherit priority */
 #define MAXINHERIT	10
@@ -97,7 +99,7 @@ mutex_init(mutex_t *mtx)
 	mutex_t m;
 
 	if ((m = kmem_alloc(sizeof(struct mutex))) == NULL)
-		return ENOMEM;
+		return DERR(ENOMEM);
 
 	event_init(&m->event, "mutex");
 	m->task = cur_task();
@@ -107,7 +109,7 @@ mutex_init(mutex_t *mtx)
 
 	if (umem_copyout(&m, mtx, sizeof(m))) {
 		kmem_free(m);
-		return EFAULT;
+		return DERR(EFAULT);
 	}
 	return 0;
 }
@@ -123,24 +125,18 @@ mutex_destroy(mutex_t *mtx)
 	int err = 0;
 
 	sched_lock();
-	if (umem_copyin(mtx, &m, sizeof(mtx))) {
-		err = EFAULT;
-		goto out;
-	}
-	if (!mutex_valid(m)) {
-		err = EINVAL;
-		goto out;
-	}
-	if (m->owner || event_waiting(&m->event)) {
-		err = EBUSY;
-		goto out;
+	if (umem_copyin(mtx, &m, sizeof(*mtx))) {
+		err = DERR(EFAULT);
+	} else if (!mutex_valid(m)) {
+		err = DERR(EINVAL);
+	} else if (m->owner || event_waiting(&m->event)) {
+		err = DERR(EBUSY);
+	} else {
+		m->magic = 0;
+		kmem_free(m);
 	}
 
-	m->magic = 0;
-	kmem_free(m);
- out:
 	sched_unlock();
-	ASSERT(err == 0);
 	return err;
 }
 
@@ -154,8 +150,8 @@ mutex_copyin(mutex_t *umtx, mutex_t *kmtx)
 	mutex_t m;
 	int err;
 
-	if (umem_copyin(umtx, &m, sizeof(umtx)))
-		return EFAULT;
+	if (umem_copyin(umtx, &m, sizeof(*umtx)))
+		return DERR(EFAULT);
 
 	if (m == MUTEX_INITIALIZER) {
 		/*
@@ -167,7 +163,7 @@ mutex_copyin(mutex_t *umtx, mutex_t *kmtx)
 		umem_copyin(umtx, &m, sizeof(umtx));
 	} else {
 		if (!mutex_valid(m))
-			return EINVAL;
+			return DERR(EINVAL);
 	}
 	*kmtx = m;
 	return 0;
@@ -224,9 +220,9 @@ mutex_lock(mutex_t *mtx)
 			}
 		}
 		m->locks = 1;
+		m->owner = cur_thread;
+		list_insert(&cur_thread->mutexes, &m->link);
 	}
-	m->owner = cur_thread;
-	list_insert(&cur_thread->mutexes, &m->link);
  out:
 	sched_unlock();
 	return err;
@@ -267,6 +263,13 @@ mutex_trylock(mutex_t *mtx)
 int
 mutex_unlock(mutex_t *mtx)
 {
+	int rc = mutex_unlock_count(mtx);
+	return (rc < 0) ? 0 : rc;
+}
+
+int
+mutex_unlock_count(mutex_t *mtx)
+{
 	mutex_t m;
 	int err;
 
@@ -274,10 +277,12 @@ mutex_unlock(mutex_t *mtx)
 	if ((err = mutex_copyin(mtx, &m)))
 		goto out;
 	if (m->owner != cur_thread || m->locks <= 0) {
-		err = EPERM;
+		err = DERR(EPERM);
 		goto out;
 	}
-	if (--m->locks == 0) {
+
+	err = -(--m->locks); /* return -ve lock count for debug */
+	if (err == 0) {
 		list_remove(&m->link);
 		prio_uninherit(cur_thread);
 		/*
@@ -292,7 +297,6 @@ mutex_unlock(mutex_t *mtx)
 	}
  out:
 	sched_unlock();
-	ASSERT(err == 0);
 	return err;
 }
 
@@ -311,7 +315,6 @@ mutex_cleanup(thread_t th)
 {
 	list_t head;
 	mutex_t m;
-	thread_t owner;
 
 	/*
 	 * Purge all mutexes held by the thread.
@@ -324,17 +327,11 @@ mutex_cleanup(thread_t th)
 		m = list_entry(list_first(head), struct mutex, link);
 		m->locks = 0;
 		list_remove(&m->link);
-		/*
-		 * Change the mutex owner if other thread
-		 * is waiting for it.
-		 */
-		owner = sched_wakeone(&m->event);
-		if (owner) {
-			owner->wait_mutex = NULL;
-			m->locks = 1;
-			list_insert(&owner->mutexes, &m->link);
-		}
-		m->owner = owner;
+		m->owner = sched_wakeone(&m->event);
+		if (m->owner)
+			m->owner->wait_mutex = NULL;
+
+		m->prio = m->owner ? m->owner->prio : MIN_PRIO;
 	}
 }
 
@@ -395,7 +392,7 @@ prio_inherit(thread_t waiter)
 
 		/* Fail safe... */
 		ASSERT(count < MAXINHERIT);
-		if (count >= MAXINHERIT)
+		if (count++ >= MAXINHERIT)
 			break;
 
 	} while (m != NULL);

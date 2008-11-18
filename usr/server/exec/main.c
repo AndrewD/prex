@@ -91,7 +91,7 @@ process_init(void)
 	struct msg m;
 
 	m.hdr.code = PS_REGISTER;
-	msg_send(proc_obj, &m, sizeof(m));
+	msg_send(proc_obj, &m, sizeof(m), 0);
 }
 
 /*
@@ -108,7 +108,7 @@ notify_server(task_t org_task, task_t new_task, void *stack)
 		m.hdr.code = FS_EXEC;
 		m.data[0] = (int)org_task;
 		m.data[1] = (int)new_task;
-		err = msg_send(fs_obj, &m, sizeof(m));
+		err = msg_send(fs_obj, &m, sizeof(m), 0);
 	} while (err == EINTR);
 
 	/* Notify to process server */
@@ -117,7 +117,7 @@ notify_server(task_t org_task, task_t new_task, void *stack)
 		m.data[0] = (int)org_task;
 		m.data[1] = (int)new_task;
 		m.data[2] = (int)stack;
-		err = msg_send(proc_obj, &m, sizeof(m));
+		err = msg_send(proc_obj, &m, sizeof(m), 0);
 	} while (err == EINTR);
 }
 
@@ -196,7 +196,7 @@ do_exec(struct exec_msg *msg)
 	 * Create new task
 	 */
 	if ((err = task_create(old_task, VM_NEW, &new_task)) != 0)
-		goto err2;
+		goto err3;
 
 	if (msg->path[0] != '\0') {
 		name = strrchr(msg->path, '/');
@@ -219,24 +219,25 @@ do_exec(struct exec_msg *msg)
 	task_setcap(new_task, &cap);
 
 	if ((err = thread_create(new_task, &th)) != 0)
-		goto err3;
+		goto err4;
 
+	thread_name(th, "main");
 	/*
 	 * Allocate stack and build arguments on it.
 	 */
 	err = vm_allocate(new_task, &stack, USTACK_SIZE, 1);
 	if (err)
-		goto err4;
-	if ((err = build_args(new_task, stack, msg, &sp)) != 0)
 		goto err5;
+	if ((err = build_args(new_task, stack, msg, &sp)) != 0)
+		goto err6;
 
 	/*
 	 * Load file image.
 	 */
 	if ((err = ldr->el_load(header, new_task, fd, (void **)&entry)) != 0)
-		goto err5;
+		goto err6;
 	if ((err = thread_load(th, entry, sp)) != 0)
-		goto err5;
+		goto err6;
 
 	/*
 	 * Notify to servers.
@@ -256,12 +257,14 @@ do_exec(struct exec_msg *msg)
 	close(fd);
 	DPRINTF(("exec complete successfully\n"));
 	return 0;
- err5:
+ err6:
 	vm_free(new_task, stack);
- err4:
+ err5:
 	thread_terminate(th);
- err3:
+ err4:
 	task_terminate(new_task);
+ err3:
+	task_resume(old_task);
  err2:
 	close(fd);
  err1:
@@ -347,7 +350,7 @@ main(int argc, char *argv[])
 		/*
 		 * Wait for an incoming request.
 		 */
-		err = msg_receive(obj, &msg, sizeof(struct exec_msg));
+		err = msg_receive(obj, &msg, sizeof(struct exec_msg), 0);
 		if (err)
 			continue;
 		/*

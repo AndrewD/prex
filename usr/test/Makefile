@@ -1,8 +1,6 @@
 #
 # Test for kernel
 #
-include $(SRCDIR)/mk/own.mk
-
 SUBDIR=		task thread ipc timer exception fault deadlock sem mutex \
 		cap dvs ipc_mt kmon
 
@@ -19,6 +17,6 @@ SUBDIR+=	errno malloc stderr
 #
 # Test for servers
 #
-SUBDIR+=	fileio vfork args debug signal fifo pipe
+SUBDIR+=	fileio vfork args debug signal fifo pipe fifo2
 
 include $(SRCDIR)/mk/subdir.mk

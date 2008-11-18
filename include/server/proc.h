@@ -48,5 +48,6 @@
 #define	PS_PSTAT	0x0000010C
 #define	PS_SETINIT	0x0000010D
 #define	PS_REGISTER	0x0000010E
+#define	PS_GETTASK	0x0000010F
 
 #endif /* !_SRV_PROC_H */

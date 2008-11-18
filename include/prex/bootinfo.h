@@ -62,9 +62,12 @@ struct module
 	vaddr_t	entry;		/* entry address */
 	vaddr_t	text;		/* text address */
 	vaddr_t	data;		/* data address */
+	vaddr_t	bss;		/* bss address */
+	vaddr_t	ksym;		/* ksymtab address */
 	size_t	textsz;		/* text size */
 	size_t	datasz;		/* data size */
 	size_t	bsssz;		/* bss size */
+	size_t	ksymsz;		/* ksymtab size */
 };
 
 /*
@@ -90,6 +93,11 @@ struct physmem
  */
 struct bootinfo
 {
+	struct {
+		u_long clock;
+		u_long reset;
+		u_long reserved[30];
+	} sys;			/* size fixed to 128 bytes */
 	struct vidinfo	video;
 	struct physmem	ram[NMEMS];	/* physical ram table */
 	int		nr_rams;	/* number of ram blocks */

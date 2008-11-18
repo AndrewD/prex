@@ -61,9 +61,10 @@ typedef struct list *list_t;
 static __inline void
 list_insert(list_t prev, list_t node)
 {
-	prev->next->prev = node;
+	/* order is important when a node is asynchronously inserted */
 	node->next = prev->next;
 	node->prev = prev;
+	prev->next->prev = node;
 	prev->next = node;
 }
 
@@ -76,5 +77,31 @@ list_remove(list_t node)
 	node->prev->next = node->next;
 	node->next->prev = node->prev;
 }
+
+static inline void prefetch(const void *x) {;}
+
+/* iterate over a list of a given type */
+/* NOTE: typeof() is a gcc extension */
+#define list_for_each_entry(ptr, head, member)				\
+	for (prefetch((head)->next),                                    \
+		     ptr = list_entry((head)->next, typeof(*ptr), member), \
+		     prefetch(ptr->member.next);                        \
+	     &ptr->member != (head); 					\
+	     ptr = list_entry(ptr->member.next, typeof(*ptr), member),	\
+		     prefetch(ptr->member.next))
+
+/*
+ * iterate over list of given type - safe against removal of list entry
+ * ptr:    the type * to use as a loop counter.
+ * tmp:    temporary storage, same as ptr
+ * head:   the head for your list.
+ * member: the name of the list_struct within the struct.
+ */
+#define list_for_each_entry_safe(ptr, tmp, head, member)		\
+	for (ptr = list_entry((head)->next, typeof(*ptr), member),	\
+		     tmp = list_entry(ptr->member.next, typeof(*ptr), member); \
+	     &ptr->member != (head); 					\
+	     ptr = tmp,							\
+		     tmp = list_entry(tmp->member.next, typeof(*tmp), member))
 
 #endif /* !_SYS_LIST_H */

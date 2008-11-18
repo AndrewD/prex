@@ -51,7 +51,7 @@ static int console_ioctl(device_t, u_long, void *);
 /*
  * Driver structure
  */
-struct driver console_drv = {
+struct driver console_drv __driver_entry = {
 	/* name */	"Console",
 	/* order */	4,
 	/* init */	console_init,

@@ -44,6 +44,8 @@
 /* Block size */
 #define BSIZE		512
 
+static int ramdisk_open(device_t, int);
+static int ramdisk_close(device_t);
 static int ramdisk_read(device_t, char *, size_t *, int);
 static int ramdisk_write(device_t, char *, size_t *, int);
 static int ramdisk_init(void);
@@ -51,7 +53,7 @@ static int ramdisk_init(void);
 /*
  * Driver structure
  */
-struct driver ramdisk_drv = {
+struct driver ramdisk_drv __driver_entry = {
 	/* name */	"RAM disk",
 	/* order */	6,
 	/* init */	ramdisk_init,
@@ -61,18 +63,50 @@ struct driver ramdisk_drv = {
  * Device I/O table
  */
 static struct devio ramdisk_io = {
-	/* open */	NULL,
-	/* close */	NULL,
-	/* read */	ramdisk_read,
-	/* write */	ramdisk_write,
-	/* ioctl */	NULL,
-	/* event */	NULL,
+	.open = ramdisk_open,
+	.close = ramdisk_close,
+	.read = ramdisk_read,
+	.write = ramdisk_write,
 };
 
 static device_t ramdisk_dev;	/* Device object */
 
 static char *img_start;
 static size_t img_size;
+static int open;
+
+static int
+ramdisk_open(device_t dev, int mode)
+{
+	if (img_size == 0)
+		return EIO;
+
+	open++;
+	return 0;
+}
+
+static int
+ramdisk_close(device_t dev)
+{
+	if (open <= 0)
+		return EBADF;
+
+	if (--open == 0) {	/* free memory when ramdisk closed */
+		struct bootinfo *bootinfo;
+		machine_bootinfo(&bootinfo);
+
+		for (int i = bootinfo->nr_rams - 1; i > 0; i--) {
+			struct physmem *mem = &bootinfo->ram[i];
+			if (mem->type == MT_BOOTDISK) {
+				DPRINTF(("freeing RAM disk 0x%p (%dK bytes)\n",
+					 mem->base, mem->size/1024));
+				page_free((void *)mem->base, mem->size);
+				img_size = 0;
+			}
+		}
+	}
+	return 0;
+}
 
 static int
 ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)

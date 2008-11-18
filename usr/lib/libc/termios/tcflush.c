@@ -30,9 +30,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#define KERNEL			/* XXX - FREAD and FWRITE ifdef'd KERNEL*/
 #include <sys/fcntl.h>
-#undef KERNEL
 #include <errno.h>
 #include <termios.h>
 #include <unistd.h>

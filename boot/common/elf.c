@@ -33,25 +33,47 @@
 
 #include <boot.h>
 #include <sys/elf.h>
+#include <verbose.h>
 
 #define SHF_VALID	(SHF_ALLOC | SHF_EXECINSTR | SHF_ALLOC | SHF_WRITE)
 
 static char *sect_addr[32];	/* array of section address */
+static struct module *km = NULL; /* kernel image info */
+int nr_km = 0;               /* kernel image info */
 
 static int
 load_executable(char *img, struct module *m)
 {
 	Elf32_Ehdr *ehdr;
 	Elf32_Phdr *phdr;
+	Elf32_Shdr *shdrs, *shdr;
+	char *shstrtab;
 	paddr_t phys_base;
 	int i;
 
-	phys_base = load_base;
 	ehdr = (Elf32_Ehdr *)img;
 	phdr = (Elf32_Phdr *)((paddr_t)ehdr + ehdr->e_phoff);
-	m->phys = load_base;
+#ifdef CONFIG_MMU
 	phys_base = load_base;
+#else
+	phys_base = virt_to_phys(phdr->p_vaddr);
+#endif
+	m->phys = phys_base;
 	ELFDBG(("phys addr=%x\n", phys_base));
+
+	/* find ksyms */
+	shdrs = (Elf32_Shdr *)((u_long)ehdr + ehdr->e_shoff);
+	shstrtab = img + shdrs[ehdr->e_shstrndx].sh_offset;
+	for (i = 0, shdr = shdrs; i < ehdr->e_shnum; i++, shdr++) {
+		if (shdr->sh_type == SHT_PROGBITS
+		    && (shdr->sh_flags & SHF_VALID) == SHF_ALLOC
+		    && strncmp(shstrtab + shdr->sh_name, ".ksymtab", 9) == 0)
+		{
+			m->ksym = shdr->sh_addr;
+			m->ksymsz = shdr->sh_size;
+			break;
+		}
+	}
 
 	for (i = 0; i < (int)ehdr->e_phnum; i++, phdr++) {
 		if (phdr->p_type != PT_LOAD)
@@ -75,90 +97,128 @@ load_executable(char *img, struct module *m)
 			m->datasz = (size_t)phdr->p_filesz;
 			m->bsssz =
 				(size_t)(phdr->p_memsz - phdr->p_filesz);
-			load_base = phys_base + (m->data - m->text);
+			m->bss = m->data + m->datasz;
+			phys_base += (m->data - m->text);
 		}
 		if (phdr->p_filesz > 0) {
-			memcpy((char *)load_base, img + phdr->p_offset,
+			memcpy((char *)phys_base, img + phdr->p_offset,
 			       (size_t)phdr->p_filesz);
 			ELFDBG(("load: offset=%x size=%x\n",
-				 load_base, (int)phdr->p_filesz));
+				 phys_base, (int)phdr->p_filesz));
 		}
 		if (!(phdr->p_flags & PF_X)) {
 			if (m->bsssz > 0) {
 				/* Zero fill BSS */
-				memset((char *)load_base + m->datasz,
+				memset((char *)phys_base + m->datasz,
 				       0, m->bsssz);
 			}
-			load_base += phdr->p_memsz;
+			phys_base += phdr->p_memsz;
 		}
 	}
-	/* workaround for data/bss size is 0 */
-	if (m->data == 0)
-		load_base = phys_base + m->textsz;
-
-	load_base = PAGE_ALIGN(load_base);
-	m->size = (size_t)(load_base - m->phys);
+	phys_base = PAGE_ALIGN(phys_base);
+#ifndef CONFIG_MMU
+	if (nr_img == 0)
+#endif
+	{
+		load_base = phys_base;
+	}
+	m->size = (size_t)(phys_base - m->phys);
 	m->entry = ehdr->e_entry;
 	ELFDBG(("module size=%x entry=%x\n", m->size, m->entry));
 	return 0;
 }
 
+static int resolve_symbol(const char *name)
+{
+	struct kernel_symbol *ksym;
+	struct module *m;
+	int i;
+
+	for (i = nr_km, m = km; i > 0; i--, m++) {
+		int nr_ksym = m->ksymsz / sizeof(struct kernel_symbol);
+		ksym = (struct kernel_symbol *)m->ksym;
+		for (; nr_ksym > 0; nr_ksym--, ksym++) {
+                        if (strncmp(name, ksym->name, 20) == 0)
+                                return ksym->value;
+                }
+        }
+        return 0;
+}
+
 static int
 relocate_section_rela(Elf32_Sym *sym_table, Elf32_Rela *rela,
-		      char *target_sect, int nr_reloc)
+		      char *target_sect,  const char *strtab, int nr_reloc)
 {
 	Elf32_Sym *sym;
 	Elf32_Addr sym_val;
 	int i;
 
-	for (i = 0; i < nr_reloc; i++) {
+	for (i = 0; i < nr_reloc; i++, rela++) {
 		sym = &sym_table[ELF32_R_SYM(rela->r_info)];
+
 		if (sym->st_shndx != STN_UNDEF) {
 			sym_val = (Elf32_Addr)sect_addr[sym->st_shndx]
 				+ sym->st_value;
-			if (relocate_rela(rela, sym_val, target_sect) != 0)
-				return -1;
-		} else if (ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
-			ELFDBG(("Undefined symbol for rela[%x] sym=%x\n",
-				 i, sym));
-			return -1;
 		} else {
-			ELFDBG(("Undefined weak symbol for rela[%x]\n", i));
+			sym_val = resolve_symbol(strtab + sym->st_name);
+
+			if (sym_val)
+				ELFDBG(("Resolved symbol \"%s\": %x\n",
+					strtab + sym->st_name, sym_val));
+			else if (ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
+				DPRINTF(("Undefined symbol \"%s\"\n",
+					 strtab + sym->st_name));
+				return -1; /* fatal */
+			} else {
+				ELFDBG(("Undefined weak symbol \"%s\"\n",
+					strtab + sym->st_name));
+				continue; /* don't relocate */
+			}
 		}
-		rela++;
+		if (relocate_rela(rela, sym_val, target_sect) != 0)
+			return -1;
 	}
 	return 0;
 }
 
 static int
 relocate_section_rel(Elf32_Sym *sym_table, Elf32_Rel *rel,
-		     char *target_sect, int nr_reloc)
+		     char *target_sect,  const char *strtab, int nr_reloc)
 {
 	Elf32_Sym *sym;
 	Elf32_Addr sym_val;
 	int i;
 
-	for (i = 0; i < nr_reloc; i++) {
+	for (i = 0; i < nr_reloc; i++, rel++) {
 		sym = &sym_table[ELF32_R_SYM(rel->r_info)];
+
 		if (sym->st_shndx != STN_UNDEF) {
 			sym_val = (Elf32_Addr)sect_addr[sym->st_shndx]
 				+ sym->st_value;
-			if (relocate_rel(rel, sym_val, target_sect) != 0)
-				return -1;
-		} else if (ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
-			ELFDBG(("Undefined symbol for rel[%x] sym=%x\n",
-				 i, sym));
-			return -1;
 		} else {
-			ELFDBG(("Undefined weak symbol for rel[%x]\n", i));
+			sym_val = resolve_symbol(strtab + sym->st_name);
+
+			if (sym_val)
+				ELFDBG(("Resolved symbol \"%s\": %x\n",
+					strtab + sym->st_name, sym_val));
+			else if (ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
+				DPRINTF(("Undefined symbol \"%s\"\n",
+				       strtab + sym->st_name));
+				return -1; /* fatal */
+			} else {
+				ELFDBG(("Undefined weak symbol \"%s\"\n",
+					strtab + sym->st_name));
+				continue; /* don't relocate */
+			}
 		}
-		rel++;
+		if (relocate_rel(rel, sym_val, target_sect) != 0)
+			return -1;
 	}
 	return 0;
 }
 
 static int
-relocate_section(char *img, Elf32_Shdr *shdr)
+relocate_section(char *img, Elf32_Shdr *shdr, const char *strtab)
 {
 	Elf32_Sym *sym_table;
 	char *target_sect;
@@ -174,15 +234,17 @@ relocate_section(char *img, Elf32_Shdr *shdr)
 	nr_reloc = (int)(shdr->sh_size / shdr->sh_entsize);
 	switch (shdr->sh_type) {
 	case SHT_REL:
-		err = relocate_section_rel(sym_table,
-				(Elf32_Rel *)(img + shdr->sh_offset),
-				target_sect, nr_reloc);
+		err = relocate_section_rel(
+			sym_table,
+			(Elf32_Rel *)(img + shdr->sh_offset),
+			target_sect, strtab, nr_reloc);
 		break;
 
 	case SHT_RELA:
-		err = relocate_section_rela(sym_table,
-				(Elf32_Rela *)(img + shdr->sh_offset),
-				target_sect, nr_reloc);
+		err = relocate_section_rela(
+			sym_table,
+			(Elf32_Rela *)(img + shdr->sh_offset),
+			target_sect, strtab, nr_reloc);
 		break;
 
 	default:
@@ -196,18 +258,20 @@ static int
 load_relocatable(char *img, struct module *m)
 {
 	Elf32_Ehdr *ehdr;
-	Elf32_Shdr *shdr;
-	paddr_t sect_base, bss_base;
+	Elf32_Shdr *shdr, *shdrs;
+	paddr_t sect_base, sect_extext;
+	char *strtab = NULL, *shstrtab;
 	int i;
 
 	ehdr = (Elf32_Ehdr *)img;
-	shdr = (Elf32_Shdr *)((paddr_t)ehdr + ehdr->e_shoff);
-	bss_base = 0;
-	m->phys = load_base;
+	shdrs = (Elf32_Shdr *)((paddr_t)ehdr + ehdr->e_shoff);
+	m->phys = sect_extext = load_base;
 	ELFDBG(("phys addr=%x\n", load_base));
 
+	shstrtab = img + shdrs[ehdr->e_shstrndx].sh_offset;
+
 	/* Copy sections */
-	for (i = 0; i < (int)ehdr->e_shnum; i++, shdr++) {
+	for (i = 0, shdr = shdrs; i < (int)ehdr->e_shnum; i++, shdr++) {
 		sect_addr[i] = 0;
 		if (shdr->sh_type == SHT_PROGBITS) {
 
@@ -228,13 +292,21 @@ load_relocatable(char *img, struct module *m)
 						(vaddr_t)phys_to_virt(load_base + shdr->sh_addr);
 				break;
 			case SHF_ALLOC:
-				/* rodata */
+				/* rodata & kstrtab */
 				/* Note: rodata is treated as text. */
+				if (strncmp(shstrtab + shdr->sh_name,
+					    ".ksymtab", 9) == 0)
+				{
+					m->ksym =
+						(u_long)phys_to_virt(load_base + shdr->sh_addr);
+					m->ksymsz = shdr->sh_size;
+				}
 				break;
 			default:
 				continue;
 			}
 			sect_base = load_base + shdr->sh_addr;
+			sect_extext = sect_base + shdr->sh_size;
 			memcpy((char *)sect_base, img + shdr->sh_offset,
 			       (size_t)shdr->sh_size);
 			ELFDBG(("load: offset=%x size=%x\n",
@@ -242,36 +314,58 @@ load_relocatable(char *img, struct module *m)
 
 			sect_addr[i] = (char *)sect_base;
 		} else if (shdr->sh_type == SHT_NOBITS) {
-			/* BSS */
-			m->bsssz = (size_t)shdr->sh_size;
+			/* BSS, SBSS, etc. */
 			sect_base = load_base + shdr->sh_addr;
-			bss_base = sect_base;
+			sect_extext = sect_base + shdr->sh_size;
+			if (m->bss == 0) {
+				m->bss = sect_base;
+				m->bsssz = (size_t)shdr->sh_size;
+			} else
+				m->bsssz += (size_t)shdr->sh_size;
 
-			/* Zero fill BSS */
+			/* Zero fill uninitialised sections */
 			memset((char *)sect_base, 0, (size_t)shdr->sh_size);
 
 			sect_addr[i] = (char *)sect_base;
 		} else if (shdr->sh_type == SHT_SYMTAB) {
 			/* Symbol table */
 			sect_addr[i] = img + shdr->sh_offset;
+			strtab = img + shdrs[shdr->sh_link].sh_offset;
 		}
 	}
 	m->textsz = (size_t)(m->data - m->text);
-	m->datasz = (size_t)((size_t)phys_to_virt(bss_base) - m->data);
+	m->datasz = (size_t)(m->bss - m->data);
 
-	load_base = bss_base + m->bsssz;
-	load_base = PAGE_ALIGN(load_base);
+	load_base = PAGE_ALIGN(sect_extext);
 
 	ELFDBG(("module load_base=%x text=%x\n", load_base, m->text));
 	m->size = (size_t)(load_base - (paddr_t)virt_to_phys(m->text));
 	m->entry = (vaddr_t)phys_to_virt(ehdr->e_entry + m->phys);
 	ELFDBG(("module size=%x entry=%x\n", m->size, m->entry));
 
+	/* Show sections */
+	if (VERBOSE_ON(VB_RELOC)) {
+		shdr = shdrs + 1; /* skip NULL section */
+		if (strncmp(".text", shstrtab + shdr->sh_name, 5) != 0)
+			DPRINTF(("can't find .text"));
+		else {
+			DPRINTF(("add-symbol-file %s %x", m->name, sect_addr[1]));
+			for (i = 2, shdr++; i < ehdr->e_shnum; i++, shdr++) {
+				if ((shdr->sh_type == SHT_PROGBITS ||
+				     shdr->sh_type == SHT_NOBITS)
+				    && sect_addr[i] != NULL)
+					DPRINTF((" -s %s %x",
+					       shstrtab + shdr->sh_name,
+					       sect_addr[i]));
+			}
+			DPRINTF(("\n"));
+		}
+	}
+
 	/* Process relocation */
-	shdr = (Elf32_Shdr *)((paddr_t)ehdr + ehdr->e_shoff);
-	for (i = 0; i < (int)ehdr->e_shnum; i++, shdr++) {
+	for (i = 0, shdr = shdrs; i < (int)ehdr->e_shnum; i++, shdr++) {
 		if (shdr->sh_type == SHT_REL || shdr->sh_type == SHT_RELA) {
-			if (relocate_section(img, shdr) != 0)
+			if (relocate_section(img, shdr, strtab) != 0)
 				return -1;
 		}
 	}
@@ -308,6 +402,7 @@ elf_load(char *img, struct module *m)
 			return -1;
 		ELFDBG(("kernel base=%x\n", load_base));
 		load_start = load_base;
+		km = m;	/* REVISIT: bit of a hack */
 	}
 	else if (nr_img == 1) {
 		/* Second image => Driver */
@@ -317,6 +412,19 @@ elf_load(char *img, struct module *m)
 #endif
 		ELFDBG(("driver base=%x\n", load_base));
 	}
+#ifdef CONFIG_KMEM_PROTECT
+	else if (nr_img == 2) {
+		/*  pad to CONFIG_KMEM_SIZE - for kpage allocator */
+		u_int task_base = bootinfo->kernel.phys + CONFIG_KMEM_SIZE;
+		if (load_base > task_base) {
+			DPRINTF(("kernel too big\n"));
+			return -1;
+		}
+		ELFDBG(("padding %x => %x\n", load_base, task_base));
+		load_base = task_base;
+		ELFDBG(("task base=%x\n", load_base));
+	}
+#endif	/* CONFIG_KMEM_PROTECT */
 	else {
 		/* Other images => Boot tasks */
 		ELFDBG(("task base=%x\n", load_base));
@@ -336,5 +444,7 @@ elf_load(char *img, struct module *m)
 		return -1;
 	}
 	nr_img++;
+	if (m->ksym != 0)
+		nr_km = nr_img;
 	return 0;
 }

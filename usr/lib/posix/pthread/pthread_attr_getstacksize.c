@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2008-2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,20 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <drvlib.h>
+#include <pthread.h>
 
-/* Safer version of strncpy */
-size_t
-strlcpy(char *dest, const char *src, size_t count)
+int pthread_attr_getstacksize(const pthread_attr_t *attr, size_t *stacksize)
 {
-	const char *p = src;
-
-	while (count-- && (*dest++ = *src++) != '\0');
-
-	if (count == 0) {
-		*dest = '\0';
-		while (*src++);
-	}
-	return (size_t)(src - p - 1); /* count does not include NULL */
+	*stacksize = attr->stacksize;
+	return 0;
 }

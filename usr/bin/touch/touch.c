@@ -94,7 +94,7 @@ do_touch(char *file, unsigned int flags)
 
 	if (stat(file, &st) < 0) {
 		if (!(flags & TF_NOCREAT)) {
-			if ((fd = creat(file, 0666)) < 0)
+			if ((fd = open(file, O_CREAT|O_WRONLY|O_APPEND, 0666)) < 0)
 				return -1;
 			close(fd);
 		}

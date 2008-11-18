@@ -88,7 +88,7 @@ receive_thread(void)
 		 * Receive message from object.
 		 */
 		printf("Wait message.\n");
-		msg_receive(obj, &msg, sizeof(msg));
+		msg_receive(obj, &msg, sizeof(msg), 0);
 
 		printf("Message received.\n");
 		/*

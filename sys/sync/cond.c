@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2007-2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +37,7 @@
 #include <kmem.h>
 #include <thread.h>
 #include <sync.h>
+#include <verbose.h>
 
 /*
  * Create and initialize a condition variable (CV).
@@ -49,7 +51,7 @@ cond_init(cond_t *cond)
 	cond_t c;
 
 	if ((c = kmem_alloc(sizeof(struct cond))) == NULL)
-		return ENOMEM;
+		return DERR(ENOMEM);
 
 	event_init(&c->event, "condition");
 	c->task = cur_task();
@@ -57,7 +59,7 @@ cond_init(cond_t *cond)
 
 	if (umem_copyout(&c, cond, sizeof(c))) {
 		kmem_free(c);
-		return EFAULT;
+		return DERR(EFAULT);
 	}
 	return 0;
 }
@@ -73,9 +75,9 @@ cond_copyin(cond_t *ucond, cond_t *kcond)
 	cond_t c;
 
 	if (umem_copyin(ucond, &c, sizeof(ucond)))
-		return EFAULT;
+		return DERR(EFAULT);
 	if (!cond_valid(c))
-		return EINVAL;
+		return DERR(EINVAL);
 	*kcond = c;
 	return 0;
 }
@@ -99,7 +101,7 @@ cond_destroy(cond_t *cond)
 	}
 	if (event_waiting(&c->event)) {
 		sched_unlock();
-		return EBUSY;
+		return DERR(EBUSY);
 	}
 	c->magic = 0;
 	kmem_free(c);
@@ -118,13 +120,13 @@ cond_destroy(cond_t *cond)
  * EINTR as error.
  */
 int
-cond_wait(cond_t *cond, mutex_t *mtx)
+cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 {
 	cond_t c;
 	int err, rc;
 
 	if (umem_copyin(cond, &c, sizeof(cond)))
-		return EFAULT;
+		return DERR(EFAULT);
 
 	sched_lock();
 	if (c == COND_INITIALIZER) {
@@ -136,22 +138,35 @@ cond_wait(cond_t *cond, mutex_t *mtx)
 	} else {
 		if (!cond_valid(c)) {
 			sched_unlock();
-			return EINVAL;
+			return DERR(EINVAL);
 		}
 	}
-	if ((err = mutex_unlock(mtx))) {
+	if ((err = mutex_unlock_count(mtx))) {
+		if (err < 0) {
+			/* mutex was recursively locked - would deadlock */
+			mutex_lock(mtx);
+			err = DERR(EDEADLK);
+		}
 		sched_unlock();
 		return err;
 	}
 
-	rc = sched_sleep(&c->event);
-	if (rc == SLP_INTR)
-		err = EINTR;
-	sched_unlock();
+again:
+	rc = sched_tsleep(&c->event, timeout);
+	if (rc == SLP_TIMEOUT) {
+		rc = mutex_trylock(mtx);
+		if (rc == EBUSY) /* someone else is holding the mutex */
+			goto again;
+		sched_unlock();
+		err = ETIMEDOUT;
+	} else {
+		if (rc == SLP_INTR)
+			err = EINTR;
+		sched_unlock();
+		rc = mutex_lock(mtx);
+	}
 
-	if (err == 0)
-		err = mutex_lock(mtx);
-	return err;
+	return (rc) ? rc : err;
 }
 
 /*

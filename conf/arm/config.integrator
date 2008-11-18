@@ -21,6 +21,7 @@ makeoptions	CFLAGS+= -mcpu=arm9tdmi
 #
 options 	HZ=1000		# Ticks/second of the clock
 options 	TIME_SLICE=50	# Context switch ratio (msec)
+options 	KSTACK_SIZE=768	# Kernel stack size
 options 	OPEN_MAX=16	# Max open files per process
 options 	BUF_CACHE=32	# Blocks for buffer cache
 options 	FS_THREADS=4	# Number of file system threads
@@ -37,18 +38,18 @@ options 	BOOTDISK	# Disk for /boot directory
 #
 # Device drivers
 #
-#options 	KEYBOARD	# Keyboard
-#options 	CONSOLE		# Console
-#options 	FDD		# Floppy disk drive
-#options 	MOUSE		# Mouse
-options 	RTC		# Real time clock
-options 	RAMDISK		# RAM disk
-options 	TTY		# TTY driver
-options 	PM		# Power management
-#options 	CPUFREQ		# CPU frequency control
-options 	NULL		# NULL device
-options 	ZERO		# Zero device
-options 	SERIAL		# Serial console
+#options 	KEYBOARD=m	# Keyboard
+#options 	CONSOLE=m	# Console
+#options 	FDD=m		# Floppy disk drive
+#options 	MOUSE=m		# Mouse
+options 	RTC=m		# Real time clock
+options 	RAMDISK=m	# RAM disk
+options 	TTY=m		# TTY driver
+options 	PM=m		# Power management
+#options 	CPUFREQ=m	# CPU frequency control
+options 	NULL=m		# NULL device
+options 	ZERO=m		# Zero device
+options 	SERIAL=m	# Serial console
 
 #
 # Power management

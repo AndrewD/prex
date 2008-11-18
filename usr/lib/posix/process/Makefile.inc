@@ -6,7 +6,7 @@ SRCS+=	__process.c kill.c killpg.c \
 	getgid.c setgid.c getegid.c setegid.c \
 	setsid.c getsid.c \
 	nice.c setpgid.c setpgrp.c sleep.c wait.c waitpid.c _exit.c \
-	getpriority.c setpriority.c
+	getpriority.c setpriority.c gettask.c
 
 ifeq ($(CONFIG_MMU),y)
 SRCS+=	fork.c

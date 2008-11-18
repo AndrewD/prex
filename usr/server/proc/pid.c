@@ -256,3 +256,21 @@ proc_setsid(struct msg *msg)
 	DPRINTF(("proc: setsid sid=%d\n", msg->data[0]));
 	return 0;
 }
+
+/*
+ * Get task for specified process.
+ */
+int
+proc_gettask(struct msg *msg)
+{
+	pid_t pid;
+	struct proc *p;
+
+	pid = (pid_t)msg->data[0];
+	if ((p = proc_find(pid)) == NULL)
+		return ESRCH;
+
+	msg->data[0] = (int)p->p_task;
+	dprintf("proc gettask=%x\n", msg->data[0]);
+	return 0;
+}

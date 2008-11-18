@@ -43,11 +43,10 @@ struct bootinfo *const bootinfo = (struct bootinfo *)BOOTINFO_BASE;
 static void
 dump_image(struct module *m)
 {
-
-	printf("%x %x %x %x %x %x %x %x %s\n",
+	printf("%x %x %x %x %x %x %x %x %x %x %s\n",
 	       (int)m->entry, (int)m->phys, (int)m->size,
-	       (int)m->text, (int)m->data, (int)m->textsz,
-	       (int)m->datasz, (int)m->bsssz, m->name);
+	       (int)m->text, (int)m->data,  (int)m->bss, (int)m->ksym,
+	       (int)m->textsz, (int)m->datasz, (int)m->bsssz, m->name);
 }
 
 static void
@@ -74,8 +73,10 @@ dump_bootinfo(void)
 	       (int)bootinfo->bootdisk.base,
 	       (int)bootinfo->bootdisk.size);
 
-	printf("entry    phys     size     text     data     textsz   datasz   bsssz    module\n");
-	printf("-------- -------- -------- -------- -------- -------- -------- -------- ------\n");
+	printf("entry    phys     size     text     data     bss      ksym     "
+	       "textsz   datasz   bsssz    module\n");
+	printf("-------- -------- -------- -------- -------- -------- -------- "
+	       "-------- -------- -------- ------\n");
 	dump_image(&bootinfo->kernel);
 	dump_image(&bootinfo->driver);
 
@@ -93,8 +94,6 @@ loader_main(void)
 {
 	paddr_t kernel_entry;
 
-	DPRINTF(("Prex Boot Loader V1.00\n"));
-
 	/*
 	 * Initialize data.
 	 */
@@ -105,9 +104,11 @@ loader_main(void)
 	nr_img = 0;
 
 	/*
-	 * Setup minimum hardware for boot.
+	 * Setup minimum hardware for boot (may include machine_putc()).
 	 */
 	machine_setup();
+
+	DPRINTF(("Prex Boot Loader V1.00\n"));
 
 	/*
 	 * Load program image.

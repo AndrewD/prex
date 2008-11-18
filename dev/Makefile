@@ -1,15 +1,9 @@
-include $(SRCDIR)/mk/own.mk
-
-TARGET=		dev.ko
+TARGET=		dev.o
 TYPE=		DRIVER
-SUBDIR=		lib $(ARCH) core gen power
+SUBDIR=		$(ARCH) core gen power
 OBJS=		./$(ARCH)/$(PLATFORM)/dev.o \
-		./core/core.o ./gen/gen.o
-ifeq ($(CONFIG_PM),y)
-OBJS+=		./power/power.o
-endif
+		./core/core.o ./gen/gen.o ./power/power.o
 
-LIBS=		./lib/libdev.a
 LD_SCRIPT=	./$(ARCH)/$(ARCH)/dev.ld
 
 #MAP   = 	dev.map

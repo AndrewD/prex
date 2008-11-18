@@ -64,7 +64,7 @@ static int mouse_read(device_t, char *, size_t *, int);
 /*
  * Driver structure
  */
-struct driver mouse_drv = {
+struct driver mouse_drv __driver_entry = {
 	/* name */	"PS/2 Mouse",
 	/* order */	6,
 	/* init */	mouse_init,
@@ -200,9 +200,7 @@ static int
 mouse_init(void)
 {
 
-#ifdef DEBUG
-	printk("Mouse sampling rate=100 samples/sec\n");
-#endif
+	DPRINTF(("Mouse sampling rate=100 samples/sec\n"));
 	/* Create device object */
 	mouse_dev = device_create(&mouse_io, "mouse", DF_CHR);
 	ASSERT(mouse_dev);

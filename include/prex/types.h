@@ -29,7 +29,7 @@
 
 #ifndef _PREX_TYPES_H
 #define _PREX_TYPES_H
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #include <machine/types.h>
 
@@ -49,5 +49,5 @@ typedef unsigned long	sem_t;
 #define COND_NULL	  ((cond_t)0)
 #define SEM_NULL	   ((sem_t)0)
 
-#endif /* KERNEL */
+#endif /* __KERNEL__ */
 #endif /* !_PREX_TYPES_H */

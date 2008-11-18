@@ -4,7 +4,7 @@
 INCLUDE config.ld
 OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
-ENTRY(driver_start)
+ENTRY(driver_main)
 PHDRS
 {
 	text PT_LOAD FILEHDR PHDRS;
@@ -25,6 +25,20 @@ SECTIONS
 	.rodata : {
 		*(.rodata)
 		*(.rodata.*)
+	} : text
+
+	.driver_table : {
+		__driver_table = . ;
+		*(.driver_table)
+		__driver_table_end = . ;
+	} : text
+
+	.kstrtab : {
+		*(.kstrtab)
+	} : text
+
+	.ksymtab ALIGN(4) : {
+		*(.ksymtab)
 	} : text
 
         . = ALIGN(4);

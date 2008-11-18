@@ -61,12 +61,13 @@
 
 /* The following name length include a null-terminate charcter */
 #define MAXTASKNAME	12		/* max task name */
+#define MAXTHNAME	12		/* max thread name */
 #define MAXDEVNAME	12		/* max device name */
 #define MAXOBJNAME	16		/* max object name */
 #define MAXEVTNAME	12		/* max event name */
 
 #define HZ		CONFIG_HZ	/* ticks per second */
-#define KSTACK_SIZE	768		/* kernel stack size */
+#define KSTACK_SIZE	CONFIG_KSTACK_SIZE /* kernel stack size */
 #define USTACK_SIZE	4096		/* user stack size */
 #ifdef CONFIG_MMU
 #define PAGE_SIZE	4096		/* bytes per page */
@@ -85,11 +86,11 @@
 #endif
 
 /* More types and definitions used throughout the kernel. */
-#ifdef KERNEL
+#ifdef __KERNEL__
 #include <sys/cdefs.h>
 #endif
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 /* Signals. */
 #include <sys/signal.h>
 #endif
@@ -138,7 +139,7 @@
 #define powerof2(x)	((((x)-1)&(x))==0)
 
 /* Macros for min/max. */
-#ifndef KERNEL
+#ifndef __KERNEL__
 #define	MIN(a,b) (((a)<(b))?(a):(b))
 #define	MAX(a,b) (((a)>(b))?(a):(b))
 #endif

@@ -74,7 +74,7 @@
 #define SIGUSR1 30	/* user defined signal 1 */
 #define SIGUSR2 31	/* user defined signal 2 */
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 /*
  * Language spec sez we must list exactly one parameter, even though we
@@ -182,5 +182,5 @@ __BEGIN_DECLS
 void	(*signal(int, void (*)(int)))(int);
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !__KERNEL__ */
 #endif	/* !_SYS_SIGNAL_H_ */

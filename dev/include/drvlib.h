@@ -42,13 +42,8 @@ size_t	 strlcpy(char *dest, const char *src, size_t count);
 size_t	 strnlen(const char *str, size_t count);
 void	 *memcpy(void *dest, const void *src, size_t count);
 void	 *memset(void *dest, int ch, size_t count);
-uint32_t htonl(uint32_t);
-uint16_t htons(uint16_t);
-uint32_t ntohl(uint32_t);
-uint16_t ntohs(uint16_t);
 void	 delay_usec(u_long usec);
 void	 calibrate_delay(void);
-int	 drvlib_init(void);
 __END_DECLS
 
 #endif /* !_DRVLIB_H */

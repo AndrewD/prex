@@ -43,12 +43,14 @@
 #include <prex/bootinfo.h>
 #include <queue.h>
 #include <drvlib.h>
+#include <verbose.h>
 
 /*
  * Kernel types
  */
 typedef unsigned long	device_t;
 typedef unsigned long	task_t;
+typedef unsigned long	thread_t;
 typedef unsigned long	irq_t;
 
 #define DEVICE_NULL	((device_t)0)
@@ -66,6 +68,8 @@ struct driver {
 	const int	order;		/* initialize order */
 	int		(*init)(void);	/* initialize routine */
 };
+
+#define __driver_entry __attribute__ ((section(".driver_table")))
 
 /*
  * Device I/O table
@@ -178,13 +182,14 @@ struct timer {
 #define DUMP_THREAD	1
 #define DUMP_TASK	2
 #define DUMP_VM		3
+#define DUMP_KSYM	4
 
 /* State for machine_setpower */
 #define POW_SUSPEND	1
 #define POW_OFF		2
 
 __BEGIN_DECLS
-device_t device_create(struct devio *io, const char *name, int flags);
+device_t device_create(const struct devio *io, const char *name, int flags);
 int	 device_destroy(device_t dev);
 int	 device_broadcast(int event, int force);
 int	 umem_copyin(const void *uaddr, void *kaddr, size_t len);
@@ -209,8 +214,18 @@ void	 sched_lock(void);
 void	 sched_unlock(void);
 int	 sched_tsleep(struct event *evt, u_long timeout);
 void	 sched_wakeup(struct event *evt);
+thread_t sched_wakeone(struct event *evt);
+
 void	 sched_dpc(struct dpc *dpc, void (*func)(void *), void *arg);
+void	 sched_yield(void);
 #define	 sched_sleep(event)  sched_tsleep((event), 0)
+
+#ifdef cur_thread
+#define thread_self cur_thread
+#else
+thread_t thread_self(void);
+#endif
+
 int	 exception_post(task_t task, int exc);
 int	 task_capable(int cap);
 void	*phys_to_virt(void *p_addr);
@@ -222,7 +237,7 @@ void	 machine_bootinfo(struct bootinfo **);
 void	 debug_attach(void (*func)(char *));
 int	 debug_dump(int index);
 void	 printf(const char *fmt, ...);
-void	 panic(const char *msg);
+void	 panic(const char *msg) __noreturn;
 #ifdef DEBUG
 void	 assert(const char *file, int line, const char *exp);
 #define ASSERT(exp) do { if (!(exp)) \
@@ -232,5 +247,130 @@ void	 assert(const char *file, int line, const char *exp);
 #endif
 void	driver_main(void);
 __END_DECLS
+
+/* Export symbols for drivers. Place the symbol name in .kstrtab and a
+ * struct kernel_symbol in the .ksymtab. The elf loader will use this
+ * information to resolve these symbols in driver modules */
+struct kernel_symbol
+{
+	u_long value;
+	const char *name;
+};
+
+#define EXPORT_SYMBOL(sym)						\
+	static const char __kstrtab_##sym[]				\
+	__attribute__((section(".kstrtab")))				\
+		= #sym;							\
+	static const struct kernel_symbol __ksymtab_##sym		\
+	__attribute__((__used__))					\
+		__attribute__((section(".ksymtab"), unused))		\
+		= { .value = (u_long)&sym, .name = __kstrtab_##sym }
+
+/* useful macros to provide information to optimiser */
+#define likely(x) __builtin_expect((!!(x)),1)
+#define unlikely(x) __builtin_expect((!!(x)),0)
+
+/*
+ * Useful macros
+ */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+/* REVIST: this has a hard coded timeout and isn't safe (race between
+ * condition test and sleep) but it's a start */
+#define SLP_TIMEOUT 2
+#define wait_event_interruptible(event, condition)			\
+	({								\
+		int __ret = 0, __ctr = 100;				\
+		while (!(condition) && __ctr-- > 0) {			\
+			__ret = sched_tsleep(&event, 10);		\
+			if (__ret != SLP_TIMEOUT)			\
+				break;					\
+			if (condition) {				\
+				__ret = 0;				\
+				break;					\
+			}						\
+		}							\
+		(__ret != 0) ? -ETIMEDOUT : 0;				\
+	})
+
+/* spin until condition true or timeout expires */
+#define spin_condition(condition, timeout)				\
+	({								\
+		long __max = timeout;					\
+		long __rem = __max;					\
+		u_long __until = timer_count() + __max;			\
+		while (!(condition)) {					\
+			__rem = (long)__until - (long)timer_count();	\
+			if (__rem < 0)					\
+				break;					\
+			sched_yield();					\
+		}							\
+		(__rem < 0) ? -ETIMEDOUT : __max - __rem;		\
+	})
+
+/*
+ * simple device driver locking mechanism
+ */
+#define DEVLOCK_DBG(s) __VERBOSE(VB_TRACE, "(%d %04x %04x)" s, m->free, \
+				 (uint16_t)m->owner, (uint16_t)thread_self());
+
+struct devlock {
+	struct event	event;
+	int		free;
+	thread_t	owner;		/* owner thread of this lock */
+};
+
+#define devlock_init(m, name) \
+	do { event_init(&(m)->event, name); (m)->free = 1; } while (0)
+
+/*
+ * leaves the scheduler locked as there is no
+ * priority inheritance in these light-weight locks
+ */
+static inline int devlock_lock(struct devlock *m)
+{
+
+	sched_lock();
+	if (--m->free < 0) {
+		DEVLOCK_DBG("S ");
+		ASSERT(m->owner != thread_self()); /* deadlock */
+
+		int rc = sched_sleep(&m->event);
+		switch(rc) {
+		case 0:
+			/* m->owner set by devlock_unlock() */
+			DEVLOCK_DBG("L\n");
+			break;
+
+		case SLP_INTR:
+			m->free++;
+			sched_unlock();
+			return DERR(EINTR);
+
+		default:
+			ASSERT(0); /* only expect SLP_INTR */
+		}
+	} else			/* was free */
+		m->owner = thread_self();
+
+	/* do not unlock scheduler */
+	return 0;
+}
+
+static inline void devlock_unlock(struct devlock *m)
+{
+
+	/* scheduler still locked from devlock_lock() */
+
+	if (++m->free <= 0) {
+		m->owner = sched_wakeone(&m->event);
+		DEVLOCK_DBG("W ");
+	} else {
+		ASSERT(m->free == 1); /* must be unlocked */
+		/* no need to NULL m->owner when unlocked */
+	}
+
+	sched_unlock();
+}
 
 #endif /* !_DRIVER_H */

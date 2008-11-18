@@ -42,10 +42,8 @@ getppid(void)
 	struct msg m;
 
 	m.hdr.code = PS_GETPPID;
-	__posix_call(__proc_obj, &m, sizeof(m), 1);
-
-
-	/* XXX: getppid does not return error */
+	if (__posix_call(__proc_obj, &m, sizeof(m), 1))
+		return -1; /* error only if not a posix task */
 
 	return m.data[0];
 }

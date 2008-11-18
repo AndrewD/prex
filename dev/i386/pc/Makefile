@@ -1,10 +1,11 @@
-include $(SRCDIR)/mk/own.mk
-
 TARGET=		dev.o
 TYPE=		OBJECT
-OBJS-y=		../i386/start.o ../i386/cpufunc.o dma.o
+VPATH:=		../i386:$(VPATH)
+OBJS-m=		cpufunc.o dma.o
 
-OBJS-$(CONFIG_CPUFREQ)+=	../i386/cpu.o
+ifdef CONFIG_CPUFREQ
+OBJS-$(CONFIG_PM)+=		cpu.o
+endif
 OBJS-$(CONFIG_KEYBOARD)+=	kbd.o
 OBJS-$(CONFIG_CONSOLE)+=	console.o
 OBJS-$(CONFIG_FDD)+=		fdd.o

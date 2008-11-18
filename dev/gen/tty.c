@@ -63,7 +63,7 @@ static int tty_init(void);
 /*
  * Driver structure
  */
-struct driver tty_drv = {
+struct driver tty_drv __driver_entry = {
 	/* name */	"TTY device",
 	/* order */	10,		/* must be larger than console */
 	/* init */	tty_init,

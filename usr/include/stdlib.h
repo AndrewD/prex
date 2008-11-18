@@ -83,6 +83,7 @@ char	*getenv(const char *);
 long	 labs(long);
 ldiv_t	 ldiv(long, long);
 void	 mstat(void);
+void	 mchk(void);
 void	*malloc(size_t);
 void	 qsort(void *, size_t, size_t,
 	    int (*)(const void *, const void *));

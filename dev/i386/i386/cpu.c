@@ -80,7 +80,7 @@ static int cpu_init(void);
 /*
  * Driver structure
  */
-struct driver cpu_drv = {
+struct driver cpu_drv __driver_entry = {
 	/* name */	"Processor",
 	/* order */	1,
 	/* init */	cpu_init,

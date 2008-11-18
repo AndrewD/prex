@@ -60,7 +60,7 @@ waitpid(pid_t pid, int *status, int options)
 		m.hdr.code = PS_WAITPID;
 		m.data[0] = pid;
 		m.data[1] = options;
-		err = msg_send(__proc_obj, &m, sizeof(m));
+		err = msg_send(__proc_obj, &m, sizeof(m), 0);
 		if (err == EINTR)
 			continue;
 

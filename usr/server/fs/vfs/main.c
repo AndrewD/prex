@@ -73,12 +73,18 @@ int	vfs_debug = 0;
 /*
  * Message mapping
  */
+typedef int (*fs_fn)(struct task *, struct msg *);
+
 struct msg_map {
 	int code;
-	int (*func)(struct task *, struct msg *);
+	fs_fn func;
+	int unlock;
 };
 
-#define MSGMAP(code, fn) {code, (int (*)(struct task *, struct msg *))fn}
+#define MSGMAP(fs_code, fn)			\
+	{ .code = fs_code, .func = (fs_fn)fn }
+#define MSGMAP_UNLOCK(fs_code, fn)		\
+	{ .code = fs_code, .func = (fs_fn)fn, .unlock = 1 }
 
 /* object for file service */
 static object_t fs_obj;
@@ -237,6 +243,17 @@ fs_write(struct task *t, struct io_msg *msg)
 	err = sys_write(fp, buf, size, &bytes);
 	msg->size = bytes;
 	vm_free(task_self(), buf);
+	/* REVISIT: for posix compatibility should also send SIGPIPE
+	   to task, however the signal will also stop the process
+	   waiting for the msg reply, so EAGAIN would be returned
+	   instead of EPIPE - bad if the signal is ignored in
+	   userspace...
+
+	   Fix this by moving the signal ignore mask into the
+	   kernel. The exception would not be delivered so the return
+	   code would get to the task */
+	if (0 && /* xxx */ err == EPIPE)
+		exception_raise(t->task, SIGPIPE);
 	return err;
 }
 
@@ -385,6 +402,19 @@ fs_rmdir(struct task *t, struct path_msg *msg)
 	if ((err = task_conv(t, msg->path, path)) != 0)
 		return err;
 	return sys_rmdir(path);
+}
+
+static int
+fs_mkfifo(struct task *t, struct open_msg *msg)
+{
+	char path[PATH_MAX];
+	int err;
+
+	if ((t->cap & CAP_FS_WRITE) == 0)
+		return EACCES;
+	if ((err = task_conv(t, msg->path, path)) != 0)
+		return err;
+	return sys_mkfifo(path, msg->mode);
 }
 
 static int
@@ -819,7 +849,7 @@ process_init(void)
 	 * Notify to process server.
 	 */
 	m.hdr.code = PS_REGISTER;
-	msg_send(obj, &m, sizeof(m));
+	msg_send(obj, &m, sizeof(m), 0);
 }
 
 static void
@@ -861,7 +891,8 @@ thread_run(void (*entry)(void))
 {
 	task_t self;
 	thread_t th;
-	void *stack, *sp;
+	void *stack;
+	u_long *sp;
 	int err;
 
 	self = task_self();
@@ -869,8 +900,8 @@ thread_run(void (*entry)(void))
 		return err;
 	if ((err = vm_allocate(self, &stack, USTACK_SIZE, 1)) != 0)
 		return err;
-
 	sp = (void *)((u_long)stack + USTACK_SIZE - sizeof(u_long) * 3);
+	*sp = 0;		/* arg */
 	if ((err = thread_load(th, entry, sp)) != 0)
 		return err;
 	if ((err = thread_setprio(th, PRIO_FS)) != 0)
@@ -888,12 +919,12 @@ static const struct msg_map fsmsg_map[] = {
 	MSGMAP( FS_MOUNT,	fs_mount ),
 	MSGMAP( FS_UMOUNT,	fs_umount ),
 	MSGMAP( FS_SYNC,	fs_sync ),
-	MSGMAP( FS_OPEN,	fs_open ),
-	MSGMAP( FS_CLOSE,	fs_close ),
+	MSGMAP_UNLOCK( FS_OPEN,	fs_open ),
+	MSGMAP_UNLOCK( FS_CLOSE,	fs_close ),
 	MSGMAP( FS_MKNOD,	fs_mknod ),
 	MSGMAP( FS_LSEEK,	fs_lseek ),
-	MSGMAP( FS_READ,	fs_read ),
-	MSGMAP( FS_WRITE,	fs_write ),
+	MSGMAP_UNLOCK( FS_READ,	fs_read ),
+	MSGMAP_UNLOCK( FS_WRITE,	fs_write ),
 	MSGMAP( FS_IOCTL,	fs_ioctl ),
 	MSGMAP( FS_FSYNC,	fs_fsync ),
 	MSGMAP( FS_FSTAT,	fs_fstat ),
@@ -905,6 +936,7 @@ static const struct msg_map fsmsg_map[] = {
 	MSGMAP( FS_TELLDIR,	fs_telldir ),
 	MSGMAP( FS_MKDIR,	fs_mkdir ),
 	MSGMAP( FS_RMDIR,	fs_rmdir ),
+	MSGMAP( FS_MKFIFO,	fs_mkfifo ),
 	MSGMAP( FS_RENAME,	fs_rename ),
 	MSGMAP( FS_CHDIR,	fs_chdir ),
 	MSGMAP( FS_LINK,	fs_link ),
@@ -943,7 +975,7 @@ fs_thread(void)
 		/*
 		 * Wait for an incoming request.
 		 */
-		if ((err = msg_receive(fs_obj, msg, MAX_FSMSG)) != 0)
+		if ((err = msg_receive(fs_obj, msg, MAX_FSMSG, 0)) != 0)
 			continue;
 
 		err = EINVAL;
@@ -964,9 +996,14 @@ fs_thread(void)
 					break;
 
 				/* Dispatch request */
-				err = (*map->func)(t, msg);
-				if (map->code != FS_EXIT)
+				if (map->unlock) {
 					task_unlock(t);
+					err = (*map->func)(t, msg);
+				} else {
+					err = (*map->func)(t, msg);
+					if (map->code != FS_EXIT)
+						task_unlock(t);
+				}
 				break;
 			}
 			map++;

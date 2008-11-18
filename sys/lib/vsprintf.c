@@ -78,6 +78,7 @@ vsprintf(char *buf, const char *fmt, va_list args)
 	long num;
 
 	for (p = buf; *fmt; fmt++) {
+		ASSERT((p - buf) < DBGMSG_SIZE);
 		if (*fmt != '%') {
 			*p++ = *fmt;
 			continue;
@@ -96,6 +97,8 @@ vsprintf(char *buf, const char *fmt, va_list args)
 		}
 		base = 10;
 		sign = 0;
+		if (*fmt == 'l')
+			fmt++;
 		switch (*fmt) {
 		case 'c':
 			*p++ = (char)va_arg(args, int);
@@ -110,6 +113,9 @@ vsprintf(char *buf, const char *fmt, va_list args)
 			while (width-- > 0)
 				*p++ = pad;
 			continue;
+		case 'p':
+			pad = '0';
+			width = 8;
 		case 'X':
 		case 'x':
 			base = 16;
@@ -119,6 +125,9 @@ vsprintf(char *buf, const char *fmt, va_list args)
 			break;
 		case 'u':
 			break;
+		case '%':
+			*p++ = '%';
+			continue;
 		default:
 			continue;
 		}

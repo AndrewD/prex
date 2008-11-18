@@ -176,6 +176,9 @@ trap_dump(struct cpu_regs *r)
 
 	printf(" >> task=%s (id:%x)\n",
 	       self->name != NULL ? self->name : "no name", self);
+	printf(" >> thread:%s (id:%x)\n",
+	       cur_thread->name[0] ? cur_thread->name : "no name",
+	       cur_thread);
 
 	if (r->cs == KERNEL_CS) {
 		printf("Stack trace:\n");

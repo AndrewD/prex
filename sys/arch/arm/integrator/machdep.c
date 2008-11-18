@@ -37,6 +37,7 @@
 #include <syspage.h>
 #include <locore.h>
 #include <cpufunc.h>
+#include <irq.h>
 
 /* System control reg */
 #define SC_CTRL		(*(volatile uint32_t *)(FPGA_BASE + 0x0c))

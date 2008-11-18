@@ -75,6 +75,7 @@ static int arfs_lookup	(vnode_t, char *, vnode_t);
 #define arfs_rename	((vnop_rename_t)vop_einval)
 #define arfs_mkdir	((vnop_mkdir_t)vop_einval)
 #define arfs_rmdir	((vnop_rmdir_t)vop_einval)
+#define arfs_mkfifo	((vnop_mkfifo_t)vop_einval)
 #define arfs_getattr	((vnop_getattr_t)vop_nullop)
 #define arfs_setattr	((vnop_setattr_t)vop_nullop)
 #define arfs_inactive	((vnop_inactive_t)vop_nullop)
@@ -104,6 +105,7 @@ const struct vnops arfs_vnops = {
 	arfs_rename,		/* remame */
 	arfs_mkdir,		/* mkdir */
 	arfs_rmdir,		/* rmdir */
+	arfs_mkfifo,		/* mkfifo */
 	arfs_getattr,		/* getattr */
 	arfs_setattr,		/* setattr */
 	arfs_inactive,		/* inactive */
@@ -284,8 +286,8 @@ static int
 arfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 {
 	struct ar_hdr *hdr;
-	int blkno, i, err;
-	off_t off;
+	int blkno, err;
+	off_t off, i;
 	size_t size;
 	mount_t mp;
 	char *p;

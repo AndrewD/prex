@@ -137,7 +137,7 @@ CODE facilitynames[] = {
 };
 #endif
 
-#ifdef KERNEL
+#ifdef __KERNEL__
 #define	LOG_PRINTF	-1	/* pseudo-priority to indicate use of printf */
 #endif
 
@@ -160,7 +160,7 @@ CODE facilitynames[] = {
 #define	LOG_NOWAIT	0x10	/* don't wait for console forks: DEPRECATED */
 #define	LOG_PERROR	0x20	/* log to stderr as well */
 
-#ifndef KERNEL
+#ifndef __KERNEL__
 
 #include <machine/stdarg.h>
 #include <sys/cdefs.h>
@@ -173,4 +173,4 @@ void	syslog(int, const char *, ...);
 void	vsyslog(int, const char *, va_list);
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !__KERNEL__ */

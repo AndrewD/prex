@@ -140,6 +140,8 @@ print_entry(char *name, struct stat *sp)
 			putchar('@');
 		else if (S_ISFIFO(sp->st_mode))
 			putchar('|');
+		else if (S_ISFIFO(sp->st_mode))
+			putchar('p');
 		else
 			putchar('-');
 

@@ -142,6 +142,7 @@ int	proc_exit(struct msg *);
 int	proc_stop(struct msg *);
 int	proc_waitpid(struct msg *);
 int	proc_kill(struct msg *);
+int	proc_gettask(struct msg *);
 __END_DECLS
 
 #endif /* !_PROC_H */

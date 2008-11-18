@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,42 +27,7 @@
  * SUCH DAMAGE.
  */
 
-/*
- * string.c - Minimum string library for kernel
- */
-
-#include <sys/types.h>
 #include <kernel.h>
-
-/*
- * Safer version of strncpy
- * The destination string is always terminated with NULL character.
- */
-size_t
-strlcpy(char *dest, const char *src, size_t count)
-{
-	char *d = dest;
-	const char *s = src;
-	size_t n = count;
-
-	/* Copy as many bytes as will fit */
-	if (n != 0 && --n != 0) {
-		do {
-			if ((*d++ = *s++) == 0)
-				break;
-		} while (--n != 0);
-	}
-
-	/* Not enough room in dst, add NUL and traverse rest of src */
-	if (n == 0) {
-		if (count != 0)
-			*d = '\0';		/* NUL-terminate dst */
-		while (*s++)
-			;
-	}
-
-	return (size_t)(s - src - 1);	/* count does not include NUL */
-}
 
 int
 strncmp(const char *src, const char *tgt, size_t count)
@@ -75,36 +40,4 @@ strncmp(const char *src, const char *tgt, size_t count)
 		count--;
 	}
 	return res;
-}
-
-/* The returned size does not include the last NULL char */
-size_t
-strnlen(const char *str, size_t count)
-{
-	const char *tmp;
-
-	for (tmp = str; count-- && *tmp != '\0'; ++tmp);
-	return (size_t)(tmp - str);
-}
-
-void *
-memcpy(void *dest, const void *src, size_t count)
-{
-	char *tmp = (char *)dest, *s = (char *)src;
-
-	while (count--)
-		*tmp++ = *s++;
-
-	return dest;
-}
-
-void *
-memset(void *dest, int ch, size_t count)
-{
-	char *p = (char *)dest;
-
-	while (count--)
-		*p++ = (char)ch;
-
-	return dest;
 }

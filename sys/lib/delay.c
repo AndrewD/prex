@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2007, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,66 +27,81 @@
  * SUCH DAMAGE.
  */
 
-#include <driver.h>
+/*
+ * delay.c - driver delay routine
+ */
 
-extern struct driver console_drv;
-extern struct driver cpu_drv;
-extern struct driver cpufreq_drv;
-extern struct driver fdd_drv;
-extern struct driver kbd_drv;
-extern struct driver keypad_drv;
-extern struct driver null_drv;
-extern struct driver mouse_drv;
-extern struct driver pm_drv;
-extern struct driver ramdisk_drv;
-extern struct driver rtc_drv;
-extern struct driver tty_drv;
-extern struct driver zero_drv;
-extern struct driver serial_drv;
+#include <kernel.h>
+#include <timer.h>
+
+#ifdef DEBUG
+#define DPRINTF(a) printf a
+#else
+#define DPRINTF(a)
+#endif
+
+static u_long delay_count;	/* Loop count for 1ms */
+
+static
+void delay_loop(u_long count)
+{
+	volatile u_int i;
+
+	for (i = 0; i < count; i++);
+}
 
 /*
- * Driver table
+ * Delay micro seconds (non-blocking)
+ * timer_udelay() can be called from ISR at interrupt level.
  */
-struct driver *driver_table[] = {
-#ifdef CONFIG_CONSOLE
-	&console_drv,
-#endif
-#ifdef CONFIG_CPUFREQ
-	&cpu_drv,
-	&cpufreq_drv,
-#endif
-#ifdef CONFIG_FDD
-	&fdd_drv,
-#endif
-#ifdef CONFIG_KEYBOARD
-	&kbd_drv,
-#endif
-#ifdef CONFIG_KEYPAD
-	&keypad_drv,
-#endif
-#ifdef CONFIG_NULL
-	&null_drv,
-#endif
-#ifdef CONFIG_MOUSE
-	&mouse_drv,
-#endif
-#ifdef CONFIG_PM
-	&pm_drv,
-#endif
-#ifdef CONFIG_RAMDISK
-	&ramdisk_drv,
-#endif
-#ifdef CONFIG_RTC
-	&rtc_drv,
-#endif
-#ifdef CONFIG_TTY
-	&tty_drv,
-#endif
-#ifdef CONFIG_ZERO
-	&zero_drv,
-#endif
-#ifdef CONFIG_SERIAL
-	&serial_drv,
-#endif
-	NULL
-};
+EXPORT_SYMBOL(delay_usec);
+void
+delay_usec(u_long usec)
+{
+
+	delay_loop(delay_count * usec / 1000);
+}
+
+/*
+ * Compute the loop count for 1ms.
+ * Assumes clock interrupt is enabled.
+ */
+void
+calibrate_delay(void)
+{
+	u_long ticks, test_bit;
+
+	DPRINTF(("Calibrating delay loop... "));
+	delay_count = 1;
+	for (;;) {
+		delay_count <<= 1;
+
+		ticks = timer_count();
+		while (ticks == timer_count());
+
+		ticks = timer_count();
+		delay_loop(delay_count);
+		if (ticks != timer_count())
+			break;
+	}
+	delay_count >>= 1;
+	test_bit = delay_count;
+
+	for (;;) {
+		test_bit >>= 1;
+		if (test_bit == 0)
+			break;
+		delay_count |= test_bit;
+
+		ticks = timer_count();
+		while (ticks == timer_count());
+
+		ticks = timer_count();
+		delay_loop(delay_count);
+		if (ticks != timer_count())
+			delay_count &= ~test_bit;
+	}
+	delay_count *= 1000;	/* count per 1sec */
+	delay_count /= 1000;	/* count per 1ms */
+	DPRINTF(("ok count=%d\n", delay_count));
+}

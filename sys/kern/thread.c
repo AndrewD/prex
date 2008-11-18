@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2007-2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,8 +44,8 @@
 /* forward declarations */
 static void do_terminate(thread_t);
 
-static struct thread	idle_thread;
-static thread_t		zombie;
+struct thread	idle_thread;
+static thread_t	zombie;
 
 /* global variable */
 thread_t cur_thread = &idle_thread;
@@ -67,7 +68,9 @@ thread_alloc(void)
 		return NULL;
 	}
 	memset(th, 0, sizeof(*th));
+	memset(stack, 0, KSTACK_SIZE);
 	th->kstack = stack;
+	KSTACK_CHECK_INIT(th);
 	th->magic = THREAD_MAGIC;
 	list_init(&th->mutexes);
 	return th;
@@ -76,7 +79,7 @@ thread_alloc(void)
 static void
 thread_free(thread_t th)
 {
-
+	th->magic = 0;
 	kmem_free(th->kstack);
 	kmem_free(th);
 }
@@ -136,7 +139,8 @@ thread_create(task_t task, thread_t *thp)
 	sp = (char *)th->kstack + KSTACK_SIZE;
 	context_set(&th->ctx, CTX_KSTACK, (vaddr_t)sp);
 	context_set(&th->ctx, CTX_KENTRY, (vaddr_t)&syscall_ret);
-	list_insert(&task->threads, &th->task_link);
+	/* add new threads to end of list (master thread at head) */
+	list_insert(list_last(&task->threads), &th->task_link);
 	sched_start(th);
  out:
 	sched_unlock();
@@ -242,6 +246,41 @@ thread_load(thread_t th, void (*entry)(void), void *stack)
 
 	sched_unlock();
 	return 0;
+}
+
+/*
+ * Set thread name.
+ *
+ * The naming service is separated from thread_create() so
+ * the thread name can be changed at any time.
+ */
+int
+thread_name(thread_t th, const char *name)
+{
+	size_t len;
+	int err = 0;
+
+	sched_lock();
+	if (!thread_valid(th))
+		err = ESRCH;
+	else if (!task_access(th->task))
+		err = EPERM;
+	else {
+		if (cur_task() == &kern_task)
+			strlcpy(th->name, name, MAXTHNAME);
+		else {
+			if (umem_strnlen(name, MAXTHNAME, &len))
+				err = EFAULT;
+			else if (len >= MAXTHNAME) {
+				umem_copyin(name, th->name, MAXTHNAME - 1);
+				th->name[MAXTHNAME - 1] = '\0';
+				err = ENAMETOOLONG;
+			} else
+				err = umem_copyin(name, th->name, len + 1);
+		}
+	}
+	sched_unlock();
+	return err;
 }
 
 thread_t
@@ -419,6 +458,7 @@ thread_schedparam(thread_t th, int op, int *param)
 void
 thread_idle(void)
 {
+	thread_name(cur_thread, "idle");
 
 	for (;;) {
 		machine_idle();
@@ -457,7 +497,6 @@ kthread_create(void (*entry)(void *), void *arg, int prio)
 		return NULL;
 
 	th->task = &kern_task;
-	memset(th->kstack, 0, KSTACK_SIZE);
 	sp = (char *)th->kstack + KSTACK_SIZE;
 	context_set(&th->ctx, CTX_KSTACK, (vaddr_t)sp);
 	context_set(&th->ctx, CTX_KENTRY, (vaddr_t)entry);
@@ -526,8 +565,10 @@ thread_info(struct info_thread *info)
 		info->policy = th->policy;
 		info->prio = th->prio;
 		info->time = th->time;
+		info->th = th;
 		info->task = th->task;
 		strlcpy(info->taskname, task->name, MAXTASKNAME);
+		strlcpy(info->th_name, th->name, MAXTHNAME);
 		strlcpy(info->slpevt,
 			th->slpevt ? th->slpevt->name : "-", MAXEVTNAME);
 	} else {
@@ -538,6 +579,35 @@ thread_info(struct info_thread *info)
 }
 
 #ifdef DEBUG
+#ifdef CONFIG_THREAD_CHECK
+void
+thread_check(void)
+{
+	list_t task_link;
+	thread_t th;
+	task_t task;
+	static volatile int checking;
+
+	if (checking)
+		return;
+	checking = 1;
+
+	if (likely(idle_thread.magic == THREAD_MAGIC)) { /* not early in boot */
+		task_link = &kern_task.link;
+		do {
+			task = list_entry(task_link, struct task, link);
+			ASSERT(task->magic == TASK_MAGIC);
+			list_for_each_entry(th, &task->threads, task_link) {
+				ASSERT(th->magic == THREAD_MAGIC);
+				ASSERT(KSTACK_CHECK(th));
+			}
+			task_link = list_next(task_link);
+		} while (task_link != &kern_task.link);
+	}
+	checking = 0;
+}
+#endif	/* CONFIG_THREAD_CHECK */
+
 void
 thread_dump(void)
 {
@@ -584,13 +654,19 @@ thread_dump(void)
 void
 thread_init(void)
 {
-	void *stack, *sp;
+#ifndef CONFIG_THREAD_CHECK /* stub for i386 and arm */
+	void *stack;
 
 	if ((stack = kmem_alloc(KSTACK_SIZE)) == NULL)
-		panic("thread_init: out of memory");
+		panic("thread_init");
+#undef BOOTSTACK_BASE
+#undef BOOTSTACK_TOP
+#define BOOTSTACK_BASE stack
+#define BOOTSTACK_TOP (u_long)stack + KSTACK_SIZE
+#endif
 
-	memset(stack, 0, KSTACK_SIZE);
-	idle_thread.kstack = stack;
+	idle_thread.kstack = (void *)BOOTSTACK_BASE;
+	KSTACK_CHECK_INIT(&idle_thread);
 	idle_thread.magic = THREAD_MAGIC;
 	idle_thread.task = &kern_task;
 	idle_thread.state = TH_RUN;
@@ -599,7 +675,6 @@ thread_init(void)
 	idle_thread.baseprio = PRIO_IDLE;
 	idle_thread.locks = 1;
 
-	sp = (char *)stack + KSTACK_SIZE;
-	context_set(&idle_thread.ctx, CTX_KSTACK, (vaddr_t)sp);
+	context_set(&idle_thread.ctx, CTX_KSTACK, BOOTSTACK_TOP);
 	list_insert(&kern_task.threads, &idle_thread.task_link);
 }

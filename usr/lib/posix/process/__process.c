@@ -60,6 +60,6 @@ __process_exit(int status, int signo)
 	if (__proc_obj != 0) {
 		m.hdr.code = PS_EXIT;
 		m.data[0] = signo ? signo : ((status & 0xff) << 8);
-		msg_send(__proc_obj, &m, sizeof(m));
+		msg_send(__proc_obj, &m, sizeof(m), 0);
 	}
 }

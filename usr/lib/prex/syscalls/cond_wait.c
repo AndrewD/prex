@@ -30,18 +30,18 @@
 #include <prex/prex.h>
 #include <errno.h>
 
-extern int _cond_wait(cond_t *cond, mutex_t *mu);
+extern int _cond_wait(cond_t *cond, mutex_t *mu, u_long timeout);
 
 /*
  * cond_wait() is not interrupted by signal
  */
 int
-cond_wait(cond_t *cond, mutex_t *mu)
+cond_wait(cond_t *cond, mutex_t *mu, u_long msec)
 {
 	int err;
 
 	do
-		err = _cond_wait(cond, mu);
+		err = _cond_wait(cond, mu, msec);
 	while (err == EINTR);
 	return err;
 }

@@ -121,4 +121,7 @@
 #define	EPROCLIM	67		/* Too many processes */
 #define	ENOSYS		68		/* Function not implemented */
 
+/* posix */
+#define	ENOTSUP		69		/* Not supported */
+
 #endif /* !_SYS_ERRNO_H_ */

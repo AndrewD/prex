@@ -54,7 +54,7 @@
  */
 
 #include <kernel.h>
-#include <page.h>
+#include <kpage.h>
 #include <sched.h>
 #include <vm.h>
 #include <kmem.h>
@@ -195,7 +195,7 @@ kmem_alloc(size_t size)
 		pg = PAGE_TOP(blk);	 /* Get the page address */
 	} else {
 		/* No block found. Allocate new page */
-		if ((pg = page_alloc(PAGE_SIZE)) == NULL) {
+		if ((pg = kpage_alloc(PAGE_SIZE)) == NULL) {
 			sched_unlock();
 			return NULL;
 		}
@@ -280,7 +280,7 @@ kmem_free(void *ptr)
 			list_remove(&blk->link); /* Remove from free list */
 		}
 		pg->magic = 0;
-		page_free(virt_to_phys(pg), PAGE_SIZE);
+		kpage_free(virt_to_phys(pg), PAGE_SIZE);
 	}
 	sched_unlock();
 }

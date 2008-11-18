@@ -1,6 +1,4 @@
-LIB=	$(SRCDIR)/usr/lib/libc.a
-
-include $(SRCDIR)/mk/own.mk
+LIB=	../libc.a
 
 include $(SRCDIR)/usr/lib/prex/Makefile.inc
 include $(SRCDIR)/usr/lib/posix/Makefile.inc
@@ -12,5 +10,7 @@ include $(SRCDIR)/usr/lib/libc/stdlib/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/string/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/termios/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/time/Makefile.inc
+
+CFLAGS_malloc.o += -D_REENTRANT
 
 include $(SRCDIR)/mk/lib.mk

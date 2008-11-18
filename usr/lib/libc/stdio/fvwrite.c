@@ -101,20 +101,20 @@ __sfvwrite(fp, uio)
 			GETIOV(;);
 			w = fp->_w;
 			if (fp->_flags & __SSTR) {
-				if (len < w)
+				if (len < (size_t)w)
 					w = len;
 				COPY(w);	/* copy MIN(fp->_w,len), */
 				fp->_w -= w;
 				fp->_p += w;
 				w = len;	/* but pretend copied all */
-			} else if (fp->_p > fp->_bf._base && len > w) {
+			} else if (fp->_p > fp->_bf._base && len > (size_t)w) {
 				/* fill and flush */
 				COPY(w);
 				/* fp->_w -= w; */ /* unneeded */
 				fp->_p += w;
 				if (fflush(fp))
 					goto err;
-			} else if (len >= (w = fp->_bf._size)) {
+			} else if (len >= (size_t)(w = fp->_bf._size)) {
 				/* write directly */
 				w = __swrite(fp, p, w);
 				if (w <= 0)
@@ -143,10 +143,10 @@ __sfvwrite(fp, uio)
 			GETIOV(nlknown = 0);
 			if (!nlknown) {
 				nl = memchr((void *)p, '\n', len);
-				nldist = nl ? nl + 1 - p : len + 1;
+				nldist = nl ? nl + 1 - p : (int)len + 1;
 				nlknown = 1;
 			}
-			s = MIN(len, nldist);
+			s = MIN((int)len, nldist);
 			w = fp->_w + fp->_bf._size;
 			if (fp->_p > fp->_bf._base && s > w) {
 				COPY(w);

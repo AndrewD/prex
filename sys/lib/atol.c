@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <drvlib.h>
+#include <kernel.h>
 
 /*
  * Convert string to long integer

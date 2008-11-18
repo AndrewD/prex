@@ -74,10 +74,9 @@ Step 4: Build
   $ make
 
 
-Note) If you want to run 'make' at the subdirectory, you have to set the
-      SRCDIR as follow.
+Note) If you want to run 'make' in a subdirectory do the following:
 
-  $ export SRCDIR=/usr/src/prex-X.X.X
+  $ make -C /usr/src/prex-X.X.X FROMDIR=$PWD
 
 
 Directory Structure

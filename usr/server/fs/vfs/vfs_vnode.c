@@ -178,6 +178,7 @@ vget(mount_t mp, char *path)
 	vp->v_op = mp->m_op->vfs_vnops;
 	strcpy(vp->v_path, path);
 	mutex_init(&vp->v_lock);
+	vp->v_cond = COND_INITIALIZER;
 	vp->v_nrlocks = 0;
 
 	/*
@@ -229,6 +230,8 @@ vput(vnode_t vp)
 	ASSERT(vp->v_nrlocks == 0);
 	mutex_unlock(&vp->v_lock);
 	mutex_destroy(&vp->v_lock);
+	if (vp->v_cond != COND_INITIALIZER)
+		cond_destroy(&vp->v_cond);
 	free(vp->v_path);
 	free(vp);
 }

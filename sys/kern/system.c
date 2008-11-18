@@ -37,6 +37,7 @@
 #include <task.h>
 #include <irq.h>
 #include <page.h>
+#include <kpage.h>
 #include <device.h>
 #include <system.h>
 #include <version.h>
@@ -59,14 +60,27 @@ sys_log(const char *str)
 {
 #ifdef DEBUG
 	char buf[DBGMSG_SIZE];
-	size_t len;
+	char *p;
+	size_t len, max;
+	static int eol;
 
-	if (umem_strnlen(str, DBGMSG_SIZE, &len))
+	if (eol && cur_thread->name[0] != '\0') {
+		len = strlcpy(buf, cur_thread->name, MAXTHNAME);
+		p = &buf[len];
+		*p++ = ':';
+	} else
+		p = buf;
+
+	max = &buf[DBGMSG_SIZE] - p;
+	if (umem_strnlen(str, max, &len))
 		return EFAULT;
-	if (len >= DBGMSG_SIZE)
+	if (len >= max)
 		return EINVAL;
-	if (umem_copyin(str, buf, len + 1))
+
+	if (umem_copyin(str, p, len + 1))
 		return EFAULT;
+
+	eol = (p[len-1] == '\n');
 	printf(buf);
 	return 0;
 #else
@@ -129,6 +143,9 @@ sys_info(int type, void *buf)
 
 	case INFO_MEMORY:
 		page_info(&infomem);
+#ifdef CONFIG_KMEM_PROTECT
+		kpage_info(&infomem.kpage_total, &infomem.kpage_free);
+#endif
 		err = umem_copyout(&infomem, buf, sizeof(infomem));
 		break;
 

@@ -197,6 +197,9 @@ debug_dump(int item)
 	case DUMP_VM:
 		vm_dump();
 		break;
+	case DUMP_KSYM:
+		ksym_dump();
+		break;
 	default:
 		err = ENOSYS;
 		break;

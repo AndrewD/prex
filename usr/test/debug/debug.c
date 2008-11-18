@@ -60,6 +60,6 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	m.hdr.code = STD_DEBUG;
-	msg_send(obj, &m, sizeof(m));
+	msg_send(obj, &m, sizeof(m), 0);
 	exit(0);
 }

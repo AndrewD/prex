@@ -40,7 +40,7 @@ static int null_init(void);
 /*
  * Driver structure
  */
-struct driver null_drv = {
+struct driver null_drv __driver_entry = {
 	/* name */	"NULL device",
 	/* order */	2,
 	/* init */	null_init,

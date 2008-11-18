@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2008-2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,71 +27,23 @@
  * SUCH DAMAGE.
  */
 
-/*
- * start.S - driver start up routine
- */
-#define ENTRY(x) .global x; .align; x##:
+#include <pthread.h>
+#include <verbose.h>
+#include <errno.h>
 
-.data
+int pthread_attr_setschedpolicy(pthread_attr_t *attr, int policy)
+{
+	switch (policy) {
+	case SCHED_RR:
+	case SCHED_FIFO:
+		attr->sched_policy = policy;
+		break;
 
-drv_serv:	.word	0
+	case SCHED_OTHER:
+		return DERR(ENOTSUP);
 
-
-.text
-
-/*
- * Entry point which called by kernel
- */
-ENTRY(driver_start)
-	ldr	r1, =drv_serv
-	str	r0, [r1]
-	b	driver_main
-
-/*
- * Stub to call kernel device interface
- */
-#define STUB(index, func) .global func;\
-ENTRY(func) \
-	ldr	ip, =drv_serv	; \
-	ldr	ip, [ip]	; \
-	ldr	ip, [ip, #(index*4)]	; \
-	mov	pc, ip
-
-STUB( 0, device_create)
-STUB( 1, device_destroy)
-STUB( 2, device_broadcast)
-STUB( 3, umem_copyin)
-STUB( 4, umem_copyout)
-STUB( 5, umem_strnlen)
-STUB( 6, kmem_alloc)
-STUB( 7, kmem_free)
-STUB( 8, kmem_map)
-STUB( 9, page_alloc)
-STUB(10, page_free)
-STUB(11, page_reserve)
-STUB(12, irq_attach)
-STUB(13, irq_detach)
-STUB(14, irq_lock)
-STUB(15, irq_unlock)
-STUB(16, timer_callout)
-STUB(17, timer_stop)
-STUB(18, timer_delay)
-STUB(19, timer_count)
-STUB(20, timer_hook)
-STUB(21, sched_lock)
-STUB(22, sched_unlock)
-STUB(23, sched_tsleep)
-STUB(24, sched_wakeup)
-STUB(25, sched_dpc)
-STUB(26, task_capable)
-STUB(27, exception_post)
-STUB(28, machine_bootinfo)
-STUB(29, machine_reset)
-STUB(30, machine_idle)
-STUB(31, machine_setpower)
-STUB(32, phys_to_virt)
-STUB(33, virt_to_phys)
-STUB(34, debug_attach)
-STUB(35, debug_dump)
-STUB(36, printf)
-STUB(37, panic)
+	default:
+		return DERR(EINVAL);
+	}
+	return 0;
+}

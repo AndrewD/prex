@@ -78,14 +78,40 @@ extern const dkifn_t	driver_service[];
 extern const sysfn_t	syscall_table[];
 extern const u_int	nr_syscalls;
 
-
 __BEGIN_DECLS
+long	 atol(const char *nptr);
 size_t	 strlcpy(char *, const char *, size_t);
+char	*strncpy(char *, const char *, size_t);
 int	 strncmp(const char *, const char *, size_t);
 size_t	 strnlen(const char *, size_t);
 void	*memcpy(void *, const void *, size_t);
 void	*memset(void *, int, size_t);
 int	 vsprintf(char *, const char *, va_list);
+void	 delay_usec(u_long usec);
+void	 calibrate_delay(void);
 __BEGIN_DECLS
+
+/* Export symbols for drivers. Place the symbol name in .kstrtab and a
+ * struct kernel_symbol in the .ksymtab. The elf loader will use this
+ * information to resolve these symbols in driver modules */
+struct kernel_symbol
+{
+	u_long value;
+	const char *name;
+};
+
+#define __EXPORT_SYMBOL(__n, __v)					\
+	static const char __kstrtab_##__n[]				\
+	__attribute__((section(".kstrtab")))				\
+		= #__n;							\
+	static const struct kernel_symbol __ksymtab_##__n		\
+	__attribute__((__used__))					\
+		__attribute__((section(".ksymtab"), unused))		\
+		= { .value = (u_long)&__v, .name = __kstrtab_##__n }
+#define EXPORT_SYMBOL(sym) __EXPORT_SYMBOL(sym, sym)
+
+/* useful macros to provide information to optimiser */
+#define likely(x) __builtin_expect((!!(x)),1)
+#define unlikely(x) __builtin_expect((!!(x)),0)
 
 #endif /* !_KERNEL_H */
