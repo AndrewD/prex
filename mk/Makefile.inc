@@ -118,6 +118,7 @@ BOBJS-y += $(addprefix $(BRELDIR)/, $(OBJS-y))
 BOBJS-m += $(addprefix $(BRELDIR)/, $(OBJS-m))
 BTARGET += $(addprefix $(BRELDIR)/, $(TARGET))
 BLIBS += $(addprefix $(BRELDIR)/, $(LIBS))
+BLIBS-y += $(addprefix $(BRELDIR)/, $(LIBS-y))
 
 SD1 = $(sort $(OBJS) $(OBJS-y) $(OBJS-m) $(LIBS))
 SD2 = $(filter-out ..%, $(SD1))
@@ -245,8 +246,8 @@ $(BTARGET:.o=.mo): $(SUBDIR)
 
 # static driver objects
 ifneq (,$(strip $(BOBJS-y)))
-$(BTARGET): $(BOBJS-y)
-	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS-y))
+$(BTARGET): $(BOBJS-y) $(BLIBS-y)
+	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS-y)) $(BLIBS-y)
 else # ensure an object file always exists
 $(BTARGET): dummy
 	echo | $(AS) -o $@ -
