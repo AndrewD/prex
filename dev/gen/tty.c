@@ -443,6 +443,7 @@ tty_read(struct tty *tp, char *buf, size_t *nbyte)
 	unsigned char *cc;
 	struct tty_queue *qp;
 	int rc, c;
+	unsigned char byte;
 	size_t count = 0;
 	tcflag_t lflag;
 
@@ -462,7 +463,8 @@ tty_read(struct tty *tp, char *buf, size_t *nbyte)
 		if (c == cc[VEOF] && (lflag & ICANON))
 			break;
 		count++;
-		if (umem_copyout(&c, buf, 1))
+		byte = c;	/* for BIG_ENDIAN */
+		if (umem_copyout(&byte, buf, 1))
 			return EFAULT;
 		if ((lflag & ICANON) && (c == '\n' || c == cc[VEOL]))
 			break;
@@ -479,7 +481,7 @@ int
 tty_write(struct tty *tp, char *buf, size_t *nbyte)
 {
 	size_t remain, count = 0;
-	int c;
+	unsigned char c;	/* must be char (not int) for BIG ENDIAN */
 
 	DPRINTF(("tty_write\n"));
 
