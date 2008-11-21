@@ -32,6 +32,11 @@
 #ifndef _STDDEF_H_
 #define _STDDEF_H_
 
+#if !defined(_PTRDIFF_T)
+#define _PTRDIFF_T
+typedef	int		ptrdiff_t;	/* ptr1 - ptr2 */
+#endif
+
 #if !defined(_SIZE_T)
 #define _SIZE_T
 typedef	unsigned int	size_t;		/* size of something in bytes */

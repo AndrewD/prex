@@ -52,8 +52,12 @@ typedef struct {
 	long rem;		/* remainder */
 } ldiv_t;
 
-#ifndef NULL
+#ifndef	NULL
+#if !defined(__cplusplus)
+#define	NULL	((void *)0)
+#else
 #define	NULL	0
+#endif
 #endif
 
 #define	EXIT_FAILURE	1

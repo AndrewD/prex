@@ -54,8 +54,12 @@ struct _dirdesc {
 };
 typedef struct _dirdesc DIR;
 
-#ifndef NULL
+#ifndef	NULL
+#if !defined(__cplusplus)
+#define	NULL	((void *)0)
+#else
 #define	NULL	0
+#endif
 #endif
 
 #endif /* _POSIX_SOURCE */

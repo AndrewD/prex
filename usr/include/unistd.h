@@ -39,8 +39,12 @@
 #define	STDOUT_FILENO	1	/* standard output file descriptor */
 #define	STDERR_FILENO	2	/* standard error file descriptor */
 
-#ifndef NULL
-#define	NULL		0	/* null pointer constant */
+#ifndef	NULL
+#if !defined(__cplusplus)
+#define	NULL	((void *)0)
+#else
+#define	NULL	0
+#endif
 #endif
 
 __BEGIN_DECLS

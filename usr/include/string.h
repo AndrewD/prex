@@ -38,7 +38,11 @@ typedef	unsigned int	size_t;		/* size of something in bytes */
 #endif
 
 #ifndef	NULL
+#if !defined(__cplusplus)
+#define	NULL	((void *)0)
+#else
 #define	NULL	0
+#endif
 #endif
 
 #include <sys/cdefs.h>
