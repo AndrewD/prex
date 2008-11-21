@@ -32,7 +32,6 @@ options 	FS_THREADS=1	# Number of file system threads
 #options 	MMU		# Memory management unit
 #options 	CACHE		# Cache memory
 #options 	FPU		# Floating point unit
-options 	ROMBOOT		# Boot from ROM
 options 	BOOTDISK	# Disk for /boot directory
 
 #

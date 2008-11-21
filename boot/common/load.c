@@ -56,7 +56,7 @@ load_image(struct ar_hdr *hdr, struct module *m)
 		c++;
 	*c = '\0';
 
- 	DPRINTF(("loading: hdr=%x module=%x name=%s\n",
+	DPRINTF(("loading: hdr=%x module=%x name=%s\n",
 		 (int)hdr, (int)m, (char *)&m->name));
 
 	if (elf_load((char *)hdr + sizeof(struct ar_hdr), m))
@@ -73,9 +73,6 @@ setup_bootdisk(struct ar_hdr *hdr)
 {
 	paddr_t base;
 	size_t size;
-#ifndef CONFIG_ROMBOOT
-	int i;
-#endif
 
 	if (strncmp((char *)&hdr->ar_fmag, ARFMAG, 2))
 		return;
@@ -87,13 +84,15 @@ setup_bootdisk(struct ar_hdr *hdr)
 	bootinfo->bootdisk.base = base;
 	bootinfo->bootdisk.size = size;
 
-#ifndef CONFIG_ROMBOOT
-	i = bootinfo->nr_rams;
-	bootinfo->ram[i].base = base;
-	bootinfo->ram[i].size = size;
-	bootinfo->ram[i].type = MT_BOOTDISK;
-	bootinfo->nr_rams++;
-#endif
+	if (bootinfo->ram[0].base <= base &&
+	    bootinfo->ram[0].base + bootinfo->ram[0].size >= base + size)
+	{
+		int i = bootinfo->nr_rams;
+		bootinfo->ram[i].base = base;
+		bootinfo->ram[i].size = size;
+		bootinfo->ram[i].type = MT_BOOTDISK;
+		bootinfo->nr_rams++;
+	}
 	DPRINTF(("bootdisk base=%x size=%x\n", bootinfo->bootdisk.base,
 		 bootinfo->bootdisk.size));
 }
