@@ -267,12 +267,16 @@ sleep_expire(void *arg)
 int
 sched_tsleep(struct event *evt, u_long msec)
 {
+	int s;
 
 	ASSERT(irq_level == 0);
 	ASSERT(evt);
 
 	sched_lock();
-	irq_lock();
+
+	/* do not use irq_lock() when switching sheduler */
+	interrupt_save(&s);
+	interrupt_disable();
 
 	cur_thread->slpevt = evt;
 	cur_thread->state |= TH_SLEEP;
@@ -288,7 +292,7 @@ sched_tsleep(struct event *evt, u_long msec)
 	wakeq_flush();
 	sched_switch();	/* Sleep here. Zzzz.. */
 
-	irq_unlock();
+	interrupt_restore(s);
 	sched_unlock();
 	return cur_thread->slpret;
 }
@@ -547,6 +551,7 @@ sched_unlock(void)
 	ASSERT(cur_thread->locks > 0);
 	THREAD_CHECK();
 
+	/* do not use irq_lock() when switching sheduler */
 	interrupt_save(&s);
 	interrupt_disable();
 
