@@ -45,7 +45,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "usage: mount [dev] [dir] [fs]\n");
 		exit(1);
 	}
-	if (mount(argv[1], argv[2], argv[3], 0, NULL) < 0) {
+	if (mount(argv[1], argv[2], argv[3], 0, "") < 0) {
 		perror("mount");
 		exit(1);
 	}
