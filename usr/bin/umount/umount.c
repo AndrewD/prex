@@ -28,14 +28,9 @@
  */
 
 #include <sys/mount.h>
-#include <sys/stat.h>
-#include <sys/fcntl.h>
 
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef CMDBOX
 #define main(argc, argv)	umount_main(argc, argv)
@@ -44,6 +39,14 @@
 int
 main(int argc, char *argv[])
 {
-	/* TODO */
+	if (argc != 2) {
+		fprintf(stderr, "usage: umount [dir]\n");
+		exit(1);
+	}
+	if (umount(argv[1]) < 0) {
+		perror("umount");
+		exit(1);
+	}
+	exit(0);
 	return 0;
 }
