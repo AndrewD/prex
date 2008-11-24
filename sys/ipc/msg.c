@@ -428,7 +428,7 @@ msg_cancel(object_t obj)
 	 * Force wakeup all threads waiting for receive.
 	 */
 	while (!queue_empty(&obj->recvq)) {
-		q = dequeue(&obj->sendq);
+		q = dequeue(&obj->recvq);
 		th = queue_entry(q, struct thread, ipc_link);
 		sched_unsleep(th, SLP_INVAL);
 	}
