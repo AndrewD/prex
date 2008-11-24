@@ -202,7 +202,7 @@ relocate_section(Elf32_Shdr *shdr, char *rel_data)
  * Load ELF relocatable file.
  */
 static int
-load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
+load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry, const char *name)
 {
 	Elf32_Shdr *shdr;
 	char *buf;
@@ -308,7 +308,8 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
 		if (strncmp(".text", SHSTRTAB() + shdr->sh_name, 5) != 0)
 			VERBOSE(VB_RELOC, "can't find .text");
 		else {
-			__VERBOSE(VB_RELOC, "add-symbol-file %x", sect_addr[1]);
+			__VERBOSE(VB_RELOC, "add-symbol-file %s %x", name,
+				  sect_addr[1]);
 			shdr++;
 			for (i = 2; i < ehdr->e_shnum; i++, shdr++) {
 				__CVERBOSE(VB_RELOC,
@@ -363,14 +364,14 @@ load_reloc(Elf32_Ehdr *ehdr, task_t task, int fd, void **entry)
  * Load ELF file
  */
 int
-elf_load(void *header, task_t task, int fd, void **entry)
+elf_load(void *header, task_t task, int fd, void **entry, const char *name)
 {
 	int err;
 
 #ifdef CONFIG_MMU
 	err = load_exec((Elf32_Ehdr *)header, task, fd, entry);
 #else
-	err = load_reloc((Elf32_Ehdr *)header, task, fd, entry);
+	err = load_reloc((Elf32_Ehdr *)header, task, fd, entry, name);
 #endif
 	return err;
 }

@@ -31,14 +31,6 @@
 #include <sys/param.h>
 #include "exec.h"
 
-extern void elf_init(void);
-extern int elf_probe(void *);
-extern int elf_load(void *, task_t, int, void **);
-
-extern void script_init(void);
-extern int script_probe(void *);
-extern int script_load(void *, task_t, int, void **);
-
 /*
  * File format loaders.
  */

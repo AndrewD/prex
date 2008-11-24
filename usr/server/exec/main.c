@@ -234,7 +234,7 @@ do_exec(struct exec_msg *msg)
 	/*
 	 * Load file image.
 	 */
-	if ((err = ldr->el_load(header, new_task, fd, (void **)&entry)) != 0)
+	if ((err = ldr->el_load(header, new_task, fd, (void **)&entry, name)) != 0)
 		goto err6;
 	if ((err = thread_load(th, entry, sp)) != 0)
 		goto err6;

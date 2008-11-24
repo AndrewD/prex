@@ -58,7 +58,7 @@ struct exec_loader {
 	const char *el_name;		/* name of loader */
 	void	(*el_init)(void);	/* initialize routine */
 	int	(*el_probe)(void *);	/* probe routine */
-	int	(*el_load)(void *, task_t, int, void **entry);	/* load routine */
+	int	(*el_load)(void *, task_t, int, void **entry, const char *name);	/* load routine */
 };
 
 /*
@@ -70,6 +70,12 @@ extern struct exec_loader loader_table[];
 
 __BEGIN_DECLS
 int	 build_args(task_t, void *, struct exec_msg *, void **);
+void	 elf_init(void);
+int	 elf_probe(void *);
+int	 elf_load(void *, task_t, int, void **, const char *);
+void	 script_init(void);
+int	 script_probe(void *);
+int	 script_load(void *, task_t, int, void **, const char *);
 int	 file_open(char *path, int flags);
 int	 file_close(int fd);
 int	 file_read(int fd, void *buf, size_t len);
