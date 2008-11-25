@@ -270,7 +270,7 @@ timer_periodic(thread_t th, u_long start, u_long period)
 			 * structure because only a few threads
 			 * will use the periodic timer function.
 			 */
-			tmr = kmem_alloc(sizeof(tmr));
+			tmr = kmem_alloc(sizeof(*tmr));
 			if (tmr == NULL) {
 				sched_unlock();
 				return ENOMEM;
