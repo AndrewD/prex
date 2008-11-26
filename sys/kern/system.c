@@ -143,9 +143,7 @@ sys_info(int type, void *buf)
 
 	case INFO_MEMORY:
 		page_info(&infomem);
-#ifdef CONFIG_KMEM_PROTECT
-		kpage_info(&infomem.kpage_total, &infomem.kpage_free);
-#endif
+		kpage_info(&infomem);
 		err = umem_copyout(&infomem, buf, sizeof(infomem));
 		break;
 

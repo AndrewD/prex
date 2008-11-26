@@ -47,7 +47,7 @@
  */
 
 #include <kernel.h>
-#include <page.h>
+#include <kpage.h>
 #include <syspage.h>
 #include <sched.h>
 
@@ -91,6 +91,7 @@ kpage_alloc(size_t size)
 		if (blk == &page_head) {
 			sched_unlock();
 			DPRINTF(("kpage_alloc: out of memory\n"));
+			kpage_dump();
 			return NULL;	/* Not found. */
 		}
 	} while (blk->size < size);
@@ -185,20 +186,19 @@ kpage_info(struct info_memory *info)
 	size_t free = 0;
 
 	blk = page_head.next;
-	do {
+	while (blk != &page_head) {
 		free += blk->size;
 		blk = blk->next;
-	} while (blk != &page_head);
+	}
 
-	info->total = total_size;
-	info->free = free;
-	info->bootdisk = 0;
+	info->kpage_total = total_size;
+	info->kpage_free = free;
 }
 
-#ifdef DEBUG
 void
 kpage_dump(void)
 {
+#ifdef DEBUG
 	struct page_block *blk;
 	void *addr;
 	size_t free = 0;
@@ -218,8 +218,8 @@ kpage_dump(void)
 
 	printf(" used=%dK free=%dK total=%dK\n",
 	       (total_size - free) / 1024, free / 1024, total_size / 1024);
-}
 #endif
+}
 
 /*
  * Initialize page allocator.
@@ -240,7 +240,5 @@ kpage_init(void)
 	kpage_free((void *)kram.base, kram.size);
 	total_size += kram.size;
 
-#ifdef DEBUG
 	kpage_dump();
-#endif
 }

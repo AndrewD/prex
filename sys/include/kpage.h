@@ -33,25 +33,27 @@
 #define _KPAGE_H
 
 #ifdef CONFIG_KMEM_PROTECT
-
 #ifndef __ppc__
 #warning only implemented on ppc
 #endif	/* __ppc__ */
 
-extern void	*kpage_alloc(size_t);
-extern void	 kpage_free(void *, size_t);
-extern void	 kpage_info(size_t *, size_t *);
-extern void	 kpage_dump(void);
-extern void	 kpage_init(void);
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+void	*kpage_alloc(size_t);
+void	 kpage_free(void *, size_t);
+void	 kpage_info(struct info_memory *);
+void	 kpage_dump(void);
+void	 kpage_init(void);
+__END_DECLS
 
 #else  /* !CONFIG_KMEM_PROTECT */
-
 #include <page.h>
 #define kpage_alloc(sz) page_alloc(sz)
 #define kpage_free(p, sz) page_free(p, sz)
-#define kpage_info(p_total, p_free) do {	\
-		*(p_total) = 0;			\
-		*(p_free) = 0;			\
+#define kpage_info(info) do {			\
+		(info)->kpage_total = 0;	\
+		(info)->kpage_free = 0;		\
 	} while (0)
 #define kpage_dump()
 #define kpage_init()
