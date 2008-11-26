@@ -44,8 +44,8 @@
 /* forward declarations */
 static void do_terminate(thread_t);
 
-struct thread	idle_thread;
-static thread_t	zombie;
+static struct thread	idle_thread;
+static thread_t		zombie;
 
 /* global variable */
 thread_t cur_thread = &idle_thread;
@@ -565,7 +565,6 @@ thread_info(struct info_thread *info)
 		info->policy = th->policy;
 		info->prio = th->prio;
 		info->time = th->time;
-		info->th = th;
 		info->task = th->task;
 		strlcpy(info->taskname, task->name, MAXTASKNAME);
 		strlcpy(info->th_name, th->name, MAXTHNAME);

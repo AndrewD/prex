@@ -57,7 +57,6 @@ struct info_memory {
 	size_t	free;		/* current free memory size in bytes */
 	size_t	kpage_total;	/* total memory size in bytes */
 	size_t	kpage_free;	/* current free memory size in bytes */
-	size_t	kernel;		/* memory size used by kernel in bytes */
 	size_t	bootdisk;	/* total size of boot disk */
 };
 
@@ -69,7 +68,6 @@ struct info_thread {
 	int	policy;		/* scheduling policy */
 	int	prio;		/* current priority */
 	u_int	time;		/* total running time */
-	thread_t th;		/* thread id */
 	task_t	task;		/* task id */
 	char	th_name[MAXTHNAME];	/* thread name */
 	char	taskname[MAXTASKNAME];	/* task name */
