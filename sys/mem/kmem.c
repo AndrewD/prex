@@ -83,6 +83,7 @@ struct block_hdr {
 struct page_hdr {
 	u_short	magic;			/* magic number */
 	u_short	nallocs;		/* number of allocated blocks */
+	struct	list link;		/* link to page list */
 	struct	block_hdr first_blk;	/* first block in this page */
 };
 
@@ -90,7 +91,8 @@ struct page_hdr {
 #define ALIGN_MASK	(ALIGN_SIZE - 1)
 #define ALLOC_ALIGN(n)	(((vaddr_t)(n) + ALIGN_MASK) & (vaddr_t)~ALIGN_MASK)
 
-#define BLOCK_MAGIC	0xdead
+#define ALLOC_MAGIC	0xcafe
+#define FREE_MAGIC	0xdead
 #define PAGE_MAGIC	0xbeef
 
 #define BLKHDR_SIZE	(sizeof(struct block_hdr))
@@ -136,6 +138,7 @@ struct page_hdr {
  * embedded system with low foot print.
  */
 static struct list free_blocks[NR_BLOCK_LIST];
+static struct list kmem_pages;
 
 /*
  * Find the free block for the specified size.
@@ -179,6 +182,7 @@ kmem_alloc(size_t size)
 	ASSERT(irq_level == 0);
 
 	sched_lock();		/* Lock scheduler */
+	kmem_check();
 	/*
 	 * First, the free block of enough size is searched
 	 * from the page already used. If it does not exist,
@@ -196,21 +200,23 @@ kmem_alloc(size_t size)
 	} else {
 		/* No block found. Allocate new page */
 		if ((pg = kpage_alloc(PAGE_SIZE)) == NULL) {
+			kmem_dump();
 			sched_unlock();
 			return NULL;
 		}
 		pg = (struct page_hdr *)phys_to_virt(pg);
 		pg->nallocs = 0;
 		pg->magic = PAGE_MAGIC;
+		list_insert(&kmem_pages, &pg->link);
 
 		/* Setup first block */
 		blk = &(pg->first_blk);
-		blk->magic = BLOCK_MAGIC;
+		blk->magic = FREE_MAGIC;
 		blk->size = MAX_BLOCK_SIZE;
 		blk->pg_next = NULL;
 	}
 	/* Sanity check */
-	if (pg->magic != PAGE_MAGIC || blk->magic != BLOCK_MAGIC)
+	if (pg->magic != PAGE_MAGIC || blk->magic != FREE_MAGIC)
 		panic("kmem_alloc: overrun");
 	/*
 	 * If the found block is large enough, split it.
@@ -218,7 +224,7 @@ kmem_alloc(size_t size)
 	if (blk->size - size >= MIN_BLOCK_SIZE) {
 		/* Make new block */
 		newblk = (struct block_hdr *)((char *)blk + size);
-		newblk->magic = BLOCK_MAGIC;
+		newblk->magic = FREE_MAGIC;
 		newblk->size = (u_short)(blk->size - size);
 		list_insert(&free_blocks[BLKIDX(newblk)], &newblk->link);
 
@@ -228,6 +234,7 @@ kmem_alloc(size_t size)
 
 		blk->size = (u_short)size;
 	}
+	blk->magic = ALLOC_MAGIC;
 	/* Increment allocation count of this page */
 	pg->nallocs++;
 	p = (char *)blk + BLKHDR_SIZE;
@@ -256,10 +263,11 @@ kmem_free(void *ptr)
 
 	/* Lock scheduler */
 	sched_lock();
+	kmem_check();
 
 	/* Get the block header */
 	blk = (struct block_hdr *)((char *)ptr - BLKHDR_SIZE);
-	if (blk->magic != BLOCK_MAGIC)
+	if (blk->magic != ALLOC_MAGIC)
 		panic("kmem_free: invalid address");
 
 	/*
@@ -267,6 +275,7 @@ kmem_free(void *ptr)
 	 * request fixed size of memory block, we don't merge the
 	 * blocks to use it as cache.
 	 */
+	blk->magic = FREE_MAGIC;
 	list_insert(&free_blocks[BLKIDX(blk)], &blk->link);
 
 	/* Decrement allocation count of this page */
@@ -278,7 +287,9 @@ kmem_free(void *ptr)
 		 */
 		for (blk = &(pg->first_blk); blk != NULL; blk = blk->pg_next) {
 			list_remove(&blk->link); /* Remove from free list */
+			blk->magic = 0;
 		}
+		list_remove(&pg->link);
 		pg->magic = 0;
 		kpage_free(virt_to_phys(pg), PAGE_SIZE);
 	}
@@ -300,11 +311,67 @@ kmem_map(void *addr, size_t size)
 	return phys_to_virt(phys);
 }
 
+/*
+ * Validate kmem
+ */
+void
+kmem_check(void)
+{
+	list_t head, n;
+	struct page_hdr *pg;
+	struct block_hdr *blk;
+
+	head = &kmem_pages;
+	sched_lock();
+	for (n = list_first(head); n != head; n = list_next(n)) {
+		pg = list_entry(n, struct page_hdr, link);
+		ASSERT(kern_area(pg));
+		ASSERT(pg->magic == PAGE_MAGIC);
+
+		for (blk = &(pg->first_blk); blk != NULL; blk = blk->pg_next) {
+			ASSERT((vaddr_t)blk > (vaddr_t)pg);
+			ASSERT((vaddr_t)blk < ((vaddr_t)pg + MAX_BLOCK_SIZE));
+			ASSERT(blk->magic == ALLOC_MAGIC ||
+			       blk->magic == FREE_MAGIC);
+		}
+	}
+	sched_unlock();
+}
+
+#ifdef DEBUG
+void
+kmem_dump(void)
+{
+	list_t head, n;
+	int i, cnt;
+	struct block_hdr *blk;
+
+	printf("\nKernel memory dump:\n");
+
+	printf("\n free blocks:\n");
+	printf(" block size count\n");
+	printf(" ---------- --------\n");
+
+	for (i = 0; i < NR_BLOCK_LIST; i++) {
+		cnt = 0;
+		head = &free_blocks[i];
+		for (n = list_first(head); n != head; n = list_next(n)) {
+			cnt++;
+
+			blk = list_entry(n, struct block_hdr, link);
+		}
+		if (cnt > 0)
+			printf("       %4d %8d\n", i << 4, cnt);
+	}
+}
+#endif
+
 void
 kmem_init(void)
 {
 	int i;
 
+	list_init(&kmem_pages);
 	for (i = 0; i < NR_BLOCK_LIST; i++)
 		list_init(&free_blocks[i]);
 }

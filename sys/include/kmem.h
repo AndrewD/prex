@@ -37,6 +37,8 @@ void	*kmem_alloc(size_t);
 void	 kmem_free(void *);
 void	*kmem_map(void *, size_t);
 void	 kmem_init(void);
+void	 kmem_check(void);
+void	 kmem_dump(void);
 __END_DECLS
 
 #endif /* !_KMEM_H */
