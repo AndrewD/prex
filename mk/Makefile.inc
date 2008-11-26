@@ -151,8 +151,9 @@ comma = ,
 all: $(SUBDIR) $(BTARGET)
 
 # dependencies for parallel make
-$(BTARGET): $(SUBDIR)
+$(BTARGET): | $(SUBDIR)
 $(BSUBDEPS): $(SUBDIR)
+	# this is an empty command
 
 #
 # Inference rules
@@ -206,7 +207,7 @@ ifneq (,$(strip $(BOBJS) $(BOBJS-y)))
 $(BTARGET): $(BOBJS) $(BOBJS-y) $(BLIBS)
 	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS) $(BOBJS-y)) $(BLIBS)
 else # ensure an object file always exists
-$(BTARGET): dummy
+$(BTARGET):
 	echo | $(AS) -o $@ -
 endif
 
@@ -228,14 +229,14 @@ endif
 
 # additional target for modular drivers
 all: $(BTARGET:.o=.mo)
-$(BTARGET:.o=.mo): $(SUBDIR)
+$(BTARGET:.o=.mo): | $(SUBDIR)
 
 # static driver objects
 ifneq (,$(strip $(BOBJS-y)))
 $(BTARGET): $(BOBJS-y) $(BLIBS-y)
 	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS-y)) $(BLIBS-y)
 else # ensure an object file always exists
-$(BTARGET): dummy
+$(BTARGET):
 	echo | $(AS) -o $@ -
 endif
 
@@ -244,7 +245,7 @@ ifneq (,$(strip $(BOBJS-m)))
 $(BTARGET:.o=.mo): $(BOBJS-m)
 	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS-m))
 else
-$(BTARGET:.o=.mo): dummy
+$(BTARGET:.o=.mo):
 	echo | $(AS) -o $@ -
 endif
 
@@ -284,8 +285,8 @@ endif
 ifeq ($(TYPE),DRIVER)
 # additional target for modular drivers
 all: $(BTARGET:.o=.ko)
-$(BOBJS:.o=.mo): $(SUBDIR)
-$(BTARGET:.o=.ko): $(SUBDIR)
+$(BOBJS:.o=.mo): | $(SUBDIR)
+$(BTARGET:.o=.ko): | $(SUBDIR)
 
 $(BTARGET:.o=.ko): $(LD_SCRIPT) $(BOBJS:.o=.mo) $(BLIBS) $(LIBGCC)
 	$(LD) $(LDFLAGS) -o $@ -T $(LD_SCRIPT) $(BOBJS:.o=.mo) $(BLIBS) $(LIBGCC)
