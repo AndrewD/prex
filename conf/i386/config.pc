@@ -3,13 +3,15 @@
 #
 
 #
-# Memory address
+# Memory configuration
 #
 memory		LOADER_BASE	0x00004000
 memory		KERNEL_BASE	0x80010000
 memory		DRIVER_BASE	AUTODETECT
 memory		SYSPAGE_BASE	0x80000000
 memory		BOOTIMG_BASE	0x80100000
+memory		KSTACK_SIZE	768
+memory		BOOTINFO_SIZE	1024
 
 #
 # Make options
@@ -22,7 +24,6 @@ makeoptions	CFLAGS+= -mpreferred-stack-boundary=2
 #
 options 	HZ=1000		# Ticks/second of the clock
 options 	TIME_SLICE=50	# Context switch ratio (msec)
-options 	KSTACK_SIZE=768	# Kernel stack size
 options 	OPEN_MAX=16	# Max open files per process
 options 	BUF_CACHE=32	# Blocks for buffer cache
 options 	FS_THREADS=4	# Number of file system threads

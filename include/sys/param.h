@@ -67,7 +67,6 @@
 #define MAXEVTNAME	12		/* max event name */
 
 #define HZ		CONFIG_HZ	/* ticks per second */
-#define KSTACK_SIZE	CONFIG_KSTACK_SIZE /* kernel stack size */
 #define USTACK_SIZE	4096		/* user stack size */
 #ifdef CONFIG_MMU
 #define PAGE_SIZE	4096		/* bytes per page */

@@ -3,13 +3,15 @@
 #
 
 #
-# Module address
+# Memory configuration
 #
 memory		LOADER_BASE	0x03000000
 memory		KERNEL_BASE	0x02000000
 memory		DRIVER_BASE	AUTODETECT
 memory		SYSPAGE_BASE	0x03002000
 memory		BOOTIMG_BASE	0x08002000
+memory		KSTACK_SIZE	768
+memory		BOOTINFO_SIZE	1024
 
 #
 # Make options
@@ -21,7 +23,6 @@ makeoptions	CFLAGS+= -mcpu=arm7tdmi -mtune=arm7tdmi
 #
 options 	HZ=100		# Ticks/second of the clock
 options 	TIME_SLICE=100	# Context switch ratio (msec)
-options 	KSTACK_SIZE=768	# Kernel stack size
 options 	OPEN_MAX=8	# Max open files per process
 options 	BUF_CACHE=8	# Blocks for buffer cache
 options 	FS_THREADS=1	# Number of file system threads

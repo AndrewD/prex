@@ -108,6 +108,4 @@ struct bootinfo
 	struct module	tasks[1];	/* boot tasks image */
 };
 
-#define BOOTINFO_SIZE	1024	/* max size of boot information */
-
 #endif /* !_PREX_BOOTINFO_H */
