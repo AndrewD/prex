@@ -183,20 +183,6 @@ ifndef NO_FLAGS
 endif
 
 #
-# Check configuration
-#
-ifeq (0, ${MAKELEVEL})
-# add dependency on config.h
-$(SUBDIR):$(BUILDDIR)/conf/config.h
-
-$(BUILDDIR)/conf/config.h: dummy
-	@if [ ! -f $@ ]; then \
-		echo 'You must run `configure` before make.' ;\
-		exit 1 ;\
-	fi
-endif
-
-#
 # Rules to process sub-directory
 #
 .PHONY: $(SUBDIR)

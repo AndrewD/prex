@@ -2,6 +2,7 @@ ifndef BUILDDIR
 export BUILDDIR:=$(shell pwd)
 endif
 -include $(BUILDDIR)/conf/config.mk
+
 ifndef SRCDIR
 ifdef MAKECMDGOALS
 $(MAKECMDGOALS):
@@ -10,8 +11,8 @@ all:
 endif
 	@echo Error: $(BUILDDIR) is not configured
 	@exit 1
+
 else
-export SRCDIR
 ifdef FROMDIR
 SUBDIR= $(FROMDIR)
 else
