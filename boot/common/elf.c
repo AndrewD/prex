@@ -101,10 +101,14 @@ load_executable(char *img, struct module *m)
 			phys_base += (m->data - m->text);
 		}
 		if (phdr->p_filesz > 0) {
-			memcpy((char *)phys_base, img + phdr->p_offset,
-			       (size_t)phdr->p_filesz);
-			ELFDBG(("load: offset=%x size=%x\n",
-				 phys_base, (int)phdr->p_filesz));
+			if ((char *)phys_base == (img + phdr->p_offset))
+				ELFDBG(("execute in place\n"));
+			else {
+				memcpy((char *)phys_base, img + phdr->p_offset,
+				       (size_t)phdr->p_filesz);
+				ELFDBG(("load: offset=%x size=%x\n",
+					 phys_base, (int)phdr->p_filesz));
+			}
 		}
 		if (!(phdr->p_flags & PF_X)) {
 			if (m->bsssz > 0) {
