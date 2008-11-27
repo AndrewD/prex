@@ -419,12 +419,18 @@ elf_load(char *img, struct module *m)
 #ifdef CONFIG_KMEM_PROTECT
 	else if (nr_img == 2) {
 		/*  pad to CONFIG_KMEM_SIZE - for kpage allocator */
-		u_int task_base = bootinfo->kernel.phys + CONFIG_KMEM_SIZE;
+		u_int task_base = bootinfo->ram[0].base + CONFIG_KMEM_SIZE;
+		struct physmem *kmem = bootinfo->ram;
+		kmem += bootinfo->nr_rams;
+		kmem->base = load_base;
+		kmem->size = task_base - load_base;
+		kmem->type = MT_KPAGE;
+		bootinfo->nr_rams++;
 		if (load_base > task_base) {
 			DPRINTF(("kernel too big\n"));
 			return -1;
 		}
-		ELFDBG(("padding %x => %x\n", load_base, task_base));
+		ELFDBG(("kpage %x => %dK\n", kmem->base, kmem->size / 1024));
 		load_base = task_base;
 		ELFDBG(("task base=%x\n", load_base));
 	}

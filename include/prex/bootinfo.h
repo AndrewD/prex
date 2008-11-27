@@ -85,6 +85,7 @@ struct physmem
 #define MT_MEMHOLE	2
 #define MT_RESERVED	3
 #define MT_BOOTDISK	4
+#define MT_KPAGE	5
 
 #define NMEMS		16	/* max number of memory slots */
 

@@ -229,16 +229,22 @@ kpage_dump(void)
 void
 kpage_init(void)
 {
-	struct physmem kram;
+	struct physmem *ram;
+	int i;
 
 	total_size = 0;
 	page_head.next = page_head.prev = &page_head;
 
-	kram.base = bootinfo->driver.phys + bootinfo->driver.size;
-	kram.size = bootinfo->tasks[0].phys - kram.base;
-
-	kpage_free((void *)kram.base, kram.size);
-	total_size += kram.size;
+	/*
+	 * Create a free list from the boot information.
+	 */
+	for (i = 0; i < bootinfo->nr_rams; i++) {
+		ram = &bootinfo->ram[i];
+		if (ram->type == MT_KPAGE) {
+			kpage_free((void *)ram->base, ram->size);
+			total_size += ram->size;
+		}
+	}
 
 	kpage_dump();
 }
