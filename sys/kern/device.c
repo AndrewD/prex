@@ -453,22 +453,16 @@ driver_init(void)
 void
 device_init(void)
 {
-	struct module *mod;
 	void (*drv_entry)(void);
 
 	list_init(&device_list);
 	driver_init();
 
-	mod = &bootinfo->driver;
-	if (mod == NULL) {
+	drv_entry = (void (*)(void))bootinfo->driver.entry;
+	if (drv_entry == NULL) {
 		DPRINTF(("Warning: No driver found."));
 		return;
 	}
-
-	drv_entry = (void (*)(void))mod->entry;
-	ASSERT(drv_entry);
-	if (drv_entry == NULL)
-		return;
 
 	/*
 	 * Call all initialization functions in drivers.
