@@ -40,6 +40,8 @@
 #include <sched.h>
 #include <sync.h>
 #include <system.h>
+#include <syspage.h>
+#include <verbose.h>
 
 /* forward declarations */
 static void do_terminate(thread_t);
@@ -68,9 +70,7 @@ thread_alloc(void)
 		return NULL;
 	}
 	memset(th, 0, sizeof(*th));
-	memset(stack, 0, KSTACK_SIZE);
 	th->kstack = stack;
-	KSTACK_CHECK_INIT(th);
 	th->magic = THREAD_MAGIC;
 	list_init(&th->mutexes);
 	return th;
@@ -136,6 +136,10 @@ thread_create(task_t task, thread_t *thp)
 	th->task = task;
 	th->suscnt = task->suscnt + 1;
 	memcpy(th->kstack, cur_thread->kstack, KSTACK_SIZE);
+	size_t free = ((vaddr_t)__builtin_frame_address(0) -
+		       (vaddr_t)cur_thread->kstack);
+	memset((char *)th->kstack, 0xAA, free);
+	KSTACK_CHECK_INIT(th);
 	sp = (char *)th->kstack + KSTACK_SIZE;
 	context_set(&th->ctx, CTX_KSTACK, (vaddr_t)sp);
 	context_set(&th->ctx, CTX_KENTRY, (vaddr_t)&syscall_ret);
@@ -262,9 +266,9 @@ thread_name(thread_t th, const char *name)
 
 	sched_lock();
 	if (!thread_valid(th))
-		err = ESRCH;
-	else if (!task_access(th->task))
-		err = EPERM;
+		err = DERR(ESRCH);
+	else if (cur_task() != &kern_task && !task_access(th->task))
+		err = DERR(EPERM);
 	else {
 		if (cur_task() == &kern_task)
 			strlcpy(th->name, name, MAXTHNAME);
@@ -497,6 +501,8 @@ kthread_create(void (*entry)(void *), void *arg, int prio)
 		return NULL;
 
 	th->task = &kern_task;
+	memset(th->kstack, 0xAA, KSTACK_SIZE);
+	KSTACK_CHECK_INIT(th);
 	sp = (char *)th->kstack + KSTACK_SIZE;
 	context_set(&th->ctx, CTX_KSTACK, (vaddr_t)sp);
 	context_set(&th->ctx, CTX_KENTRY, (vaddr_t)entry);
@@ -608,6 +614,31 @@ thread_check(void)
 #endif	/* CONFIG_THREAD_CHECK */
 
 void
+thread_dump_one(thread_t th)
+{
+	int kstack_unused = 0;
+	const char pol[][6] = { [SCHED_FIFO] "FIFO ", [SCHED_RR] "RR   ",
+				[SCHED_OTHER] "OTHER" };
+
+	if (KSTACK_CHECK(th)) {
+		u_int *sp = th->kstack;
+		sp++;
+		kstack_unused = 4;
+		/* stack is seeded with 0xAA */
+		for ( ; *sp == 0xAAAAAAAA; sp++)
+			kstack_unused += 4;
+	}
+
+	printf("THREAD      TH       PRI POL       TIME "
+		"KSTACK (unused) SLEEP\n");
+	printf("%11s %p %3d %s %8d %p %6d %p %s\n",
+		th->name[0] ? th->name : "no name",
+		th, th->prio, pol[th->policy], th->time,
+		th->kstack, kstack_unused, th->slpevt,
+		th->slpevt ? th->slpevt->name : NULL);
+}
+
+void
 thread_dump(void)
 {
 	static const char state[][4] = \
@@ -653,20 +684,10 @@ thread_dump(void)
 void
 thread_init(void)
 {
-#ifndef CONFIG_THREAD_CHECK /* stub for i386 and arm */
-	void *stack;
-
-	if ((stack = kmem_alloc(KSTACK_SIZE)) == NULL)
-		panic("thread_init");
-#undef BOOTSTACK_BASE
-#undef BOOTSTACK_TOP
-#define BOOTSTACK_BASE stack
-#define BOOTSTACK_TOP (u_long)stack + KSTACK_SIZE
-#endif
-
-	idle_thread.kstack = (void *)BOOTSTACK_BASE;
+	idle_thread.kstack = (void *)(BOOTSTACK_TOP - KSTACK_SIZE);
 	KSTACK_CHECK_INIT(&idle_thread);
 	idle_thread.magic = THREAD_MAGIC;
+	list_init(&idle_thread.mutexes);
 	idle_thread.task = &kern_task;
 	idle_thread.state = TH_RUN;
 	idle_thread.policy = SCHED_FIFO;

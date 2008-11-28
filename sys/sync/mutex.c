@@ -432,3 +432,19 @@ prio_uninherit(thread_t th)
 	}
 	sched_setprio(th, th->baseprio, top_prio);
 }
+
+#ifdef DEBUG
+void
+mutex_dump(thread_t th)
+{
+	printf("mutexes:");
+	list_t m_list = list_next(&th->mutexes);
+	while (m_list != &th->mutexes) {
+		mutex_t m;
+		m = list_entry(m_list, struct mutex, link);
+		printf(" %p", m);
+		m_list = list_next(m_list);
+	}
+	printf("\n");
+}
+#endif

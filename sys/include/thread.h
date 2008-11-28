@@ -139,6 +139,8 @@ int	 thread_resume(thread_t);
 int	 thread_schedparam(thread_t, int, int *);
 void	 thread_idle(void) __noreturn;
 int	 thread_info(struct info_thread *);
+void	 thread_check(void);
+void	 thread_dump_one(thread_t);
 void	 thread_dump(void);
 void	 thread_init(void);
 /* for kernel thread */
@@ -147,7 +149,6 @@ void	 kthread_terminate(thread_t);
 __END_DECLS
 
 #if defined (DEBUG) && defined(CONFIG_THREAD_CHECK)
-extern void thread_check(void);
 #define THREAD_CHECK() thread_check()
 #else
 #define THREAD_CHECK()

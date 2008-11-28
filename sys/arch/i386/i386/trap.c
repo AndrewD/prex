@@ -35,6 +35,7 @@
 #include <exception.h>
 #include <thread.h>
 #include <task.h>
+#include <sync.h>
 #include <cpu.h>
 #include <locore.h>
 #include <cpufunc.h>
@@ -160,6 +161,8 @@ trap_dump(struct cpu_regs *r)
 		ss = r->ds;
 		esp = (uint32_t)r;
 	}
+	thread_dump_one(cur_thread);
+	mutex_dump(cur_thread);
 	printf("Trap frame %x error %x\n", r, r->err_code);
 	printf(" eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x\n",
 	       r->eax, r->ebx, r->ecx, r->edx, r->esi, r->edi);

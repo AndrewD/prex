@@ -35,6 +35,7 @@
 #include <exception.h>
 #include <thread.h>
 #include <task.h>
+#include <sync.h>
 #include <cpu.h>
 #include <locore.h>
 
@@ -107,6 +108,8 @@ trap_dump(struct cpu_regs *r)
 {
 	task_t self = cur_task();
 
+	thread_dump_one(cur_thread);
+	mutex_dump(cur_thread);
 	printf("Trap frame %x\n", r);
 	printf(" r0  %08x r1  %08x r2  %08x r3  %08x r4  %08x r5  %08x\n",
 	       r->r0, r->r1, r->r2, r->r3, r->r4, r->r5);
