@@ -460,7 +460,7 @@ device_init(void)
 
 	drv_entry = (void (*)(void))bootinfo->driver.entry;
 	if (drv_entry == NULL) {
-		DPRINTF(("Warning: No driver found."));
+		DPRINTF(("Warning: No driver found.\n"));
 		return;
 	}
 
