@@ -109,6 +109,7 @@ irq_attach(int vector, int prio, int shared, int (*isr)(int), void (*ist)(int))
 			sched_unlock();
 			return NULL;
 		}
+		thread_name(irq->thread, "ist");
 		event_init(&irq->istevt, "interrupt");
 	}
 	irq_table[vector] = irq;

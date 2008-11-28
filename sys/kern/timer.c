@@ -481,6 +481,7 @@ timer_info(struct info_timer *info)
 void
 timer_init(void)
 {
+	thread_t th;
 
 	list_init(&timer_list);
 	list_init(&expire_list);
@@ -488,6 +489,8 @@ timer_init(void)
 	event_init(&delay_event, "delay");
 
 	/* Start timer thread */
-	if (kthread_create(&timer_thread, NULL, PRIO_TIMER) == NULL)
+	th = kthread_create(&timer_thread, NULL, PRIO_TIMER);
+	if (th == NULL)
 		panic("timer_init");
+	thread_name(th, "timer");
 }

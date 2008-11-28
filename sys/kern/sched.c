@@ -735,6 +735,7 @@ sched_init(void)
 	th = kthread_create(dpc_thread, NULL, PRIO_DPC);
 	if (th == NULL)
 		panic("sched_init");
+	thread_name(th, "dpc");
 
 	DPRINTF(("Time slice is %d msec\n", CONFIG_TIME_SLICE));
 }
