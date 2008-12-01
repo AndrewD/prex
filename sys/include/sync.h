@@ -55,6 +55,8 @@ struct cond {
 	int		magic;		/* magic number */
 	task_t		task;		/* owner task */
 	struct event	event;		/* event */
+	int		wait;		/* # waiting threads */
+	int		signal;		/* # signaled threads */
 };
 
 #define sem_valid(s)	(kern_area(s) && ((s)->magic == SEM_MAGIC))

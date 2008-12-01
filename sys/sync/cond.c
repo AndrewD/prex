@@ -56,6 +56,7 @@ cond_init(cond_t *cond)
 	event_init(&c->event, "condition");
 	c->task = cur_task();
 	c->magic = COND_MAGIC;
+	c->wait = c->signal = 0;
 
 	if (umem_copyout(&c, cond, sizeof(c))) {
 		kmem_free(c);
@@ -141,6 +142,8 @@ cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 			return DERR(EINVAL);
 		}
 	}
+	ASSERT(c->signal >= 0 && c->signal <= c->wait);
+	c->wait++;
 	if ((err = mutex_unlock_count(mtx))) {
 		if (err < 0) {
 			/* mutex was recursively locked - would deadlock */
@@ -151,22 +154,29 @@ cond_wait(cond_t *cond, mutex_t *mtx, u_long timeout)
 		return err;
 	}
 
-again:
 	rc = sched_tsleep(&c->event, timeout);
-	if (rc == SLP_TIMEOUT) {
-		rc = mutex_trylock(mtx);
-		if (rc == EBUSY) /* someone else is holding the mutex */
-			goto again;
-		sched_unlock();
-		err = ETIMEDOUT;
-	} else {
-		if (rc == SLP_INTR)
-			err = EINTR;
-		sched_unlock();
-		rc = mutex_lock(mtx);
-	}
+	err = mutex_lock(mtx);
+	c->wait--;
+	if (!err) {
+		if (c->signal)
+			c->signal--; /* > 1 thread may be waiting */
+		else {
+			switch (rc) {
+			case SLP_TIMEOUT:
+				err = ETIMEDOUT;
+				break;
 
-	return (rc) ? rc : err;
+			case SLP_INTR:
+				err = EINTR;
+				break;
+
+			default:		/* unexpected */
+				err = DERR(EINVAL);
+			}
+		}
+	}
+	sched_unlock();
+	return err;
 }
 
 /*
@@ -180,8 +190,10 @@ cond_signal(cond_t *cond)
 	int err;
 
 	sched_lock();
-	if ((err = cond_copyin(cond, &c)) == 0)
+	if ((err = cond_copyin(cond, &c)) == 0 && c->signal < c->wait) {
+		c->signal++;
 		sched_wakeone(&c->event);
+	}
 	sched_unlock();
 	return err;
 }
@@ -196,8 +208,10 @@ cond_broadcast(cond_t *cond)
 	int err;
 
 	sched_lock();
-	if ((err = cond_copyin(cond, &c)) == 0)
+	if ((err = cond_copyin(cond, &c)) == 0 && c->signal < c->wait) {
+		c->signal = c->wait;
 		sched_wakeup(&c->event);
+	}
 	sched_unlock();
 	return err;
 }
