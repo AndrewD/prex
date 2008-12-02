@@ -151,7 +151,7 @@ comma = ,
 all: $(SUBDIR) $(BTARGET)
 
 # dependencies for parallel make
-$(BTARGET): | $(SUBDIR)
+$(BTARGET): Makefile | $(SUBDIR)
 $(BSUBDEPS): $(SUBDIR)
 	# this is an empty command
 
