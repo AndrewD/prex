@@ -63,7 +63,7 @@
 #ifdef DEBUG
 __BEGIN_DECLS
 void	printf(const char *, ...);
-void	panic(const char *);
+void	panic(const char *) __noreturn;
 int	debug_dump(int);
 void	debug_attach(void (*)(char *));
 void	assert(const char *, int, const char *);
