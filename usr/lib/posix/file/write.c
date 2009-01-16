@@ -38,6 +38,9 @@ write(int fd, void *buf, size_t len)
 {
 	struct io_msg m;
 
+	if (len == 0)
+		return 0;
+
 	m.hdr.code = FS_WRITE;
 	m.fd = fd;
 	m.buf = buf;
