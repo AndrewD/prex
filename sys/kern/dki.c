@@ -54,34 +54,6 @@ machine_bootinfo(struct bootinfo **info)
 	*info = bootinfo;
 }
 
-/*
- * wrappers to expose macros as functions to drivers
- */
-
-#if defined(phys_to_virt)
-static void *dev_phys_to_virt(void *phys)
-{
-	return phys_to_virt(phys);
-}
-#undef phys_to_virt
-extern void *phys_to_virt(void *phys)
-{
-	return dev_phys_to_virt(phys);
-}
-#endif	/* phys_to_virt */
-
-#if defined(virt_to_phys)
-static void *dev_virt_to_phys(void *virt)
-{
-	return virt_to_phys(virt);
-}
-#undef virt_to_phys
-extern void *virt_to_phys(void *virt)
-{
-	return dev_virt_to_phys(virt);
-}
-#endif
-
 #ifndef DEBUG
 extern void printf(const char *fmt, ...)
 {
@@ -142,8 +114,6 @@ EXPORT_SYMBOL(machine_bootinfo);
 EXPORT_SYMBOL(machine_reset);
 EXPORT_SYMBOL(machine_idle);
 EXPORT_SYMBOL(machine_setpower);
-EXPORT_SYMBOL(phys_to_virt);
-EXPORT_SYMBOL(virt_to_phys);
 EXPORT_SYMBOL(debug_attach);
 EXPORT_SYMBOL(debug_dump);
 EXPORT_SYMBOL(printf);

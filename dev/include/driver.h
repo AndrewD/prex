@@ -184,6 +184,10 @@ struct timer {
 #define DUMP_VM		3
 #define DUMP_KSYM	4
 
+/* Address translation */
+#define phys_to_virt(pa)	(void *)((paddr_t)(pa) + PAGE_OFFSET)
+#define virt_to_phys(va)	(void *)((vaddr_t)(va) - PAGE_OFFSET)
+
 /* State for machine_setpower */
 #define POW_SUSPEND	1
 #define POW_OFF		2
@@ -228,8 +232,6 @@ thread_t thread_self(void);
 
 int	 exception_post(task_t task, int exc);
 int	 task_capable(int cap);
-void	*phys_to_virt(void *p_addr);
-void	*virt_to_phys(void *v_addr);
 void	 machine_reset(void);
 void	 machine_idle(void);
 void	 machine_setpower(int state);
