@@ -76,15 +76,19 @@
 #ifdef __GNUC__
 #define	__packed	__attribute__((__packed__))
 #define	__noreturn	__attribute__((__noreturn__))
+#define	__noinline	__attribute__((__noinline__))
 #elif defined(__lint__)
 #define	__packed	/* delete */
 #define	__noreturn	/* delete */
+#define	__noinline	/* delete */
 #elif defined(__PCC__)
 #define	__packed	_Pragma("packed")
 #define	__noreturn	/* delete */
+#define	__noinline	/* delete */
 #else
 #define	__packed	error: no __packed for this compiler
 #define	__noreturn	/* delete */
+#define	__noinline	/* delete */
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */
