@@ -102,7 +102,8 @@
  * any desired pointer type.
  */
 #define	ALIGNBYTES	3
-#define	ALIGN(p)	(((vaddr_t)(p) + ALIGNBYTES) &~ ALIGNBYTES)
+#define	ALIGN(p)	(((vaddr_t)(p) + ALIGNBYTES) & ~ALIGNBYTES)
+#define	TRUNC(p)	(((vaddr_t)(p)) & ~ALIGNBYTES)
 
 /*
  * Memory page

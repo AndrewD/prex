@@ -54,13 +54,16 @@
  *    file name string
  *    env string
  *    arg string
+ *    padding for alignment
  *    NULL
  *    envp[n]
  *    NULL
  *    argv[n]
  *    argc
  *
- * NOTE: This may depend on processor architecture.
+ * NOTE: This stack layout is the minimum required and is not
+ * suficient to pass to main directly. Architecture dependent code in
+ * crt0 or context.c processes this stack before calling main()
  */
 int
 build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
@@ -69,11 +72,22 @@ build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
 	char *path, *file;
 	char **argv, **envp;
 	int i, err;
-	u_long arg_top, mapped, sp;
+	u_long arg, arg_top, mapped, sp;
+	size_t path_len;
 
 	argc = msg->argc + 1;	/* allow for filename */
 	envc = msg->envc;
 	path = (char *)&msg->path;
+
+	/*
+	 * Validate args
+	 */
+	if (msg->bufsz > ARG_MAX)
+		return E2BIG;
+
+	path_len = strnlen(path, PATH_MAX);
+	if (path_len >= PATH_MAX)
+		return ENAMETOOLONG;
 
 	/*
 	 * Map target stack in current task.
@@ -83,25 +97,26 @@ build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
 		return ENOMEM;
 	memset((void *)mapped, 0, USTACK_SIZE);
 
-	sp = mapped + USTACK_SIZE - sizeof(int) * 3;
+	sp = mapped + USTACK_SIZE;
 
 	/*
 	 * Copy items
 	 */
 
 	/* File name */
-	*(char *)sp = '\0';
-	sp -= strlen(path);
-	sp = ALIGN(sp);
-	strlcpy((char *)sp, path, USTACK_SIZE);
+	sp -= path_len + 1;		/* space for '\0' */
 	file = (char *)sp;
+	strcpy(file, path);
+	DPRINTF(("exec: path %s len %d file %s\n", path, path_len, file));
 
 	/* arg/env */
-	sp -= ALIGN(msg->bufsz);
-	memcpy((char *)sp, (char *)&msg->buf, msg->bufsz);
 	arg_top = sp;
+	sp -= msg->bufsz;
+	memcpy((char *)sp, (char *)&msg->buf, msg->bufsz);
+	arg = sp;
 
 	/* envp[] */
+	sp = TRUNC(sp);		/* round down to valid pointer alignment */
 	sp -= ((envc + 1) * sizeof(char *));
 	envp = (char **)sp;
 
@@ -114,21 +129,23 @@ build_args(task_t task, void *stack, struct exec_msg *msg, void **new_sp)
 	*(int *)(sp) = argc;
 
 	/*
-	 * Build argument list
+	 * Build argument list. argv[] and envp[] translated to target
+	 * task addresses
 	 */
 	argv[0] = (char *)((u_long)stack + (u_long)file - mapped);
-	DPRINTF(("exec: argv[0] = %s\n", argv[0]));
+	DPRINTF(("exec: argv[0] %p = %s\n", argv[0], file));
 
 	for (i = 1; i < argc; i++) { /* start after filename */
-		argv[i] = (char *)((u_long)stack + (arg_top - mapped));
-		while ((*(char *)arg_top++) != '\0');
-		DPRINTF(("exec: argv[%d] = %s\n", i, argv[i]));
+		argv[i] = (char *)((u_long)stack + (arg - mapped));
+		DPRINTF(("exec: argv[%d] %p = %s\n", i, argv[i], arg));
+		while (arg < arg_top && (*(char *)arg++) != '\0');
 	}
 	argv[argc] = NULL;
 
 	for (i = 0; i < envc; i++) {
-		envp[i] = (char *)((u_long)stack + (arg_top - mapped));
-		while ((*(char *)arg_top++) != '\0');
+		envp[i] = (char *)((u_long)stack + (arg - mapped));
+		DPRINTF(("exec: envp[%d] %p = %s\n", i, envp[i], arg));
+		while (arg < arg_top && (*(char *)arg++) != '\0');
 	}
 	envp[envc] = NULL;
 
