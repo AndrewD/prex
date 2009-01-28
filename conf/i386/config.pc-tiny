@@ -80,3 +80,24 @@ options 	ARFS		# Archive file system
 # Executable file formats
 #
 options 	ELF		# ELF file format
+
+#
+# Driver modules
+#
+drivers	$(BUILDDIR)/dev/dev.ko
+
+#
+# Boot tasks
+#
+boottasks	$(BUILDDIR)/usr/server/boot/boot
+boottasks	$(BUILDDIR)/usr/server/proc/proc
+boottasks	$(BUILDDIR)/usr/server/fs/fs
+boottasks	$(BUILDDIR)/usr/server/exec/exec
+
+#
+# Files in RAM disk (stored in /boot)
+#
+bootfiles	$(BUILDDIR)/usr/bin/init/init
+bootfiles	$(BUILDDIR)/usr/bin/cmdbox/cmdbox
+bootfiles	$(SRCDIR)/doc/LICENSE
+bootfiles	$(BUILDDIR)/usr/sample/hello/hello

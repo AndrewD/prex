@@ -47,7 +47,6 @@ setdefaults()
 checkpath()
 {
 	CONFIG_IN=$srcdir/conf/$arch/config.$platform$profile
-	CONFIG_FILES=$srcdir/conf/etc/config.files
 	CMDBOX_IN=$srcdir/conf/etc/config.cmdbox
 	CONFIG_MK=$builddir/conf/config.mk
 	CONFIG_H=$builddir/conf/config.h
@@ -199,20 +198,6 @@ parseconfig()
 		device)
 			# T.B.D. make device table..
 			;;
-		esac
-	done < $1
-	echo "" >> $CONFIG_MK
-	echo "" >> $CONFIG_H
-}
-
-parsefiles()
-{
-	while read line; do
-		read cmd rest <<-END_OF_COMMAND
-			$line
-		END_OF_COMMAND
-
-		case "$cmd" in
 		drivers)
 			echo "DRIVER+= $rest" >> $CONFIG_MK
 			;;
@@ -225,6 +210,7 @@ parsefiles()
 		esac
 	done < $1
 	echo "" >> $CONFIG_MK
+	echo "" >> $CONFIG_H
 }
 
 main()
@@ -259,7 +245,6 @@ main()
 	echo "AUTODETECT = 0 ;" >> $CONFIG_LD
 	parseconfig $CONFIG_IN
 	parseconfig $CMDBOX_IN
-	parsefiles $CONFIG_FILES
 
 	#
 	# Setup build settings
