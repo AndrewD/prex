@@ -232,6 +232,7 @@ thread_t thread_self(void);
 
 int	 exception_post(task_t task, int exc);
 int	 task_capable(int cap);
+void	*vm_translate(void *, size_t);
 void	 machine_reset(void);
 void	 machine_idle(void);
 void	 machine_setpower(int state);
