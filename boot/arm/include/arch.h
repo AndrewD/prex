@@ -32,15 +32,6 @@
 
 #include <conf/config.h>
 
-/*
- * Offset of virtual address space
- */
-#ifdef CONFIG_MMU
-#define PAGE_OFFSET	0x80000000
-#else
-#define PAGE_OFFSET	0x00000000
-#endif
-
 #ifndef __ASSEMBLY__
 #include <sys/elf.h>
 

@@ -32,12 +32,6 @@
 
 #define UMEM_MAX	0x80000000
 
-#ifdef CONFIG_MMU
-#define PAGE_OFFSET	0x80000000
-#else
-#define PAGE_OFFSET	0x00000000
-#endif
-
 #ifndef __ASSEMBLY__
 
 /* page directory */
