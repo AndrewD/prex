@@ -46,7 +46,6 @@
 
 #include <kernel.h>
 #include <page.h>
-#include <syspage.h>
 #include <sched.h>
 
 /*
