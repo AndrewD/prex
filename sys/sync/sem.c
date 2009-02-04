@@ -71,7 +71,7 @@ sem_init(sem_t *sem, u_int value)
 	 * whether the semaphore is already allocated.
 	 */
 	sched_lock();
-	if (sem_valid(s)) {
+	if (s && sem_valid(s)) {
 		/*
 		 * Semaphore already exists.
 		 */
