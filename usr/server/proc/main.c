@@ -139,10 +139,12 @@ proc_exec(struct msg *msg)
 	task_t orgtask, newtask;
 	struct proc *p, *parent;
 
-	DPRINTF(("proc_exec: pid=%x\n", curproc->p_pid));
-
 	orgtask = (task_t)msg->data[0];
 	newtask = (task_t)msg->data[1];
+
+	DPRINTF(("proc_exec: pid=%x old=%x new=%x\n", curproc->p_pid,
+		 orgtask, newtask));
+
 	if ((p = task_to_proc(orgtask)) == NULL)
 		return EINVAL;
 

@@ -119,32 +119,45 @@ static int
 vfork_start(struct proc *p)
 {
 	void *stack;
+	task_t self = task_self();
 
 	/*
 	 * Save parent's stack
 	 */
-	if (vm_allocate(p->p_task, &stack, USTACK_SIZE, 1) != 0)
+	if (vm_map(p->p_task, p->p_stackbase, USTACK_SIZE, &stack) != 0)
 		return ENOMEM;
 
-	memcpy(stack, p->p_stackbase, USTACK_SIZE);
-	p->p_stacksaved = stack;
+	if (vm_allocate(self, &p->p_stacksaved, USTACK_SIZE, 1) != 0)
+		return ENOMEM;
+
+	memcpy(p->p_stacksaved, stack, USTACK_SIZE);
+
+	vm_free(self, stack);
 
 	p->p_vforked = 1;
-	DPRINTF(("vfork_start: saved=%x org=%x\n", stack, p->p_stackbase));
+	DPRINTF(("vfork_start: saved=%x org=%x\n", p->p_stacksaved,
+		 p->p_stackbase));
 	return 0;
 }
 
 void
 vfork_end(struct proc *p)
 {
+	void *stack;
+	task_t self = task_self();
 
 	DPRINTF(("vfork_end: org=%x saved=%x\n", p->p_stackbase,
 		 p->p_stacksaved));
 	/*
 	 * Restore parent's stack
 	 */
-	memcpy(p->p_stackbase, p->p_stacksaved, USTACK_SIZE);
-	vm_free(p->p_task, p->p_stacksaved);
+	if (vm_map(p->p_task, p->p_stackbase, USTACK_SIZE, &stack) != 0)
+		return;
+
+	memcpy(stack, p->p_stacksaved, USTACK_SIZE);
+
+	vm_free(self, p->p_stacksaved);
+	vm_free(self, stack);
 
 	/*
 	 * Resume parent

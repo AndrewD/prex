@@ -63,7 +63,7 @@ int	 execv(const char *, char * const *);
 int	 execve(const char *, char * const *, char * const *);
 int	 execvp(const char *, char * const *);
 void	_exit(int) __noreturn;
-/* pid_t	 fork(void); */
+pid_t	 fork(void);
 pid_t	 vfork(void);
 long	 fpathconf(int, int);
 char	*getcwd(char *, size_t);
