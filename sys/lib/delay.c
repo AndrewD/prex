@@ -54,7 +54,6 @@ void delay_loop(u_long count)
  * Delay micro seconds (non-blocking)
  * timer_udelay() can be called from ISR at interrupt level.
  */
-EXPORT_SYMBOL(delay_usec);
 void
 delay_usec(u_long usec)
 {

@@ -140,4 +140,6 @@ EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
+#ifdef CONFIG_DELAY
 EXPORT_SYMBOL(delay_usec);
+#endif

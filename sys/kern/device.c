@@ -427,7 +427,9 @@ driver_init(void)
 	/*
 	 * Initialize library components.
 	 */
+#ifdef CONFIG_DELAY
 	calibrate_delay();
+#endif
 
 	/*
 	 * Call init routine for all device drivers with init order.
