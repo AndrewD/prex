@@ -80,6 +80,7 @@ static struct devio pm_io = {
 static device_t pm_dev;		/* Device object */
 static int nr_open;		/* Open count */
 
+#ifdef CONFIG_CPUFREQ
 /*
  * Power mangement policy
  */
@@ -91,6 +92,7 @@ static int power_policy;
 static struct timer idle_timer;
 static u_long idle_count;	/* Idling counter in sec */
 static u_long suspend_timeout;	/* Time until auto suspend in sec */
+#endif
 
 /*
  * Set system to suspend state
@@ -164,6 +166,7 @@ pm_reboot(void)
 	return 0;
 }
 
+#if 0
 /*
  * Idle timer handler.
  */
@@ -180,7 +183,6 @@ idle_timeout(void *arg)
 		timer_callout(&idle_timer, 1000, &idle_timeout, NULL);
 }
 
-#if 0
 /*
  * Set suspend timer.
  */
@@ -211,6 +213,7 @@ pm_gettimer(u_long *sec)
 }
 #endif
 
+#ifdef CONFIG_CPUFREQ
 /*
  * Reload idle timer.
  *
@@ -235,9 +238,7 @@ pm_setpolicy(int policy)
 
 	if (policy != PM_POWERSAVE && policy != PM_PERFORMANCE)
 		return EINVAL;
-#ifdef CONFIG_CPUFREQ
 	cpufreq_setpolicy(policy);
-#endif
 	power_policy = policy;
 	return 0;
 }
@@ -251,6 +252,7 @@ pm_getpolicy(void)
 
 	return power_policy;
 }
+#endif
 
 /*
  * Open the pm device.
@@ -284,7 +286,10 @@ static int
 pm_ioctl(device_t dev, u_long cmd, void *arg)
 {
 	int err = 0;
-	int policy, subcmd;
+	int subcmd;
+#ifdef CONFIG_CPUFREQ
+	int policy;
+#endif
 
 	switch (cmd) {
 	case PMIOC_SET_POWER:
@@ -306,6 +311,7 @@ pm_ioctl(device_t dev, u_long cmd, void *arg)
 		}
 		break;
 
+#ifdef CONFIG_CPUFREQ
 	case PMIOC_SET_POLICY:
 		if (umem_copyin(arg, &policy, sizeof(int)))
 			return EFAULT;
@@ -317,6 +323,7 @@ pm_ioctl(device_t dev, u_long cmd, void *arg)
 		if (umem_copyout(&policy, arg, sizeof(int)))
 			return EFAULT;
 		break;
+#endif
 	default:
 		return EINVAL;
 	}
@@ -335,6 +342,7 @@ pm_init(void)
 	ASSERT(pm_dev);
 
 	nr_open = 0;
+#ifdef CONFIG_CPUFREQ
 	idle_count = 0;
 	suspend_timeout = 0;
 	power_policy = DEFAULT_POWER_POLICY;
@@ -342,6 +350,7 @@ pm_init(void)
 #ifdef DEBUG
 	printf("pm: Default power policy is %s mode\n",
 	       (power_policy == PM_POWERSAVE) ? "power save" : "performance");
+#endif
 #endif
 	return 0;
 }

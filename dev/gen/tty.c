@@ -276,7 +276,7 @@ tty_input(int c, struct tty *tp)
 	tcflag_t iflag, lflag;
 	int sig = -1;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_CPUFREQ
 	/* Reload power management timer */
 	pm_active();
 #endif
