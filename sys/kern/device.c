@@ -440,10 +440,8 @@ driver_init(void)
 		     drv++) {
 			ASSERT(drv->order < 16);
 			if (drv->order == order) {
-				if (drv->init) {
-					DPRINTF(("Initializing %s\n", drv->name));
+				if (drv->init)
 					err = drv->init();
-				}
 			}
 		}
 	}
@@ -461,10 +459,8 @@ device_init(void)
 	driver_init();
 
 	drv_entry = (void (*)(void))bootinfo->driver.entry;
-	if (drv_entry == NULL) {
-		DPRINTF(("Warning: No driver found.\n"));
-		return;
-	}
+	if (drv_entry == NULL)
+		return;		/* no boot image drivers */
 
 	/*
 	 * Call all initialization functions in drivers.
