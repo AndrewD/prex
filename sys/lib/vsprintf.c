@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,7 +75,7 @@ vsprintf(char *buf, const char *fmt, va_list args)
 	char *p, *str;
 	const char *digits = "0123456789abcdef";
 	char pad, tmp[16];
-	int width, base, sign, i;
+	int width, base, sign, i, precision;
 	long num;
 
 	for (p = buf; *fmt; fmt++) {
@@ -94,6 +95,12 @@ vsprintf(char *buf, const char *fmt, va_list args)
 		width = -1;
 		if (isdigit(*fmt)) {
 			width = atoi(&fmt);
+		}
+		/* get precision */
+		precision = -1;
+		if (*fmt == '.') {
+			fmt++;
+			precision = atoi(&fmt);
 		}
 		base = 10;
 		sign = 0;
@@ -123,6 +130,16 @@ vsprintf(char *buf, const char *fmt, va_list args)
 		case 'd':
 			sign = 1;
 			break;
+#ifdef CONFIG_KFPU
+		case 'f':
+			sign = 1;
+			const float exp[] = { 1, 10, 100, 1000,
+					      10000, 100000, 1000000 };
+			if (precision < 0 || precision > 6)
+				precision = 6;
+			num = va_arg(args, double) * exp[precision];
+			goto output;
+#endif
 		case 'u':
 			break;
 		case '%':
@@ -132,17 +149,28 @@ vsprintf(char *buf, const char *fmt, va_list args)
 			continue;
 		}
 		num = va_arg(args, long);
+#ifdef CONFIG_KFPU
+	output:
+#endif
 		if (sign && num < 0) {
 			num = -num;
 			*p++ = '-';
 			width--;
 		}
 		i = 0;
-		if (num == 0)
+		/*
+		 * NOTE: precision deliberately abused to display
+		 * fixed point integers (AD)
+		 */
+		if (num == 0 && precision <= 0)
 			tmp[i++] = '0';
-		else
-			while (num != 0)
+		else {
+			while (num != 0 || precision >= 0) {
 				tmp[i++] = digits[divide(&num, base)];
+				if (--precision == 0)
+					tmp[i++] = '.';
+			}
+		}
 		width -= i;
 		while (width-- > 0)
 			*p++ = pad;

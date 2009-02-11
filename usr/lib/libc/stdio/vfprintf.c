@@ -379,6 +379,32 @@ reswitch:	switch (ch) {
 			}
 			base = 10;
 			goto number;
+#ifdef CONFIG_FPU
+		case 'f':
+			if (prec < 0 || prec > 6)
+				prec = 6;
+			const float exp[] = { 1, 10, 100, 1000,
+					      10000, 100000, 1000000 };
+			long val = va_arg(ap, double) * exp[prec];
+			if (val < 0) {
+				ulval = -val;
+				sign = '-';
+			} else
+				ulval = val;
+			cp = buf + BUF;
+			if (ulval == 0 && prec <= 0)
+				*--cp = '0';
+			else {
+				while (ulval != 0 || prec >= 0) {
+					*--cp = to_char(ulval % 10);
+					ulval /= 10;
+					if (--prec == 0)
+						*--cp = '.';
+				}
+			}
+			size = buf + BUF - cp;
+			break;
+#endif
 		case 'n':
 			if (flags & LONGINT)
 				*va_arg(ap, long *) = ret;
