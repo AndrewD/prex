@@ -178,5 +178,5 @@ vsprintf(char *buf, const char *fmt, va_list args)
 			*p++ = tmp[i];
 	}
 	*p = '\0';
-	return 0;
+	return p - buf;
 }

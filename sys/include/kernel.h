@@ -86,6 +86,7 @@ int	 strncmp(const char *, const char *, size_t);
 size_t	 strnlen(const char *, size_t);
 void	*memcpy(void *, const void *, size_t);
 void	*memset(void *, int, size_t);
+int	 sprintf(char *, const char *, ...);
 int	 vsprintf(char *, const char *, va_list);
 void	 delay_usec(u_long usec);
 void	 calibrate_delay(void);

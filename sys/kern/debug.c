@@ -69,13 +69,16 @@ void
 printf(const char *fmt, ...)
 {
 	va_list args;
-	int i;
+	int i = 0;
 	char c;
+	static int eol;
 
 	irq_lock();
+	if (eol && *fmt != '\n')
+		i = sprintf(dbg_msg, "%3.3u ", timer_count());
 	va_start(args, fmt);
 
-	vsprintf(dbg_msg, fmt, args);
+	vsprintf(dbg_msg + i, fmt, args);
 
 	/* Print out */
 	(*print_func)(dbg_msg);
@@ -94,6 +97,7 @@ printf(const char *fmt, ...)
 		else
 			log_head = log_tail - LOGBUF_SIZE;
 	}
+	eol = (dbg_msg[i-1] == '\n');
 	va_end(args);
 	irq_unlock();
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,49 +27,17 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEBUG_H
-#define _DEBUG_H
+#include <kernel.h>
+#include <sys/types.h>
 
-#include <sys/cdefs.h>
+int
+sprintf(char *str, char const *fmt, ...)
+{
+	int ret;
+	va_list args;
 
-#define LOGBUF_SIZE	2048	/* size of log buffer */ 
-#define DBGMSG_SIZE	128 + MAXTHNAME	+ 12 /* Size of one kernel message */
-
-#ifdef DEBUG
-#define DPRINTF(a)	printf a
-#define ASSERT(exp)	do { if (!(exp)) \
-			     assert(__FILE__, __LINE__, #exp); } while (0)
-#else
-#define DPRINTF(a)	do {} while (0)
-#define ASSERT(exp)	do {} while (0)
-#define panic(x)	machine_reset()
-#endif
-
-/*
- * Command for sys_debug()
- */
-#define DCMD_DUMP	0
-#define DCMD_LOGSIZE	1
-#define DCMD_GETLOG	2
-
-/*
- * Items for debug_dump()
- */
-#define DUMP_THREAD	1
-#define DUMP_TASK	2
-#define DUMP_VM		3
-#define DUMP_KSYM	4
-
-#ifdef DEBUG
-__BEGIN_DECLS
-void	printf(const char *, ...);
-void	panic(const char *) __noreturn;
-int	debug_dump(int);
-void	debug_attach(void (*)(char *));
-void	assert(const char *, int, const char *);
-int	debug_getlog(char *);
-void	ksym_dump(void);
-__END_DECLS
-#endif
-
-#endif /* !_DEBUG_H */
+	va_start(args, fmt);
+	ret = vsprintf(str, fmt, args);
+	va_end(args);
+	return (ret);
+}
