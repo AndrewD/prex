@@ -37,7 +37,7 @@ int	 sys_log(const char *);
 int	 sys_panic(const char *);
 int	 sys_info(int, void *);
 int	 sys_time(u_long *);
-int	 sys_debug(int, void *);
+int	 sys_debug(int, u_long);
 __END_DECLS
 
 #endif /* !_SYSTEM_H */

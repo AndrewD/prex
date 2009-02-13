@@ -152,27 +152,24 @@ cmd_kill(int argc, char **argv)
 int
 cmd_thread(int argc, char **argv)
 {
-	int item = DUMP_THREAD;
 
-	sys_debug(DCMD_DUMP, &item);
+	sys_debug(DCMD_DUMP, DUMP_THREAD);
 	return 0;
 }
 
 int
 cmd_task(int argc, char **argv)
 {
-	int item = DUMP_TASK;
 
-	sys_debug(DCMD_DUMP, &item);
+	sys_debug(DCMD_DUMP, DUMP_TASK);
 	return 0;
 }
 
 int
 cmd_vm(int argc, char **argv)
 {
-	int item = DUMP_VM;
 
-	sys_debug(DCMD_DUMP, &item);
+	sys_debug(DCMD_DUMP, DUMP_VM);
 	return 0;
 }
 #endif /* DEBUG */

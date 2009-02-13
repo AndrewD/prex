@@ -33,7 +33,8 @@
 #include <sys/cdefs.h>
 
 #define LOGBUF_SIZE	2048	/* size of log buffer */ 
-#define DBGMSG_SIZE	128 + MAXTHNAME	+ 12 /* Size of one kernel message */
+#define SYSLOG_SIZE	128
+#define DBGMSG_SIZE	SYSLOG_SIZE + MAXTHNAME /* syslog adds thread name */
 
 #ifdef DEBUG
 #define DPRINTF(a)	printf a

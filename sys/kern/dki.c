@@ -66,7 +66,7 @@ extern void panic(const char *fmt, ...)
 
 extern int debug_dump(int item)
 {
-	return ENOSYS;
+	return -ENOSYS;
 }
 
 extern void debug_attach(void (*fn)(char *))

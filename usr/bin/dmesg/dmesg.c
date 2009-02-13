@@ -46,7 +46,7 @@ main(int argc, char *argv[])
 	int size;
 	char *buf;
 
-	if (sys_debug(DCMD_LOGSIZE, &size) != 0) {
+	if ((size = sys_debug(DCMD_LOGSIZE, 0)) <= 0) {
 		fprintf(stderr, "dmesg: not supported\n");
 		exit(1);
 	}
@@ -54,7 +54,7 @@ main(int argc, char *argv[])
 	if ((buf = malloc(size)) == NULL)
 		exit(1);
 
-	if (sys_debug(DCMD_GETLOG, buf) != 0) {
+	if (sys_debug(DCMD_GETLOG, (u_long)buf) != 0) {
 		free(buf);
 		exit(1);
 	}

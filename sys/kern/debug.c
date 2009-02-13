@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +37,7 @@
 #include <thread.h>
 #include <vm.h>
 #include <irq.h>
+#include <verbose.h>
 
 #ifdef DEBUG
 
@@ -45,15 +47,13 @@
 typedef void (*prtfn_t)(char *);
 static prtfn_t	print_func = &diag_print;
 
-static char	dbg_msg[DBGMSG_SIZE];
+static char	dbg_msg[DBGMSG_SIZE + 12]; /* printf adds system time */
 
 /*
  * dmesg support
  */
 static char	log_buf[LOGBUF_SIZE];
-static u_long	log_head;
 static u_long	log_tail;
-static u_long	log_len;
 
 #define LOGINDEX(x)	((x) & (LOGBUF_SIZE - 1))
 
@@ -69,16 +69,18 @@ void
 printf(const char *fmt, ...)
 {
 	va_list args;
-	int i = 0;
-	char c;
+	int i = 0, len;
 	static int eol;
 
 	irq_lock();
 	if (eol && *fmt != '\n')
 		i = sprintf(dbg_msg, "%3.3u ", timer_count());
-	va_start(args, fmt);
 
-	vsprintf(dbg_msg + i, fmt, args);
+	va_start(args, fmt);
+	len = i + vsprintf(dbg_msg + i, fmt, args);
+	va_end(args);
+
+	eol = (dbg_msg[len-1] == '\n');
 
 	/* Print out */
 	(*print_func)(dbg_msg);
@@ -86,19 +88,10 @@ printf(const char *fmt, ...)
 	/*
 	 * Record to log buffer
 	 */
-	for (i = 0; i < DBGMSG_SIZE; i++) {
-		c = dbg_msg[i];
-		if (c == '\0')
-			break;
-		log_buf[LOGINDEX(log_tail)] = c;
+	for (i = 0; i < len; i++) {
+		log_buf[LOGINDEX(log_tail)] = dbg_msg[i];
 		log_tail++;
-		if (log_len < LOGBUF_SIZE)
-			log_len++;
-		else
-			log_head = log_tail - LOGBUF_SIZE;
 	}
-	eol = (dbg_msg[i-1] == '\n');
-	va_end(args);
 	irq_unlock();
 }
 
@@ -145,36 +138,49 @@ panic(const char *msg)
 int
 debug_getlog(char *buf)
 {
-	u_long i, len, index;
-	int err = 0;
+	u_long buf_len, len;
+	static u_long head;
+	int rc;
 	char c;
 
 	irq_lock();
-	index = log_head;
-	len = log_len;
-	if (len >= LOGBUF_SIZE) {
+	len = log_tail - head;
+	if (len > LOGBUF_SIZE) {
 		/*
 		 * Overrun found. Discard broken message.
 		 */
-		while (len > 0 && log_buf[LOGINDEX(index)] != '\n') {
-			index++;
+		len = LOGBUF_SIZE;
+		head = log_tail - len;
+		do {
+			c = log_buf[LOGINDEX(head)];
+			head++;
 			len--;
-		}
+		} while (len > 0 && c != '\n');
 	}
-	for (i = 0; i < LOGBUF_SIZE; i++) {
-		if (i < len)
-			c = log_buf[LOGINDEX(index)];
+	rc = len;
+
+	buf_len = LOGBUF_SIZE - LOGINDEX(head);
+
+	if (buf_len < len) {
+		/* buffer wraps */
+		if (umem_copyout(log_buf + LOGINDEX(head), buf, buf_len)) {
+			rc = DERR(-EFAULT);
+			goto out;
+		}
+		head += buf_len;
+		buf += buf_len;
+		len -= buf_len;
+	}
+
+	if (len) {
+		if (umem_copyout(log_buf + LOGINDEX(head), buf, len))
+			rc = DERR(-EFAULT);
 		else
-			c = '\0';
-		if (umem_copyout(&c, buf, 1)) {
-			err = EFAULT;
-			break;
-		}
-		index++;
-		buf++;
+			head += len;
 	}
+out:
 	irq_unlock();
-	return err;
+	return rc;
 }
 
 /*
@@ -205,7 +211,7 @@ debug_dump(int item)
 		ksym_dump();
 		break;
 	default:
-		err = ENOSYS;
+		err = DERR(-EINVAL);
 		break;
 	}
 	irq_unlock();

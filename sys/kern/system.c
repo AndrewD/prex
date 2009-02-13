@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +42,7 @@
 #include <device.h>
 #include <system.h>
 #include <version.h>
+#include <verbose.h>
 
 /*
  * kernel information.
@@ -59,11 +61,13 @@ int
 sys_log(const char *str)
 {
 #ifdef DEBUG
-	char buf[DBGMSG_SIZE];
+	static char buf[SYSLOG_SIZE + MAXTHNAME];
 	char *p;
-	size_t len, max;
+	size_t len;
 	static int eol;
+	int err = 0;
 
+	sched_lock();		/* as buf is static */
 	if (eol && cur_thread->name[0] != '\0') {
 		len = strlcpy(buf, cur_thread->name, MAXTHNAME);
 		p = &buf[len];
@@ -71,18 +75,18 @@ sys_log(const char *str)
 	} else
 		p = buf;
 
-	max = &buf[DBGMSG_SIZE] - p;
-	if (umem_strnlen(str, max, &len))
-		return EFAULT;
-	if (len >= max)
-		return EINVAL;
-
-	if (umem_copyin(str, p, len + 1))
-		return EFAULT;
-
-	eol = (p[len-1] == '\n');
-	printf(buf);
-	return 0;
+	if (umem_strnlen(str, SYSLOG_SIZE, &len))
+		err = DERR(EFAULT);
+	else if (len >= SYSLOG_SIZE)
+		err = DERR(EINVAL);
+	else if (umem_copyin(str, p, len + 1))
+		err = DERR(EFAULT);
+	else {
+		eol = (p[len-1] == '\n');
+		printf(buf);
+	}
+	sched_unlock();
+	return err;
 #else
 	return ENOSYS;
 #endif
@@ -198,33 +202,27 @@ sys_time(u_long *ticks)
  * Kernel debug service.
  */
 int
-sys_debug(int cmd, void *data)
+sys_debug(int cmd, u_long arg)
 {
 #ifdef DEBUG
-	int err = EINVAL;
-	size_t size;
-	int item;
+	int rc;
 
 	switch (cmd) {
 	case DCMD_DUMP:
-		if (umem_copyin(data, &item, sizeof(item)))
-			err = EFAULT;
-		else
-			err = debug_dump(item);
+		rc = debug_dump(arg);
 		break;
 	case DCMD_LOGSIZE:
-		size = LOGBUF_SIZE;
-		err = umem_copyout(&size, data, sizeof(size));
+		rc = LOGBUF_SIZE;
 		break;
 	case DCMD_GETLOG:
-		err = debug_getlog(data);
+		rc = debug_getlog((void *)arg);
 		break;
 	default:
-		/* DO NOTHING */
+		rc = DERR(-EINVAL);
 		break;
 	}
-	return err;
+	return rc;
 #else
-	return ENOSYS;
+	return -ENOSYS;
 #endif
 }

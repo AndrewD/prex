@@ -173,7 +173,7 @@ int	sys_info(int type, void *buf);
 int	sys_log(const char *msg);
 void	sys_panic(const char *msg) __noreturn;
 int	sys_time(u_long *ticks);
-int	sys_debug(int cmd, void *data);
+int	sys_debug(int cmd, u_long arg);
 
 void	panic(const char *fmt, ...);
 void	dprintf(const char *fmt, ...);
