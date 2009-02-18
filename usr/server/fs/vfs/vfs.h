@@ -42,7 +42,7 @@
 /*
  * Tunable parameters
  */
-#define PRIO_FS		128		/* priority of file system server */
+#define PRIO_FS		190		/* priority of file system server */
 #define FSMAXNAMES	16		/* max length of 'file system' name */
 
 /* #define DEBUG_VFS 1 */
