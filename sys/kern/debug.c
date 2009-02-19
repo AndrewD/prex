@@ -82,9 +82,6 @@ printf(const char *fmt, ...)
 
 	eol = (dbg_msg[len-1] == '\n');
 
-	/* Print out */
-	(*print_func)(dbg_msg);
-
 	/*
 	 * Record to log buffer
 	 */
@@ -92,6 +89,10 @@ printf(const char *fmt, ...)
 		log_buf[LOGINDEX(log_tail)] = dbg_msg[i];
 		log_tail++;
 	}
+
+	/* Print out (can block if required) */
+	(*print_func)(dbg_msg);
+
 	irq_unlock();
 }
 
@@ -140,11 +141,14 @@ debug_getlog(char *buf)
 {
 	u_long buf_len, len;
 	static u_long head;
-	int rc;
+	int rc = 0;
 	char c;
 
 	irq_lock();
 	len = log_tail - head;
+	if (len == 0)
+		goto out;
+
 	if (len > LOGBUF_SIZE) {
 		/*
 		 * Overrun found. Discard broken message.
@@ -181,6 +185,45 @@ debug_getlog(char *buf)
 out:
 	irq_unlock();
 	return rc;
+}
+
+/*
+ * Get pointer and length for the log buffer.
+ */
+int
+debug_getbuf(char **buf)
+{
+	u_long buf_len, len;
+	static u_long head;
+	char c;
+
+	irq_lock();
+	len = log_tail - head;
+	if (len == 0)
+		goto out;
+
+	if (len > LOGBUF_SIZE) {
+		/*
+		 * Overrun found. Discard broken message.
+		 */
+		len = LOGBUF_SIZE;
+		head = log_tail - len;
+		do {
+			c = log_buf[LOGINDEX(head)];
+			head++;
+			len--;
+		} while (len > 0 && c != '\n');
+	}
+	buf_len = LOGBUF_SIZE - LOGINDEX(head);
+
+	if (buf_len < len)
+		len = buf_len;
+
+	*buf = log_buf + LOGINDEX(head);
+	head += len;
+out:
+	irq_unlock();
+	return len;
 }
 
 /*

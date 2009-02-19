@@ -238,6 +238,7 @@ void	 machine_idle(void);
 void	 machine_setpower(int state);
 void	 machine_bootinfo(struct bootinfo **);
 void	 debug_attach(void (*func)(char *));
+int	 debug_getbuf(char **);
 int	 debug_dump(int index);
 void	 printf(const char *fmt, ...);
 void	 panic(const char *msg) __noreturn;

@@ -69,6 +69,7 @@ int	debug_dump(int);
 void	debug_attach(void (*)(char *));
 void	assert(const char *, int, const char *);
 int	debug_getlog(char *);
+int	debug_getbuf(char **);
 void	ksym_dump(void);
 __END_DECLS
 #endif

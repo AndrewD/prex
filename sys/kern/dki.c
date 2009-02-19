@@ -116,6 +116,7 @@ EXPORT_SYMBOL(machine_idle);
 EXPORT_SYMBOL(machine_setpower);
 EXPORT_SYMBOL(vm_translate);
 EXPORT_SYMBOL(debug_attach);
+EXPORT_SYMBOL(debug_getbuf);
 EXPORT_SYMBOL(debug_dump);
 EXPORT_SYMBOL(printf);
 EXPORT_SYMBOL(panic);
