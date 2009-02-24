@@ -29,10 +29,29 @@
 
 #ifndef _PREX_TYPES_H
 #define _PREX_TYPES_H
-#ifndef __KERNEL__
 
 #include <machine/types.h>
 
+#ifdef __KERNEL__
+struct object;
+struct task;
+struct thread;
+struct device;
+struct mutex;
+struct cond;
+struct sem;
+struct irq;
+
+typedef struct object	*object_t;
+typedef struct task	*task_t;
+typedef struct thread	*thread_t;
+typedef struct device	*device_t;
+typedef struct mutex	*mutex_t;
+typedef struct cond	*cond_t;
+typedef struct sem	*sem_t;
+typedef struct irq	*irq_t;
+
+#else  /* !__KERNEL__ */
 typedef unsigned long	object_t;
 typedef unsigned long	task_t;
 typedef unsigned long	thread_t;
@@ -40,6 +59,9 @@ typedef unsigned long	device_t;
 typedef unsigned long	mutex_t;
 typedef unsigned long	cond_t;
 typedef unsigned long	sem_t;
+typedef unsigned long	irq_t;
+
+#endif	/* !__KERNEL__ */
 
 #define OBJECT_NULL	((object_t)0)
 #define TASK_NULL	  ((task_t)0)
@@ -48,6 +70,6 @@ typedef unsigned long	sem_t;
 #define MUTEX_NULL	 ((mutex_t)0)
 #define COND_NULL	  ((cond_t)0)
 #define SEM_NULL	   ((sem_t)0)
+#define IRQ_NULL	   ((irq_t)0)
 
-#endif /* __KERNEL__ */
 #endif /* !_PREX_TYPES_H */

@@ -35,20 +35,13 @@
 #include <sys/list.h>
 #include <sys/errno.h>
 #include <prex/bootinfo.h>
+#include <prex/types.h>
 #include <machine/stdarg.h>
 #include <arch.h>
 #include <platform.h>
 #include <debug.h>
 
-typedef struct object	*object_t;
-typedef struct task	*task_t;
-typedef struct thread	*thread_t;
-typedef struct device	*device_t;
-typedef struct mutex	*mutex_t;
-typedef struct cond	*cond_t;
-typedef struct sem	*sem_t;
 typedef struct vm_map	*vm_map_t;
-typedef struct irq	*irq_t;
 
 typedef void (*sysfn_t)(void);
 typedef void (*dkifn_t)(void);

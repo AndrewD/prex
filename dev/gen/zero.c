@@ -33,8 +33,8 @@
 
 #include <driver.h>
 
-static int zero_read(device_t, char *, size_t *, int);
-static int zero_write(device_t, char *, size_t *, int);
+static int zero_read(file_t, char *, size_t *, int);
+static int zero_write(file_t, char *, size_t *, int);
 static int zero_init(void);
 
 /*
@@ -64,7 +64,7 @@ static device_t zero_dev;	/* Device object */
  * Read
  */
 static int
-zero_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+zero_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	void *kbuf;
 
@@ -80,7 +80,7 @@ zero_read(device_t dev, char *buf, size_t *nbyte, int blkno)
  * Writing data to this device is ignored.
  */
 static int
-zero_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+zero_write(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 
 	return 0;
@@ -95,7 +95,7 @@ zero_init(void)
 {
 
 	/* Create device object */
-	zero_dev = device_create(&zero_io, "zero", DF_CHR);
+	zero_dev = device_create(&zero_io, "zero", DF_CHR, NULL);
 	ASSERT(zero_dev);
 	return 0;
 }

@@ -601,7 +601,7 @@ tty_attach(struct devio *io, struct tty *tp)
 		return -1;
 
 	/* Create TTY device as an alias of the registered device. */
-	tty_dev = device_create(io, "tty", DF_CHR);
+	tty_dev = device_create(io, "tty", DF_CHR, NULL);
 	if (tty_dev == DEVICE_NULL)
 		return -1;
 

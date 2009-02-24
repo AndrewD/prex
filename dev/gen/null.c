@@ -33,8 +33,8 @@
 
 #include <driver.h>
 
-static int null_read(device_t, char *, size_t *, int);
-static int null_write(device_t, char *, size_t *, int);
+static int null_read(file_t, char *, size_t *, int);
+static int null_write(file_t, char *, size_t *, int);
 static int null_init(void);
 
 /*
@@ -64,7 +64,7 @@ static device_t null_dev;	/* Device object */
  * Always returns 0 bytes as the read size.
  */
 static int
-null_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+null_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 
 	*nbyte = 0;
@@ -75,7 +75,7 @@ null_read(device_t dev, char *buf, size_t *nbyte, int blkno)
  * Data written to this device is discarded.
  */
 static int
-null_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+null_write(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 
 	return 0;
@@ -90,7 +90,7 @@ null_init(void)
 {
 
 	/* Create device object */
-	null_dev = device_create(&null_io, "null", DF_CHR);
+	null_dev = device_create(&null_io, "null", DF_CHR, NULL);
 	ASSERT(null_dev);
 	return 0;
 }

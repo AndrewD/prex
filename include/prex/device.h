@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2009, Andrew Dennison
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,37 +27,55 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEVICE_H
-#define _DEVICE_H
+#ifndef _PREX_DEVICE_H
+#define _PREX_DEVICE_H
 
+#include <prex/types.h>
 #include <sys/cdefs.h>
 
 /*
- * Device structure
+ * Device file handle
  */
-struct device {
-	int		magic;		/* magic number */
-	int		refcnt;		/* reference count */
-	int		flags;		/* device characteristics */
-	struct list	link;		/* linkage on device list */
-	const struct devio *devio;	/* device i/o table */
-	void		*info;		/* device specific info */
-	char		name[MAXDEVNAME]; /* name of device */
+struct file {
+	device_t dev;
+	void *priv;
+	u_long f_flags;
+};
+typedef struct file *file_t;
+
+/*
+ * Driver structure
+ *
+ * "order" is initialize order which must be between 0 and 15.
+ * The driver with order 0 is called first.
+ */
+struct driver {
+	const char	*name;		/* Name of device driver */
+	const int	order;		/* Initialize order */
+	int		(*init)(void);	/* Initialize routine */
+};
+typedef struct driver *driver_t;
+
+/*
+ * Device I/O table
+ */
+struct devio {
+	int	(*open)	(file_t, int);
+	int	(*close)(file_t);
+	int	(*read)	(file_t, char *, size_t *, int);
+	int	(*write)(file_t, char *, size_t *, int);
+	int	(*ioctl)(file_t, u_long, void *);
+	int	(*event)(int);
+#ifdef __ppc__
+	ret64_t (*iofn)	(file_t, int, arg_t, arg_t,
+			 arg_t, arg_t, arg_t, arg_t);
+#endif /* __ppc__ */
 };
 
-#define device_valid(dev) (kern_area(dev) && ((dev)->magic == DEVICE_MAGIC))
-
-typedef long fd_t;
-
 __BEGIN_DECLS
-void	 device_terminate(task_t);
-int	 device_open(const char *, int, fd_t *);
-int	 device_close(fd_t);
-int	 device_read(fd_t, void *, size_t *, int);
-int	 device_write(fd_t, void *, size_t *, int);
-int	 device_ioctl(fd_t, u_long, void *);
-int	 device_info(struct info_device *);
-void	 device_init(void);
+device_t device_create(const struct devio *, const char *, int, void *);
+int	 device_destroy(device_t);
+int	 device_broadcast(int, int);
 __BEGIN_DECLS
 
-#endif /* !_DEVICE_H */
+#endif /* !_PREX_DEVICE_H */

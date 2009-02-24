@@ -32,6 +32,7 @@
 
 #include <sys/cdefs.h>
 #include <prex/capability.h>	/* for cap_t */
+#include <prex/device.h>
 #include <timer.h>
 
 /*
@@ -49,6 +50,7 @@ struct task {
 	struct timer	alarm;		/* alarm timer */
 	void (*handler)(int);		/* pointer to exception handler */
 	task_t		parent;		/* parent task */
+	struct file	file[CONFIG_DEV_OPEN_MAX];
 };
 
 #define cur_task()	  (cur_thread->task)

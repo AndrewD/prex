@@ -44,7 +44,6 @@ ioctl(int fd, unsigned long request, ...)
 	va_list args;
 	size_t size;
 	struct stat st;
-	int err;
 
 	va_start(args, request);
 	argp = va_arg(args, char *);
@@ -58,28 +57,8 @@ ioctl(int fd, unsigned long request, ...)
 
 	if (fstat(fd, &st) == -1)
 		return -1;
-	if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
-		/*
-		 * Note: The file system server can not handle the
-		 * poniter type arguent for ioctl(). So, we have to
-		 * invoke the ioctl here if the target file is a device.
-		 */
-		err = device_ioctl(st.st_rdev, request, argp);
-		if (err != 0) {
-			errno = err;
-			return -1;
-		}
-		return 0;
-	}
-	/*
-	 * Note:
-	 *  We can not know if the argument is pointer or int value.
-	 *  So, if it is an input request and its length is sizeof(int),
-	 *  we handle it as direct value.
-	 */
-	if (((request & IOC_DIRMASK) == IOC_IN) && (size == sizeof(int)))
-		*((int *)m.buf) = (int)argp;
-	else if ((request & IOC_IN) && size && argp)
+
+	if ((request & IOC_IN) && size && argp)
 		memcpy(&m.buf, argp, size);
 
 	m.hdr.code = FS_IOCTL;

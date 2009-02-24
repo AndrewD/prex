@@ -38,6 +38,7 @@
 #include <ipc.h>
 #include <vm.h>
 #include <task.h>
+#include <device.h>
 
 /*
  * Kernel task.
@@ -182,6 +183,7 @@ task_terminate(task_t task)
 		return EPERM;
 	}
 
+	device_terminate(task);
 	/*
 	 * Terminate all threads except a current thread.
 	 */

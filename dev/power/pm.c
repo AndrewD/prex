@@ -51,9 +51,9 @@
 #define DEFAULT_POWER_POLICY	PM_PERFORMANCE
 #endif
 
-static int pm_open(device_t dev, int mode);
-static int pm_ioctl(device_t dev, u_long cmd, void *arg);
-static int pm_close(device_t dev);
+static int pm_open(file_t file, int mode);
+static int pm_ioctl(file_t file, u_long cmd, void *arg);
+static int pm_close(file_t file);
 static int pm_init(void);
 
 /*
@@ -263,7 +263,7 @@ pm_getpolicy(void)
  * server.
  */
 static int
-pm_open(device_t dev, int mode)
+pm_open(file_t file, int mode)
 {
 
 	if (nr_open > 0)
@@ -273,7 +273,7 @@ pm_open(device_t dev, int mode)
 }
 
 static int
-pm_close(device_t dev)
+pm_close(file_t file)
 {
 
 	if (nr_open != 1)
@@ -283,7 +283,7 @@ pm_close(device_t dev)
 }
 
 static int
-pm_ioctl(device_t dev, u_long cmd, void *arg)
+pm_ioctl(file_t file, u_long cmd, void *arg)
 {
 	int err = 0;
 	int subcmd;
@@ -338,7 +338,7 @@ pm_init(void)
 {
 
 	/* Create device object */
-	pm_dev = device_create(&pm_io, "pm", DF_CHR);
+	pm_dev = device_create(&pm_io, "pm", DF_CHR, NULL);
 	ASSERT(pm_dev);
 
 	nr_open = 0;

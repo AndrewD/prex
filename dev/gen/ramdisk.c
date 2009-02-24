@@ -44,10 +44,10 @@
 /* Block size */
 #define BSIZE		512
 
-static int ramdisk_open(device_t, int);
-static int ramdisk_close(device_t);
-static int ramdisk_read(device_t, char *, size_t *, int);
-static int ramdisk_write(device_t, char *, size_t *, int);
+static int ramdisk_open(file_t, int);
+static int ramdisk_close(file_t);
+static int ramdisk_read(file_t, char *, size_t *, int);
+static int ramdisk_write(file_t, char *, size_t *, int);
 static int ramdisk_init(void);
 
 /*
@@ -76,7 +76,7 @@ static size_t img_size;
 static int open;
 
 static int
-ramdisk_open(device_t dev, int mode)
+ramdisk_open(file_t file, int mode)
 {
 	if (img_size == 0)
 		return EIO;
@@ -86,7 +86,7 @@ ramdisk_open(device_t dev, int mode)
 }
 
 static int
-ramdisk_close(device_t dev)
+ramdisk_close(file_t file)
 {
 	if (open <= 0)
 		return EBADF;
@@ -109,7 +109,7 @@ ramdisk_close(device_t dev)
 }
 
 static int
-ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+ramdisk_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	void *kbuf;
 	size_t nr_read;
@@ -138,7 +138,7 @@ ramdisk_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 }
 
 static int
-ramdisk_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+ramdisk_write(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	void *kbuf;
 	size_t nr_write;
@@ -183,7 +183,7 @@ ramdisk_init(void)
 	printf("RAM disk at 0x%08x (%dK bytes)\n", img_start, img_size/1024);
 #endif
 	/* Create device object */
-	ramdisk_dev = device_create(&ramdisk_io, "ram0", DF_BLK);
+	ramdisk_dev = device_create(&ramdisk_io, "ram0", DF_BLK, NULL);
 	ASSERT(ramdisk_dev);
 	return 0;
 }

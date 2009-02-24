@@ -54,14 +54,6 @@
 #define VMA_EXEC	0x04
 
 /*
- * Device open mode for device_open()
- */
-#define DO_RDONLY	0x0
-#define DO_WRONLY	0x1
-#define DO_RDWR		0x2
-#define DO_RWMASK	0x3
-
-/*
  * Scheduling policy
  */
 #define SCHED_FIFO	0	/* First In First Out */

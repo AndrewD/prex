@@ -37,67 +37,17 @@
 #include <conf/config.h>
 #include <sys/cdefs.h>
 #include <sys/param.h>
-#include <sys/types.h>
+#include <prex/types.h>
 #include <sys/errno.h>
 #include <sys/list.h>
 #include <prex/bootinfo.h>
+#include <prex/device.h>
+#include <prex/sysinfo.h>
 #include <queue.h>
 #include <drvlib.h>
 #include <verbose.h>
 
-/*
- * Kernel types
- */
-typedef unsigned long	device_t;
-typedef unsigned long	task_t;
-typedef unsigned long	thread_t;
-typedef unsigned long	irq_t;
-
-#define DEVICE_NULL	((device_t)0)
-#define TASK_NULL	((task_t)0)
-#define IRQ_NULL	((irq_t)0)
-
-/*
- * Driver structure
- *
- * "order" is initialize order which must be between 0 and 15.
- * The driver with order 0 is called first.
- */
-struct driver {
-	const char	*name;		/* name of device driver */
-	const int	order;		/* initialize order */
-	int		(*init)(void);	/* initialize routine */
-};
-
 #define __driver_entry __attribute__ ((section(".driver_table")))
-
-/*
- * Device I/O table
- */
-struct devio {
-	int (*open)	(device_t dev, int mode);
-	int (*close)	(device_t dev);
-	int (*read)	(device_t dev, char *buf, size_t *nbyte, int blkno);
-	int (*write)	(device_t dev, char *buf, size_t *nbyte, int blkno);
-	int (*ioctl)	(device_t dev, u_long arg, void *);
-	int (*event)	(int event);
-};
-
-/*
- * Flags for device_create()
- */
-#define DF_CHR		0x00000001	/* character device */
-#define DF_BLK		0x00000002	/* block device */
-#define DF_RDONLY	0x00000004	/* read only device */
-#define DF_REM		0x00000008	/* removable device */
-
-/*
- * Device open mode
- */
-#define DO_RDONLY	0x0
-#define DO_WRONLY	0x1
-#define DO_RDWR		0x2
-#define DO_RWMASK	0x3
 
 /*
  * Return value of ISR
@@ -193,9 +143,6 @@ struct timer {
 #define POW_OFF		2
 
 __BEGIN_DECLS
-device_t device_create(const struct devio *io, const char *name, int flags);
-int	 device_destroy(device_t dev);
-int	 device_broadcast(int event, int force);
 int	 umem_copyin(const void *uaddr, void *kaddr, size_t len);
 int	 umem_copyout(const void *kaddr, void *uaddr, size_t len);
 int	 umem_strnlen(const char *uaddr, size_t maxlen, size_t *len);
@@ -316,7 +263,8 @@ struct kernel_symbol
  * simple device driver locking mechanism
  */
 #define DEVLOCK_DBG(s) __VERBOSE(VB_TRACE, "(%d %04x %04x)" s, m->free, \
-				 (uint16_t)m->owner, (uint16_t)thread_self());
+				 (uint32_t)m->owner & 0xFFFF,		\
+				 (uint32_t)thread_self() & 0xFFFF);
 
 struct devlock {
 	struct event	event;

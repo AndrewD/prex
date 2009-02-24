@@ -52,6 +52,7 @@
 #include <task.h>
 #include <sched.h>
 #include <device.h>
+#include <verbose.h>
 
 static struct list device_list;		/* list of the device objects */
 
@@ -123,7 +124,7 @@ device_lookup(const char *name)
  * Returns device ID on success, or 0 on failure.
  */
 device_t
-device_create(const struct devio *io, const char *name, int flags)
+device_create(const struct devio *io, const char *name, int flags, void *info)
 {
 	struct device *dev;
 	size_t len;
@@ -148,6 +149,7 @@ device_create(const struct devio *io, const char *name, int flags)
 	}
 	strlcpy(dev->name, name, len + 1);
 	dev->devio = io;
+	dev->info = info;
 	dev->flags = flags;
 	dev->refcnt = 1;
 	dev->magic = DEVICE_MAGIC;
@@ -177,6 +179,96 @@ device_destroy(device_t dev)
 	return err;
 }
 
+#define FD_MAGIC 0x44455600	/* 'DEV\0' */
+static fd_t
+fd_alloc(const char *name)
+{
+	u_int i = 0;
+	fd_t fd;
+	file_t file = &cur_task()->file[0];
+	device_t dev;
+
+	sched_lock();
+	while (file->dev) {
+		file++;
+		i++;
+		if (i >= CONFIG_DEV_OPEN_MAX) {
+			fd = DERR(-EMFILE);
+			goto out;
+		}
+	}
+	fd = i ^ FD_MAGIC;
+
+	if ((dev = device_lookup(name)) == NULL) {
+		fd = DERR(-ENXIO);
+		goto out;
+	}
+	device_hold(dev);
+	file->dev = dev;
+	file->priv = dev->info;
+	file->f_flags = 0;
+
+out:
+	sched_unlock();
+	return fd;
+}
+
+static file_t
+file_lookup(fd_t fd)
+{
+	file_t file;
+	u_int i = fd ^ FD_MAGIC;
+
+	if (i >= CONFIG_DEV_OPEN_MAX)
+		return NULL;
+
+	sched_lock();
+	file = &cur_task()->file[i];
+
+	if (file->dev == NULL)
+		file = NULL;
+	sched_unlock();
+	return file;
+}
+
+static int
+fd_free(fd_t fd)
+{
+	file_t file;
+	int err = 0;
+
+	sched_lock();
+	file = file_lookup(fd);
+
+	if (file == NULL) {
+		err = DERR(-EBADF);
+		goto out;
+	}
+
+	device_release(file->dev);
+	file->dev = NULL;
+
+out:
+	sched_unlock();
+	return err;
+}
+
+/*
+ * Cleanup open driver fd when a task exits
+ */
+void
+device_terminate(task_t task)
+{
+	u_int i;
+
+	sched_lock();
+	for (i = 0; i < CONFIG_DEV_OPEN_MAX; i++) {
+		if (task->file[i].dev != NULL)
+			device_close(i ^ FD_MAGIC);
+	}
+	sched_unlock();
+}
+
 /*
  * device_open - open the specified device.
  *
@@ -188,15 +280,16 @@ device_destroy(device_t dev)
  * needed.
  */
 int
-device_open(const char *name, int mode, device_t *devp)
+device_open(const char *name, int mode, fd_t *fdp)
 {
 	char str[MAXDEVNAME];
-	device_t dev;
+	fd_t fd;
+	file_t file;
 	size_t len;
 	int err = 0;
 
 	if (!task_capable(CAP_DEVIO))
-		return EPERM;
+		return DERR(EPERM);
 
 	if (umem_strnlen(name, MAXDEVNAME, &len))
 		return EFAULT;
@@ -208,19 +301,18 @@ device_open(const char *name, int mode, device_t *devp)
 	if (umem_copyin(name, str, len + 1))
 		return EFAULT;
 
-	sched_lock();
-	if ((dev = device_lookup(str)) == NULL) {
-		sched_unlock();
-		return ENXIO;
-	}
-	device_hold(dev);
-	sched_unlock();
+	fd = fd_alloc(str);
+	if (fd < 0)
+		return -fd;
 
-	if (dev->devio->open != NULL)
-		err = (*dev->devio->open)(dev, mode);
+	file = file_lookup(fd);
+
+	if (file->dev->devio->open != NULL)
+		err = (*file->dev->devio->open)(file, mode);
 	if (!err)
-		err = umem_copyout(&dev, devp, sizeof(dev));
-	device_release(dev);
+		err = umem_copyout(&fd, fdp, sizeof(fd));
+	else
+		fd_free(fd);
 	return err;
 }
 
@@ -231,20 +323,18 @@ device_open(const char *name, int mode, device_t *devp)
  * this function does not return any errors.
  */
 int
-device_close(device_t dev)
+device_close(fd_t fd)
 {
+	file_t file;
 	int err = 0;
 
-	if (!task_capable(CAP_DEVIO))
-		return EPERM;
+	if ((file = file_lookup(fd)) == NULL)
+		return DERR(EBADF);
 
-	if (device_hold(dev))
-		return ENODEV;
+	if (file->dev->devio->close != NULL)
+		err = (*file->dev->devio->close)(file);
 
-	if (dev->devio->close != NULL)
-		err = (*dev->devio->close)(dev);
-
-	device_release(dev);
+	fd_free(fd);
 	return err;
 }
 
@@ -255,30 +345,24 @@ device_close(device_t dev)
  * Note: The size of one block is device dependent.
  */
 int
-device_read(device_t dev, void *buf, size_t *nbyte, int blkno)
+device_read(fd_t fd, void *buf, size_t *nbyte, int blkno)
 {
+	file_t file;
 	size_t count;
 	int err;
 
-	if (!task_capable(CAP_DEVIO))
-		return EPERM;
+	if ((file = file_lookup(fd)) == NULL)
+		return DERR(EBADF);
 
-	if (device_hold(dev))
-		return ENODEV;
+	if (file->dev->devio->read == NULL)
+		return DERR(EIO);
 
-	if (dev->devio->read == NULL) {
-		device_release(dev);
-		return EBADF;
-	}
-	if (umem_copyin(nbyte, &count, sizeof(count))) {
-		device_release(dev);
+	if (umem_copyin(nbyte, &count, sizeof(count)))
 		return EFAULT;
-	}
-	err = (*dev->devio->read)(dev, buf, &count, blkno);
+	err = (*file->dev->devio->read)(file, buf, &count, blkno);
 	if (err == 0)
 		err = umem_copyout(&count, nbyte, sizeof(count));
 
-	device_release(dev);
 	return err;
 }
 
@@ -288,30 +372,25 @@ device_read(device_t dev, void *buf, size_t *nbyte, int blkno)
  * Actual write count is set in "nbyte" as return.
  */
 int
-device_write(device_t dev, void *buf, size_t *nbyte, int blkno)
+device_write(fd_t fd, void *buf, size_t *nbyte, int blkno)
 {
+	file_t file;
 	size_t count;
 	int err;
 
-	if (!task_capable(CAP_DEVIO))
-		return EPERM;
+	if ((file = file_lookup(fd)) == NULL)
+		return DERR(EBADF);
 
-	if (device_hold(dev))
-		return ENODEV;
+	if (file->dev->devio->write == NULL)
+		return DERR(EIO);
 
-	if (dev->devio->write == NULL) {
-		device_release(dev);
-		return EBADF;
-	}
-	if (umem_copyin(nbyte, &count, sizeof(count))) {
-		device_release(dev);
+	if (umem_copyin(nbyte, &count, sizeof(count)))
 		return EFAULT;
-	}
-	err = (*dev->devio->write)(dev, buf, &count, blkno);
+
+	err = (*file->dev->devio->write)(file, buf, &count, blkno);
 	if (err == 0)
 		err = umem_copyout(&count, nbyte, sizeof(count));
 
-	device_release(dev);
 	return err;
 }
 
@@ -323,21 +402,17 @@ device_write(device_t dev, void *buf, size_t *nbyte, int blkno)
  * pointed by the arg value.
  */
 int
-device_ioctl(device_t dev, u_long cmd, void *arg)
+device_ioctl(fd_t fd, u_long cmd, void *arg)
 {
-	int err = EBADF;
+	file_t file;
 
-	if (!task_capable(CAP_DEVIO))
-		return EPERM;
+	if ((file = file_lookup(fd)) == NULL)
+		return DERR(EBADF);
 
-	if (device_hold(dev))
-		return ENODEV;
+	if (file->dev->devio->ioctl == NULL)
+		return DERR(EIO);
 
-	if (dev->devio->ioctl != NULL)
-		err = (*dev->devio->ioctl)(dev, cmd, arg);
-
-	device_release(dev);
-	return err;
+	return (*file->dev->devio->ioctl)(file, cmd, arg);
 }
 
 /*
