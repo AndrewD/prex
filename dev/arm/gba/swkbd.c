@@ -82,7 +82,7 @@
 #define BUTTON_WAIT	200	/* 200 msec */
 
 static int kbd_init(void);
-static int kbd_ioctl(device_t, u_long, void *);
+static int kbd_ioctl(file_t, u_long, void *);
 
 static void move_cursor(void);
 
@@ -371,7 +371,7 @@ out:
  * I/O control
  */
 static int
-kbd_ioctl(device_t dev, u_long cmd, void *arg)
+kbd_ioctl(file_t file, u_long cmd, void *arg)
 {
 
 	return 0;
@@ -484,7 +484,7 @@ static int
 kbd_init(void)
 {
 
-	kbd_dev = device_create(&kbd_io, "kbd", DF_CHR);
+	kbd_dev = device_create(&kbd_io, "kbd", DF_CHR, NULL);
 	ASSERT(kbd_dev);
 
 	ignore_key = 0;

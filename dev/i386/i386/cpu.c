@@ -74,7 +74,7 @@
 #define MSR_MISC_ENABLE		0x1a0
 #define MSR_SS_ENABLE		(1<<16)
 
-static int cpu_ioctl(device_t dev, u_long cmd, void *arg);
+static int cpu_ioctl(file_t file, u_long cmd, void *arg);
 static int cpu_init(void);
 
 /*
@@ -531,7 +531,7 @@ cpu_initperf(void)
 }
 
 static int
-cpu_ioctl(device_t dev, u_long cmd, void *arg)
+cpu_ioctl(file_t file, u_long cmd, void *arg)
 {
 
 	switch (cmd) {
@@ -562,7 +562,7 @@ cpu_init(void)
 	char *p, *q;
 
 	/* Create device object */
-	cpu_dev = device_create(&cpu_io, "cpu", DF_CHR);
+	cpu_dev = device_create(&cpu_io, "cpu", DF_CHR, NULL);
 	ASSERT(cpu_dev);
 
 #ifdef CONFIG_DVS_EMULATION

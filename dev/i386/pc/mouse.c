@@ -57,9 +57,9 @@
 #define MOUSE_IRQ	12
 
 static int mouse_init(void);
-static int mouse_open(device_t, int);
-static int mouse_close(device_t);
-static int mouse_read(device_t, char *, size_t *, int);
+static int mouse_open(file_t, int);
+static int mouse_close(file_t);
+static int mouse_read(file_t, char *, size_t *, int);
 
 /*
  * Driver structure
@@ -168,7 +168,7 @@ mouse_isr(int irq)
  * Open
  */
 static int
-mouse_open(device_t dev, int mode)
+mouse_open(file_t file)
 {
 	DPRINTF(("mouse_open: dev=%x\n", dev));
 	return 0;
@@ -178,7 +178,7 @@ mouse_open(device_t dev, int mode)
  * Close
  */
 static int
-mouse_close(device_t dev)
+mouse_close(file_t file)
 {
 	DPRINTF(("mouse_close: dev=%x\n", dev));
 	return 0;
@@ -188,7 +188,7 @@ mouse_close(device_t dev)
  * Read
  */
 static int
-mouse_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+mouse_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	return 0;
 }
@@ -202,7 +202,7 @@ mouse_init(void)
 
 	DPRINTF(("Mouse sampling rate=100 samples/sec\n"));
 	/* Create device object */
-	mouse_dev = device_create(&mouse_io, "mouse", DF_CHR);
+	mouse_dev = device_create(&mouse_io, "mouse", DF_CHR, NULL);
 	ASSERT(mouse_dev);
 
 	/* Allocate IRQ */

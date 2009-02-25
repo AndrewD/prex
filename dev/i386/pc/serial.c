@@ -79,9 +79,9 @@
 
 /* Forward functions */
 static int serial_init(void);
-static int serial_read(device_t, char *, size_t *, int);
-static int serial_write(device_t, char *, size_t *, int);
-static int serial_ioctl(device_t, u_long, void *);
+static int serial_read(file_t, char *, size_t *, int);
+static int serial_write(file_t, char *, size_t *, int);
+static int serial_ioctl(file_t, u_long, void *);
 
 /*
  * Driver structure
@@ -109,21 +109,21 @@ static struct tty serial_tty;	/* tty structure */
 static irq_t serial_irq;	/* handle for irq */
 
 static int
-serial_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+serial_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 
 	return tty_read(&serial_tty, buf, nbyte);
 }
 
 static int
-serial_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+serial_write(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 
 	return tty_write(&serial_tty, buf, nbyte);
 }
 
 static int
-serial_ioctl(device_t dev, u_long cmd, void *arg)
+serial_ioctl(file_t file, u_long cmd, void *arg)
 {
 
 	return tty_ioctl(&serial_tty, cmd, arg);

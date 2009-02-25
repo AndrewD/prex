@@ -25,6 +25,7 @@ makeoptions	CFLAGS+= -mcpu=arm9tdmi
 options 	HZ=1000		# Ticks/second of the clock
 options 	TIME_SLICE=50	# Context switch ratio (msec)
 options 	OPEN_MAX=16	# Max open files per process
+options 	DEV_OPEN_MAX=16	# Max open device handles per process
 options 	BUF_CACHE=32	# Blocks for buffer cache
 options 	FS_THREADS=4	# Number of file system threads
 

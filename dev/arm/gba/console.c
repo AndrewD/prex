@@ -37,9 +37,9 @@
 #include "font.h"
 
 static int console_init(void);
-static int console_read(device_t, char *, size_t *, int);
-static int console_write(device_t, char *, size_t *, int);
-static int console_ioctl(device_t, u_long, void *);
+static int console_read(file_t, char *, size_t *, int);
+static int console_write(file_t, char *, size_t *, int);
+static int console_ioctl(file_t, u_long, void *);
 void console_attach(struct tty **);
 
 /*
@@ -370,7 +370,7 @@ console_puts(char *str)
  * Read
  */
 static int
-console_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+console_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 
 	return tty_read(&console_tty, buf, nbyte);
@@ -380,7 +380,7 @@ console_read(device_t dev, char *buf, size_t *nbyte, int blkno)
  * Write
  */
 static int
-console_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+console_write(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 
 	return tty_write(&console_tty, buf, nbyte);
@@ -390,7 +390,7 @@ console_write(device_t dev, char *buf, size_t *nbyte, int blkno)
  * I/O control
  */
 static int
-console_ioctl(device_t dev, u_long cmd, void *arg)
+console_ioctl(file_t file, u_long cmd, void *arg)
 {
 
 	return tty_ioctl(&console_tty, cmd, arg);
@@ -458,7 +458,7 @@ console_init(void)
 	pos_x = 0;
 	pos_y = 19;
 
-	console_dev = device_create(&console_io, "console", DF_CHR);
+	console_dev = device_create(&console_io, "console", DF_CHR, NULL);
 
 	init_font();
 	init_screen();

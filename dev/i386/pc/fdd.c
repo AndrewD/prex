@@ -107,10 +107,10 @@ static void fdc_off(void);
 static void fdc_io(void);
 
 static int fdd_init(void);
-static int fdd_open(device_t, int);
-static int fdd_close(device_t);
-static int fdd_read(device_t, char *, size_t *, int);
-static int fdd_write(device_t, char *, size_t *, int);
+static int fdd_open(file_t);
+static int fdd_close(file_t);
+static int fdd_read(file_t, char *, size_t *, int);
+static int fdd_write(file_t, char *, size_t *, int);
 
 /*
  * I/O request
@@ -498,7 +498,7 @@ fdc_ist(int irq)
  * Open
  */
 static int
-fdd_open(device_t dev, int mode)
+fdd_open(file_t file)
 {
 
 	nr_open++;
@@ -510,7 +510,7 @@ fdd_open(device_t dev, int mode)
  * Close
  */
 static int
-fdd_close(device_t dev)
+fdd_close(file_t file)
 {
 	DPRINTF(("fdd_close: dev=%x\n", dev));
 
@@ -566,7 +566,7 @@ fdd_rw(int cmd, char *buf, u_long blksz, int blkno)
  *  EFAULT  ... No physical memory is mapped to buffer
  */
 static int
-fdd_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+fdd_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	char *kbuf;
 	int track, sect, err;
@@ -621,7 +621,7 @@ fdd_read(device_t dev, char *buf, size_t *nbyte, int blkno)
  *  EFAULT  ... No physical memory is mapped to buffer
  */
 static int
-fdd_write(device_t dev, char *buf, size_t *nbyte, int blkno)
+fdd_write(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	char *kbuf, *wbuf;
 	int track, sect, err;
@@ -684,7 +684,7 @@ fdd_init(void)
 	}
 
 	/* Create device object */
-	fdd_dev = device_create(&fdd_io, "fd0", DF_BLK);
+	fdd_dev = device_create(&fdd_io, "fd0", DF_BLK, NULL);
 	ASSERT(fdd_dev);
 
 	event_init(&fdd_event, "fdd i/o");

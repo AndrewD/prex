@@ -56,8 +56,8 @@
 
 #define DAYSPERYEAR	(31+28+31+30+31+30+31+31+30+31+30+31)
 
-static int rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno);
-static int rtc_ioctl(device_t dev, u_long cmd, void *arg);
+static int rtc_read(file_t file, char *buf, size_t *nbyte, int blkno);
+static int rtc_ioctl(file_t file, u_long cmd, void *arg);
 static int rtc_init(void);
 
 /*
@@ -190,7 +190,7 @@ cmos_gettime(void)
 }
 
 static int
-rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+rtc_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	u_long time;
 
@@ -205,7 +205,7 @@ rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 }
 
 static int
-rtc_ioctl(device_t dev, u_long cmd, void *arg)
+rtc_ioctl(file_t file, u_long cmd, void *arg)
 {
 	struct timeval tv;
 	int err = 0;
@@ -240,7 +240,7 @@ rtc_init(void)
 {
 
 	/* Create device object */
-	rtc_dev = device_create(&rtc_io, "rtc", DF_CHR);
+	rtc_dev = device_create(&rtc_io, "rtc", DF_CHR, NULL);
 	ASSERT(rtc_dev);
 	boot_sec = cmos_gettime();
 	boot_ticks = timer_count();

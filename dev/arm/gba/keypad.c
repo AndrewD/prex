@@ -64,9 +64,9 @@
 typedef void (*input_func)(u_char);
 
 static int keypad_init(void);
-static int keypad_open(device_t, int);
-static int keypad_close(device_t);
-static int keypad_read(device_t, char *, size_t *, int);
+static int keypad_open(file_t);
+static int keypad_close(file_t);
+static int keypad_read(file_t, char *, size_t *, int);
 
 /*
  * Driver structure
@@ -196,7 +196,7 @@ keypad_isr(int irq)
  * Open
  */
 static int
-keypad_open(device_t dev, int mode)
+keypad_open(file_t file)
 {
 
 	if (input_handler)
@@ -211,7 +211,7 @@ keypad_open(device_t dev, int mode)
  * Close
  */
 static int
-keypad_close(device_t dev)
+keypad_close(file_t file)
 {
 
 	if (input_handler)
@@ -226,7 +226,7 @@ keypad_close(device_t dev)
  * Read
  */
 static int
-keypad_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+keypad_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	int rc, c;
 	size_t count;
@@ -273,7 +273,7 @@ keypad_init(void)
 {
 	input_handler = NULL;
 
-	keypad_dev = device_create(&keypad_io, "keypad", DF_CHR);
+	keypad_dev = device_create(&keypad_io, "keypad", DF_CHR, NULL);
 	ASSERT(keypad_dev);
 
 	event_init(&keypad_event, "keypad");

@@ -267,7 +267,7 @@ int
 kbd_init(void)
 {
 
-	kbd_dev = device_create(&kbd_io, "kbd", DF_CHR);
+	kbd_dev = device_create(&kbd_io, "kbd", DF_CHR, NULL);
 	ASSERT(kbd_dev);
 
 	/* Disable keyboard controller */

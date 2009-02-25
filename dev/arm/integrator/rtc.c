@@ -49,8 +49,8 @@
 #define RTC_LR		(*(volatile uint32_t *)(RTC_BASE + 0x0c))
 #define RTC_CR		(*(volatile uint32_t *)(RTC_BASE + 0x10))
 
-static int rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno);
-static int rtc_ioctl(device_t dev, u_long cmd, void *arg);
+static int rtc_read(file_t file, char *buf, size_t *nbyte, int blkno);
+static int rtc_ioctl(file_t file, u_long cmd, void *arg);
 static int rtc_init(void);
 
 /*
@@ -79,7 +79,7 @@ static u_long boot_sec;		/* Time (sec) at system boot */
 static u_long boot_ticks;	/* Time (ticks) at system boot */
 
 static int
-rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno)
+rtc_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
 	u_long time;
 
@@ -94,7 +94,7 @@ rtc_read(device_t dev, char *buf, size_t *nbyte, int blkno)
 }
 
 static int
-rtc_ioctl(device_t dev, u_long cmd, void *arg)
+rtc_ioctl(file_t file, u_long cmd, void *arg)
 {
 	struct timeval tv;
 	int err = 0;
@@ -129,7 +129,7 @@ rtc_init(void)
 {
 
 	/* Create device object */
-	rtc_dev = device_create(&rtc_io, "rtc", DF_CHR);
+	rtc_dev = device_create(&rtc_io, "rtc", DF_CHR, NULL);
 	ASSERT(rtc_dev);
 	boot_sec = RTC_DR;
 	boot_ticks = timer_count();

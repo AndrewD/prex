@@ -63,9 +63,9 @@
 #define INTERVAL_TICK		msec_to_tick(INTERVAL_MSEC)
 #define WEIGHT			20
 
-static int cpufreq_open(device_t dev, int mode);
-static int cpufreq_ioctl(device_t dev, u_long cmd, void *arg);
-static int cpufreq_close(device_t dev);
+static int cpufreq_open(file_t file);
+static int cpufreq_ioctl(file_t file, u_long cmd, void *arg);
+static int cpufreq_close(file_t file);
 static int cpufreq_init(void);
 
 /*
@@ -297,21 +297,21 @@ dvs_disable(void)
 }
 
 static int
-cpufreq_open(device_t dev, int mode)
+cpufreq_open(file_t file)
 {
 
 	return 0;
 }
 
 static int
-cpufreq_close(device_t dev)
+cpufreq_close(file_t file)
 {
 
 	return 0;
 }
 
 static int
-cpufreq_ioctl(device_t dev, u_long cmd, void *arg)
+cpufreq_ioctl(file_t file, u_long cmd, void *arg)
 {
 
 	return 0;
@@ -345,7 +345,7 @@ cpufreq_init(void)
 		return -1;
 
 	/* Create device object */
-	cpufreq_dev = device_create(&cpufreq_io, "cpufreq", DF_CHR);
+	cpufreq_dev = device_create(&cpufreq_io, "cpufreq", DF_CHR, NULL);
 	ASSERT(cpufreq_dev);
 
 	dvs_capable = 1;
