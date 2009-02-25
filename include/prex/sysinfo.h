@@ -93,14 +93,6 @@ struct info_device {
 #define DF_REM		0x00000008	/* removable device */
 
 /*
- * Device open mode for device_open()
- */
-#define DO_RDONLY	0x0
-#define DO_WRONLY	0x1
-#define DO_RDWR		0x2
-#define DO_RWMASK	0x3
-
-/*
  * Timer informations
  */
 struct info_timer {

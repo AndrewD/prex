@@ -60,7 +60,7 @@ typedef struct driver *driver_t;
  * Device I/O table
  */
 struct devio {
-	int	(*open)	(file_t, int);
+	int	(*open)	(file_t);
 	int	(*close)(file_t);
 	int	(*read)	(file_t, char *, size_t *, int);
 	int	(*write)(file_t, char *, size_t *, int);

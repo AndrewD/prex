@@ -125,7 +125,7 @@ struct flock {
 #define	LOCK_NB		0x04		/* don't block when locking */
 #define	LOCK_UN		0x08		/* unlock file */
 
-
+#ifndef __KERNEL__
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -134,5 +134,6 @@ int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
 int	flock(int, int);
 __END_DECLS
+#endif	/* !__KERNEL__ */
 
 #endif /* !_SYS_FCNTL_H_ */

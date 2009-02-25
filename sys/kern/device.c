@@ -280,7 +280,7 @@ device_terminate(task_t task)
  * needed.
  */
 int
-device_open(const char *name, int mode, fd_t *fdp)
+device_open(const char *name, int flags, fd_t *fdp)
 {
 	char str[MAXDEVNAME];
 	fd_t fd;
@@ -306,9 +306,10 @@ device_open(const char *name, int mode, fd_t *fdp)
 		return -fd;
 
 	file = file_lookup(fd);
+	file->f_flags = flags;
 
 	if (file->dev->devio->open != NULL)
-		err = (*file->dev->devio->open)(file, mode);
+		err = (*file->dev->devio->open)(file);
 	if (!err)
 		err = umem_copyout(&fd, fdp, sizeof(fd));
 	else
@@ -359,6 +360,7 @@ device_read(fd_t fd, void *buf, size_t *nbyte, int blkno)
 
 	if (umem_copyin(nbyte, &count, sizeof(count)))
 		return EFAULT;
+
 	err = (*file->dev->devio->read)(file, buf, &count, blkno);
 	if (err == 0)
 		err = umem_copyout(&count, nbyte, sizeof(count));

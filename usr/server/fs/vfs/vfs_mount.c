@@ -109,7 +109,7 @@ sys_mount(char *dev, char *dir, char *fsname, int flags, void *data)
 	if (*dev != '\0') {
 		if (strncmp(dev, "/dev/", 5))
 			return ENOTBLK;
-		if ((err = device_open(dev + 5, DO_RDWR, &device)) != 0)
+		if ((err = device_open(dev + 5, O_RDWR, &device)) != 0)
 			return err;
 	}
 

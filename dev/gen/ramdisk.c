@@ -44,7 +44,7 @@
 /* Block size */
 #define BSIZE		512
 
-static int ramdisk_open(file_t, int);
+static int ramdisk_open(file_t);
 static int ramdisk_close(file_t);
 static int ramdisk_read(file_t, char *, size_t *, int);
 static int ramdisk_write(file_t, char *, size_t *, int);
@@ -76,7 +76,7 @@ static size_t img_size;
 static int open;
 
 static int
-ramdisk_open(file_t file, int mode)
+ramdisk_open(file_t file)
 {
 	if (img_size == 0)
 		return EIO;

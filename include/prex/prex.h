@@ -136,7 +136,7 @@ int	exception_return(void);
 int	exception_raise(task_t task, int excpt);
 int	exception_wait(int *excpt);
 
-int	device_open(const char *name, int mode, device_t *dev);
+int	device_open(const char *name, int flags, device_t *dev);
 int	device_close(device_t dev);
 int	device_read(device_t dev, void *buf, size_t *nbyte, int blkno);
 int	device_write(device_t dev, void *buf, size_t *nbyte, int blkno);

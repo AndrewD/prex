@@ -129,7 +129,7 @@ devfs_open(vnode_t vp, int flags, mode_t mode)
 
 	if (*path == '/')
 		path++;
-	err = device_open(path, flags & DO_RWMASK, &dev);
+	err = device_open(path, flags, &dev);
 	if (err) {
 		DPRINTF(("devfs_open: can not open device = %s error=%d\n",
 			 path, err));

@@ -51,7 +51,7 @@
 #define DEFAULT_POWER_POLICY	PM_PERFORMANCE
 #endif
 
-static int pm_open(file_t file, int mode);
+static int pm_open(file_t file);
 static int pm_ioctl(file_t file, u_long cmd, void *arg);
 static int pm_close(file_t file);
 static int pm_init(void);
@@ -263,7 +263,7 @@ pm_getpolicy(void)
  * server.
  */
 static int
-pm_open(file_t file, int mode)
+pm_open(file_t file)
 {
 
 	if (nr_open > 0)
