@@ -97,9 +97,6 @@
 
 /* Forward functions */
 static int serial_init(void);
-static int serial_read(file_t, char *, size_t *, int);
-static int serial_write(file_t, char *, size_t *, int);
-static int serial_ioctl(file_t, u_long, void *);
 
 /*
  * Driver structure
@@ -110,42 +107,9 @@ struct driver serial_drv __driver_entry = {
 	/* init */	serial_init,
 };
 
-/*
- * Device I/O table
- */
-static struct devio serial_io = {
-	/* open */	NULL,
-	/* close */	NULL,
-	/* read */	serial_read,
-	/* write */	serial_write,
-	/* ioctl */	serial_ioctl,
-	/* event */	NULL,
-};
-
-static device_t serial_dev;	/* device object */
+static device_t serial_dev, tty_dev;	/* device object */
 static struct tty serial_tty;	/* tty structure */
 static irq_t serial_irq;	/* handle for irq */
-
-static int
-serial_read(file_t file, char *buf, size_t *nbyte, int blkno)
-{
-
-	return tty_read(&serial_tty, buf, nbyte);
-}
-
-static int
-serial_write(file_t file, char *buf, size_t *nbyte, int blkno)
-{
-
-	return tty_write(&serial_tty, buf, nbyte);
-}
-
-static int
-serial_ioctl(file_t file, u_long cmd, void *arg)
-{
-
-	return tty_ioctl(&serial_tty, cmd, arg);
-}
 
 static void
 serial_putc(char c)
@@ -276,14 +240,14 @@ serial_init(void)
 	debug_attach(serial_puts);
 #endif
 
-	/* Create device object */
-	serial_dev = device_create(&serial_io, "console", DF_CHR, NULL);
-	ASSERT(serial_dev);
-
-	tty_attach(&serial_io, &serial_tty);
-
+	tty_init(&serial_tty);	/* init data */
 	serial_tty.t_oproc = serial_start;
 	serial_tty.t_winsize.ws_row = (u_short)TERM_ROWS;
 	serial_tty.t_winsize.ws_col = (u_short)TERM_COLS;
+
+	serial_dev = tty_attach("console", &serial_tty);
+	tty_dev = tty_attach("tty", &serial_tty);
+	ASSERT(tty_dev);
+
 	return 0;
 }

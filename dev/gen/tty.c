@@ -41,6 +41,7 @@
  */
 
 #include <driver.h>
+#include <sys/fcntl.h>
 #include <sys/signal.h>
 #include <sys/tty.h>
 #include <sys/termios.h>
@@ -54,11 +55,7 @@
 #define DPRINTF(a)
 #endif
 
-#define	FREAD		0x0001
-#define	FWRITE		0x0002
-
-void tty_output(int c, struct tty *tp);
-static int tty_init(void);
+static void tty_output(int c, struct tty *tp);
 
 /*
  * Driver structure
@@ -66,10 +63,7 @@ static int tty_init(void);
 struct driver tty_drv __driver_entry = {
 	/* name */	"TTY device",
 	/* order */	10,		/* must be larger than console */
-	/* init */	tty_init,
 };
-
-static device_t tty_dev;
 
 /* task to dispatch the tty signal */
 static task_t sig_task;
@@ -386,7 +380,7 @@ tty_input(int c, struct tty *tp)
  * Output a single character on a tty, doing output processing
  * as needed (expanding tabs, newline processing, etc.).
  */
-void
+static void
 tty_output(int c, struct tty *tp)
 {
 	int i, col;
@@ -437,9 +431,10 @@ tty_output(int c, struct tty *tp)
 /*
  * Process a read call on a tty device.
  */
-int
-tty_read(struct tty *tp, char *buf, size_t *nbyte)
+static int
+tty_read(file_t file, char *buf, size_t *nbyte, int blkno)
 {
+	struct tty *tp = file->priv;
 	unsigned char *cc;
 	struct tty_queue *qp;
 	int rc, c;
@@ -451,6 +446,8 @@ tty_read(struct tty *tp, char *buf, size_t *nbyte)
 	cc = tp->t_cc;
 	qp = (lflag & ICANON) ? &tp->t_canq : &tp->t_rawq;
 
+	if ((file->f_flags & O_NONBLOCK) && ttyq_empty(qp))
+		return EAGAIN;
 	/* If there is no input, wait it */
 	while (ttyq_empty(qp)) {
 		rc = sched_sleep(&tp->t_input);
@@ -477,9 +474,10 @@ tty_read(struct tty *tp, char *buf, size_t *nbyte)
 /*
  * Process a write call on a tty device.
  */
-int
-tty_write(struct tty *tp, char *buf, size_t *nbyte)
+static int
+tty_write(file_t file, char *buf, size_t *nbyte, int blkno)
 {
+	struct tty *tp = file->priv;
 	size_t remain, count = 0;
 	unsigned char c;	/* must be char (not int) for BIG ENDIAN */
 
@@ -510,9 +508,10 @@ tty_write(struct tty *tp, char *buf, size_t *nbyte)
 /*
  * Ioctls for all tty devices.
  */
-int
-tty_ioctl(struct tty *tp, u_long cmd, void *data)
+static int
+tty_ioctl(file_t file, u_long cmd, void *data)
 {
+	struct tty *tp = file->priv;
 	int flags;
 	struct tty_queue *qp;
 
@@ -589,22 +588,27 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data)
 	return 0;
 }
 
+static struct devio tty_io = {
+	.read = tty_read,
+	.write = tty_write,
+	.ioctl = tty_ioctl,
+};
+
 /*
  * Register tty device.
  */
-int
-tty_attach(struct devio *io, struct tty *tp)
+device_t
+tty_attach(const char *name, struct tty *tp)
 {
 
-	/* We support only one tty device */
-	if (tty_dev != DEVICE_NULL)
-		return -1;
+	return device_create(&tty_io, name, DF_CHR, tp);
+}
 
-	/* Create TTY device as an alias of the registered device. */
-	tty_dev = device_create(io, "tty", DF_CHR, NULL);
-	if (tty_dev == DEVICE_NULL)
-		return -1;
-
+/*
+ * Init
+ */
+void tty_init(struct tty *tp)
+{
 	/* Initialize tty */
 	memset(tp, 0, sizeof(struct tty));
 	memcpy(&tp->t_termios.c_cc, ttydefchars, sizeof(ttydefchars));
@@ -618,15 +622,4 @@ tty_attach(struct devio *io, struct tty *tp)
 	tp->t_lflag = TTYDEF_LFLAG;
 	tp->t_ispeed = TTYDEF_SPEED;
 	tp->t_ospeed = TTYDEF_SPEED;
-	return 0;
-}
-
-/*
- * Init
- */
-static int
-tty_init(void)
-{
-
-	return 0;
 }

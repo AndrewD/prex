@@ -85,14 +85,12 @@ struct tty {
 #define	TS_TTSTOP	0x00200		/* Output paused. */
 
 __BEGIN_DECLS
-int tty_attach(struct devio *io, struct tty *tp);
+void tty_init(struct tty *tp);
+device_t tty_attach(const char *name, struct tty *tp);
 int ttyq_getc(struct tty_queue *tq);
 void ttyq_putc(int c, struct tty_queue *tq);
 int ttyq_unputc(struct tty_queue *tq);
 
-int tty_read(struct tty *tp, char *buf, size_t *nbytes);
-int tty_write(struct tty *tp, char *buf, size_t *nbyte);
-int tty_ioctl(struct tty *tp, u_long cmd, void *data);
 void tty_input(int c, struct tty *tp);
 void tty_done(struct tty *tp);
 __END_DECLS

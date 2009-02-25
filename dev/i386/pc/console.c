@@ -44,9 +44,6 @@
 #define VID_RAM		0xB8000
 
 static int console_init(void);
-static int console_read(file_t, char *, size_t *, int);
-static int console_write(file_t, char *, size_t *, int);
-static int console_ioctl(file_t, u_long, void *);
 
 /*
  * Driver structure
@@ -57,19 +54,7 @@ struct driver console_drv __driver_entry = {
 	/* init */	console_init,
 };
 
-/*
- * Device I/O table
- */
-static struct devio console_io = {
-	/* open */	NULL,
-	/* close */	NULL,
-	/* read */	console_read,
-	/* write */	console_write,
-	/* ioctl */	console_ioctl,
-	/* event */	NULL,
-};
-
-static device_t console_dev;
+static device_t console_dev, tty_dev;
 static struct tty console_tty;
 
 static short *vram;
@@ -371,36 +356,6 @@ console_start(struct tty *tp)
 }
 
 /*
- * Read
- */
-static int
-console_read(file_t file, char *buf, size_t *nbyte, int blkno)
-{
-
-	return tty_read(&console_tty, buf, nbyte);
-}
-
-/*
- * Write
- */
-static int
-console_write(file_t file, char *buf, size_t *nbyte, int blkno)
-{
-
-	return tty_write(&console_tty, buf, nbyte);
-}
-
-/*
- * I/O control
- */
-static int
-console_ioctl(file_t file, u_long cmd, void *arg)
-{
-
-	return tty_ioctl(&console_tty, cmd, arg);
-}
-
-/*
  * Attach input device.
  */
 void
@@ -457,14 +412,18 @@ console_init(void)
 	attrib = 0x0F;
 
 	vram = phys_to_virt((void *)VID_RAM);
-	console_dev = device_create(&console_io, "console", DF_CHR, NULL);
 	reset_cursor();
 #if defined(DEBUG) && defined(CONFIG_DIAG_SCREEN)
 	debug_attach(console_puts);
 #endif
-	tty_attach(&console_io, &console_tty);
+	tty_init(&console_tty);	/* init data */
 	console_tty.t_oproc = console_start;
 	console_tty.t_winsize.ws_row = (u_short)rows;
 	console_tty.t_winsize.ws_col = (u_short)cols;
+
+	console_dev = tty_attach("console", &console_tty);
+	tty_dev = tty_attach("tty", &console_tty);
+	ASSERT(tty_dev);
+
 	return 0;
 }

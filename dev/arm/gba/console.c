@@ -37,9 +37,6 @@
 #include "font.h"
 
 static int console_init(void);
-static int console_read(file_t, char *, size_t *, int);
-static int console_write(file_t, char *, size_t *, int);
-static int console_ioctl(file_t, u_long, void *);
 void console_attach(struct tty **);
 
 /*
@@ -51,16 +48,7 @@ struct driver console_drv __driver_entry = {
 	/* init */  console_init,
 };
 
-static struct devio console_io = {
-	/* open */	NULL,
-	/* close */	NULL,
-	/* read */	console_read,
-	/* write */	console_write,
-	/* ioctl */	console_ioctl,
-	/* event */	NULL,
-};
-
-static device_t console_dev;
+static device_t console_dev, tty_dev;
 static struct tty console_tty;
 
 static uint16_t *vram = CONSOLE_MAP;
@@ -367,36 +355,6 @@ console_puts(char *str)
 #endif
 
 /*
- * Read
- */
-static int
-console_read(file_t file, char *buf, size_t *nbyte, int blkno)
-{
-
-	return tty_read(&console_tty, buf, nbyte);
-}
-
-/*
- * Write
- */
-static int
-console_write(file_t file, char *buf, size_t *nbyte, int blkno)
-{
-
-	return tty_write(&console_tty, buf, nbyte);
-}
-
-/*
- * I/O control
- */
-static int
-console_ioctl(file_t file, u_long cmd, void *arg)
-{
-
-	return tty_ioctl(&console_tty, cmd, arg);
-}
-
-/*
  * Attach input device.
  */
 void
@@ -458,17 +416,20 @@ console_init(void)
 	pos_x = 0;
 	pos_y = 19;
 
-	console_dev = device_create(&console_io, "console", DF_CHR, NULL);
-
 	init_font();
 	init_screen();
 #if defined(DEBUG) && defined(CONFIG_DIAG_SCREEN)
 	debug_attach(console_puts);
 #endif
-	tty_attach(&console_io, &console_tty);
 
+	tty_init(&console_tty);	/* init data */
 	console_tty.t_oproc = console_start;
 	console_tty.t_winsize.ws_row = SCR_ROWS;
 	console_tty.t_winsize.ws_col = SCR_COLS;
+
+	console_dev = tty_attach("console", &console_tty);
+	tty_dev = tty_attach("tty", &console_tty);
+	ASSERT(tty_dev);
+
 	return 0;
 }
