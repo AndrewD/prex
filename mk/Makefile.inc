@@ -77,9 +77,10 @@ DEFS=		-D__$(ARCH)__ -D__$(PLATFORM)__ \
 		-D__ARCH__=$(ARCH) -D__PLATFORM__=$(PLATFORM) \
 		-U$(ARCH) -U$(PLATFORM)
 
-CFLAGS+=	-Os -ansi -pedantic -fno-strict-aliasing \
+CFLAGS+=	-Os -ansi -fno-strict-aliasing \
 		-Wall -Wundef -Wstrict-prototypes -Wpointer-arith \
 		-std=gnu99 $(CONFIG_CFLAGS) $(DEFS)
+CPPFLAGS+=	-pedantic -Wall $(DEFS)
 
 ifeq ($(NDEBUG),1)
 CFLAGS+=	-fomit-frame-pointer
@@ -89,11 +90,9 @@ CPPFLAGS+=	-DDEBUG -g
 endif
 
 CFLAGS+=	-Wsign-compare
-CFLAGS +=	-Werror-implicit-function-declaration
+CFLAGS+=	-Werror-implicit-function-declaration
 ASFLAGS+=	-W
 
-CPPFLAGS+=	$(DEFS)
-ASFLAGS+=	$(DEFS) -D__ASSEMBLY__
 ifdef MAP
 LDFLAGS+=	-Map $(MAP)
 endif
@@ -120,7 +119,7 @@ LIBGCC = $(LIBGCC_PATH)libgcc.a
 	$(AS) $(ASFLAGS) -o $@ $<
 
 %.o: %.S
-	$(CPP) $(ASFLAGS) $< $*.tmp
+	$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ $< $*.tmp
 	$(AS) $(ASFLAGS) -o $@ $*.tmp
 	rm -f $*.tmp
 
@@ -162,8 +161,13 @@ ifeq (,$(findstring __DRIVER__,$(CFLAGS)))
 # OBJS-y conditionally linked based on a CONFIG_* variable
 # OBJS-  disabled objects - associated CONFIG_* variable undefined
 
-$(TARGET): $(OBJS) $(OBJS-y)
-	$(LD) $(LDFLAGS) -r -o $@ $^ $(LIBS)
+ifneq (,$(strip $(OBJS) $(OBJS-y)))
+$(TARGET): $(OBJS) $(OBJS-y) $(LIBS)
+	$(LD) $(LDFLAGS) -r -o $@ $^
+else # ensure an object file always exists
+$(TARGET): dummy
+	echo | $(AS) -o $@ -
+endif
 
 ifneq (,$(strip $(OBJS-m)))
 $(error $(OBJS-m) must not be OBJ-m, this is only for drivers)
@@ -214,7 +218,9 @@ $(TARGET): $(OBJS) ar-target
 .PHONY: ar-target
 ar-target: $(OBJS)
 	$(AR) rucs $(TARGET) $?
+ifeq ($(NDEBUG),1)
 	$(STRIP) -x -R .comment -R .note $(TARGET)
+endif
 endif
 
 #
