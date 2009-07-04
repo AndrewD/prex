@@ -144,13 +144,13 @@ setup_image(void)
 	 *  Validate archive image
 	 */
 	magic = (char *)boot_info->archive;
-	if (strncmp(magic, ARMAG, 8))
+	if (strncmp(magic, ARMAG, SARMAG))
 		panic("Invalid OS image");
 
 	/*
 	 * Load kernel image
 	 */
-	hdr = (char *)((u_long)magic + 8);
+	hdr = (char *)((u_long)magic + SARMAG);
 	if (load_image((struct ar_hdr *)hdr, &boot_info->kernel))
 		panic("Can not load kernel");
 
