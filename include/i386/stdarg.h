@@ -43,7 +43,11 @@ typedef void *			va_list;
 
 #elif __GNUC_PREREQ__(2, 96)
 #define va_list			__builtin_va_list
+#if (__GNUC__ >= 4)
+#define	va_start(ap, last)	__builtin_va_start((ap), (last))
+#else
 #define	va_start(ap, last)	__builtin_stdarg_start((ap), (last))
+#endif
 #define	va_arg			__builtin_va_arg
 #define	va_end			__builtin_va_end
 #define	va_copy(dest, src)	__builtin_va_copy((dest), (src))
