@@ -60,11 +60,12 @@ static int fatfs_write	(vnode_t, file_t, void *, size_t, size_t *);
 #define fatfs_fsync	((vnop_fsync_t)vop_nullop)
 static int fatfs_readdir(vnode_t, file_t, struct dirent *);
 static int fatfs_lookup	(vnode_t, char *, vnode_t);
-static int fatfs_create	(vnode_t, char *, mode_t);
+static int fatfs_create	(vnode_t, char *, int, mode_t);
 static int fatfs_remove	(vnode_t, vnode_t, char *);
 static int fatfs_rename	(vnode_t, vnode_t, char *, vnode_t, vnode_t, char *);
 static int fatfs_mkdir	(vnode_t, char *, mode_t);
 static int fatfs_rmdir	(vnode_t, vnode_t, char *);
+#define fatfs_mkfifo	((vnop_mkfifo_t)vop_einval)
 static int fatfs_getattr(vnode_t, struct vattr *);
 static int fatfs_setattr(vnode_t, struct vattr *);
 static int fatfs_inactive(vnode_t);
@@ -88,6 +89,7 @@ struct vnops fatfs_vnops = {
 	fatfs_rename,		/* remame */
 	fatfs_mkdir,		/* mkdir */
 	fatfs_rmdir,		/* rmdir */
+	fatfs_mkfifo,		/* mkfifo */
 	fatfs_getattr,		/* getattr */
 	fatfs_setattr,		/* setattr */
 	fatfs_inactive,		/* inactive */
@@ -239,7 +241,7 @@ fatfs_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	struct fatfs_node *np;
 	struct fat_dirent *de;
 	int nr_copy, nr_write, buf_pos, i, cl_size, err;
-	u_long file_pos, end_pos;
+	off_t file_pos, end_pos;
 	u_long cl;
 
 	DPRINTF(("fatfs_write: vp=%x\n", vp));
@@ -257,7 +259,7 @@ fatfs_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	/* Check if file position exceeds the end of file. */
 	end_pos = vp->v_size;
 	file_pos = (fp->f_flags & O_APPEND) ? end_pos : fp->f_offset;
-	if (file_pos + size > end_pos) {
+	if ((off_t)(file_pos + size) > end_pos) {
 		/* Expand the file size before writing to it */
 		end_pos = file_pos + size;
 		err = fat_expand_file(fmp, vp->v_blkno, end_pos);
@@ -373,7 +375,7 @@ fatfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
  * Create empty file.
  */
 static int
-fatfs_create(vnode_t dvp, char *name, mode_t mode)
+fatfs_create(vnode_t dvp, char *name, int flags, mode_t mode)
 {
 	struct fatfsmount *fmp;
 	struct fatfs_node np;

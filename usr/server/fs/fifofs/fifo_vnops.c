@@ -60,7 +60,7 @@ struct fifo_node {
 	int	fn_readers;	/* reader count */
 	int	fn_writers;	/* writer count */
 	int	fn_start;	/* start offset of buffer data */
-	int	fn_size;	/* siez of buffer data */
+	size_t	fn_size;	/* size of buffer data */
 	char	*fn_buf;	/* pointer to buffer */
 };
 
@@ -70,7 +70,7 @@ struct fifo_node {
 #define fifo_vget	((vfsop_vget_t)vfs_nullop)
 #define fifo_statfs	((vfsop_statfs_t)vfs_nullop)
 
-static int fifo_open	(vnode_t, int);
+static int fifo_open	(vnode_t, int, mode_t);
 static int fifo_close	(vnode_t, file_t);
 static int fifo_read	(vnode_t, file_t, void *, size_t, size_t *);
 static int fifo_write	(vnode_t, file_t, void *, size_t, size_t *);
@@ -79,11 +79,12 @@ static int fifo_ioctl	(vnode_t, file_t, u_long, void *);
 #define fifo_fsync	((vnop_fsync_t)vop_nullop)
 static int fifo_readdir	(vnode_t, file_t, struct dirent *);
 static int fifo_lookup	(vnode_t, char *, vnode_t);
-static int fifo_create	(vnode_t, char *, mode_t);
+static int fifo_create	(vnode_t, char *, int, mode_t);
 static int fifo_remove	(vnode_t, vnode_t, char *);
 #define fifo_rename	((vnop_rename_t)vop_einval)
 #define fifo_mkdir	((vnop_mkdir_t)vop_einval)
 #define fifo_rmdir	((vnop_rmdir_t)vop_einval)
+#define fifo_mkfifo	((vnop_mkfifo_t)vop_einval)
 #define fifo_getattr	((vnop_getattr_t)vop_nullop)
 #define fifo_setattr	((vnop_setattr_t)vop_nullop)
 #define fifo_inactive	((vnop_inactive_t)vop_nullop)
@@ -118,6 +119,7 @@ struct vnops fifofs_vnops = {
 	fifo_rename,		/* remame */
 	fifo_mkdir,		/* mkdir */
 	fifo_rmdir,		/* rmdir */
+	fifo_mkfifo,		/* mkfifo */
 	fifo_getattr,		/* getattr */
 	fifo_setattr,		/* setattr */
 	fifo_inactive,		/* inactive */
@@ -137,7 +139,7 @@ struct vfsops fifofs_vfsops = {
 };
 
 static int
-fifo_open(vnode_t vp, int flags)
+fifo_open(vnode_t vp, int flags, mode_t mode)
 {
 	struct fifo_node *np = vp->v_data;
 
@@ -213,7 +215,7 @@ fifo_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 {
 	struct fifo_node *np = vp->v_data;
 	char *p = buf;
-	int pos, nbytes;
+	size_t pos, nbytes;
 
 	DPRINTF(("fifo_read\n"));
 
@@ -257,7 +259,7 @@ fifo_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 {
 	struct fifo_node *np = vp->v_data;
 	char *p = buf;
-	int pos, nfree, nbytes;
+	size_t pos, nfree, nbytes;
 
 	DPRINTF(("fifo_write\n"));
 
@@ -341,7 +343,7 @@ fifo_lookup(vnode_t dvp, char *name, vnode_t vp)
 }
 
 static int
-fifo_create(vnode_t dvp, char *name, mode_t mode)
+fifo_create(vnode_t dvp, char *name, int flags, mode_t mode)
 {
 	struct fifo_node *np;
 
@@ -461,7 +463,7 @@ wait_reader(vnode_t vp)
 	DPRINTF(("wait_reader: %x\n", np));
 	vn_unlock(vp);
 	mutex_lock(&np->fn_rmtx);
-	cond_wait(&np->fn_rcond, &np->fn_rmtx);
+	cond_wait(&np->fn_rcond, &np->fn_rmtx, 0);
 	mutex_unlock(&np->fn_rmtx);
 	vn_lock(vp);
 }
@@ -483,7 +485,7 @@ wait_writer(vnode_t vp)
 	DPRINTF(("wait_writer: %x\n", np));
 	vn_unlock(vp);
 	mutex_lock(&np->fn_wmtx);
-	cond_wait(&np->fn_wcond, &np->fn_wmtx);
+	cond_wait(&np->fn_wcond, &np->fn_wmtx, 0);
 	mutex_unlock(&np->fn_wmtx);
 	vn_lock(vp);
 }

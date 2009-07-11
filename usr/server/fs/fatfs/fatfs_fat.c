@@ -278,8 +278,8 @@ int
 fat_seek_cluster(struct fatfsmount *fmp, u_long start, u_long offset,
 		 u_long *cl)
 {
-	int err, i;
-	u_long c, target;
+	int err;
+	u_long i, c, target;
 
 	if (start > fmp->last_cluster)
 		return EIO;
