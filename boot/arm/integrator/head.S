@@ -36,13 +36,16 @@
 
 #define ENTRY(x) .global x; .align; x##:
 
-	.section ".text","ax"
+	.section ".start","ax"
 	.code 32
 /*
  * Loader entry point
  */
 ENTRY(boot_entry)
 	b	start_vector
+
+	.section ".text","ax"
+	.code 32
 
 	.align
 	.code 32
