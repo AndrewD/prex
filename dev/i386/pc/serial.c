@@ -86,7 +86,7 @@ static int serial_ioctl(device_t, u_long, void *);
 /*
  * Driver structure
  */
-struct driver serial_drv = {
+struct driver serial_drv __driver_entry = {
 	/* name */	"Serial Console",
 	/* order */	4,
 	/* init */	serial_init,
