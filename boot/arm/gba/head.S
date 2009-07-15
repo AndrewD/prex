@@ -52,7 +52,7 @@
 
 #define ENTRY(x) .global x; .align; x##:
 
-	.section ".text","ax"
+	.section ".start","ax"
 	.code 32
 /*
  * Loader start point
