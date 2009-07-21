@@ -27,9 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/syslog.h>
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 void
@@ -37,7 +36,7 @@ __assert(file, line, failedexpr)
 	const char *file, *failedexpr;
 	int line;
 {
-	(void)fprintf(stderr,
+	syslog(LOG_ERR,
 	    "assertion \"%s\" failed: file \"%s\", line %d\n",
 	    failedexpr, file, line);
 	abort();
