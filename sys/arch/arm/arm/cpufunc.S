@@ -129,5 +129,12 @@ ENTRY(flush_cache)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mov	pc, lr
 
+/*
+ * Data synchronization barrier for MPU INTC on TI OMAP3 SoC
+ */
+ENTRY(mpu_intc_sync)
+	mov r0, #0
+	mcr p15, 0, r0, c7, c10, 4
+	mov	pc, lr
 
 	.end

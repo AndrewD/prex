@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2009, Richard Pandion
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,25 +27,59 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _ARM_MMU_H
-#define _ARM_MMU_H
+/*
+ * diag.c - diagnostic message support
+ */
 
-#ifdef __beagle__
-#define UMEM_MAX	0xC0000000
-#else
-#define UMEM_MAX	0x80000000
+#include <kernel.h>
+#include <syspage.h>
+#include <cpu.h>
+
+#ifdef DEBUG
+
+#ifdef CONFIG_DIAG_SERIAL
+
+#define UART_THR	(*(volatile uint32_t *)(UART_BASE + 0x00))
+#define UART_LSR	(*(volatile uint32_t *)(UART_BASE + 0x14))
+
+/* Flag register */
+#define THRE	0x20	/* Transmit FIFO full */
+
+static void
+serial_putc(int c)
+{
+
+	while ((UART_LSR & THRE) == 0) ;
+	UART_THR = (uint32_t)c;
+}
+#endif /* CONFIG_DIAG_SERIAL */
+
+void
+diag_print(char *buf)
+{
+
+#ifdef CONFIG_DIAG_SERIAL
+	while (*buf) {
+		if (*buf == '\n')
+			serial_putc('\r');
+		serial_putc(*buf);
+		++buf;
+	}
 #endif
+}
 
+#endif /* DEBUG */
+
+/*
+ * Init
+ */
+void
+diag_init(void)
+{
+
+#ifdef CONFIG_DIAG_SERIAL
 #ifdef CONFIG_MMU
-#define PAGE_OFFSET	0x80000000
-#else
-#define PAGE_OFFSET	0x00000000
+	mmu_premap((void *)0x49020000, (void *)UART_BASE);
 #endif
-
-#ifndef __ASSEMBLY__
-
-/* page directory */
-typedef uint32_t	*pgd_t;
-
-#endif /* __ASSEMBLY__ */
-#endif /* !_ARM_MMU_H */
+#endif
+}

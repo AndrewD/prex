@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2009, Richard Pandion
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,25 +27,114 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _ARM_MMU_H
-#define _ARM_MMU_H
+/*
+ * machdep.c - machine-dependent routines for Beagle Board
+ */
 
-#ifdef __beagle__
-#define UMEM_MAX	0xC0000000
-#else
-#define UMEM_MAX	0x80000000
-#endif
+#include <kernel.h>
+#include <cpu.h>
+#include <page.h>
+#include <syspage.h>
+#include <locore.h>
+#include <cpufunc.h>
+#include <irq.h>
+
+/* System control reg */
+#define PRM_RSTCTRL	(*(volatile uint32_t *)(0x48307250))
+#define SOFTRESET	0x02
 
 #ifdef CONFIG_MMU
-#define PAGE_OFFSET	0x80000000
-#else
-#define PAGE_OFFSET	0x00000000
+/*
+ * Virtual and physical address mapping
+ *
+ *      { virtual, physical, size, type }
+ */
+struct mmumap mmumap_table[] =
+{
+	/*
+	 * Q0 : GPMC (1 GB)
+	 */
+	{ 0x00000000, 0x00000000, 0x40000000, VMT_IO },
+
+	/*
+	 * Q1 : Boot-Rom, SRAM, Peripherals... (1.768 GB)
+	 */
+	{ 0x40000000, 0x00000000, 0x30000000, VMT_IO },
+
+	/*
+	 * Q2: SDRAM (1 GB)
+	 */
+	{ 0x80000000, 0x80000000, 0x40000000, VMT_RAM },
+
+	{ 0,0,0,0 }
+};
 #endif
 
-#ifndef __ASSEMBLY__
+/*
+ * Reset system.
+ */
+void
+machine_reset(void)
+{
 
-/* page directory */
-typedef uint32_t	*pgd_t;
+	PRM_RSTCTRL = SOFTRESET;
 
-#endif /* __ASSEMBLY__ */
-#endif /* !_ARM_MMU_H */
+	for (;;) ;
+	/* NOTREACHED */
+}
+
+/*
+ * Idle
+ */
+void
+machine_idle(void)
+{
+
+	cpu_idle();
+}
+
+/*
+ * Set system power
+ */
+void
+machine_setpower(int state)
+{
+
+	irq_lock();
+#ifdef DEBUG
+	printf("The system is halted. You can turn off power.");
+#endif
+	for (;;)
+		machine_idle();
+}
+
+/*
+ * Machine-dependent startup code
+ */
+void
+machine_init(void)
+{
+
+	/*
+	 * Initialize CPU and basic hardware.
+	 */
+	cpu_init();
+	cache_init();
+
+	/*
+	 * Reserve system pages.
+	 */
+	page_reserve(virt_to_phys(SYSPAGE_BASE), SYSPAGE_SIZE);
+
+	/*
+	 * Setup vector page.
+	 */
+	vector_copy((vaddr_t)phys_to_virt(ARM_VECTORS));
+
+#ifdef CONFIG_MMU
+	/*
+	 * Initialize MMU
+	 */
+	mmu_init(mmumap_table);
+#endif
+}

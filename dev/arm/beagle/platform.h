@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+/*
+ * Copyright (c) 2009, Richard Pandion
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,25 +27,16 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _ARM_MMU_H
-#define _ARM_MMU_H
+#ifndef _BEAGLE_PLATFORM_H
+#define _BEAGLE_PLATFORM_H
 
-#ifdef __beagle__
-#define UMEM_MAX	0xC0000000
-#else
-#define UMEM_MAX	0x80000000
-#endif
+#define L4_Per		0x49000000
+#define L4_Core		0x48000000
 
-#ifdef CONFIG_MMU
-#define PAGE_OFFSET	0x80000000
-#else
-#define PAGE_OFFSET	0x00000000
-#endif
+#define L4_UART3	(L4_Per  + 0x20000)
+#define L4_MPU_INTC	(L4_Core + 0x200000)
 
-#ifndef __ASSEMBLY__
+#define UART_BASE	L4_UART3
+#define MPU_INTC_BASE	L4_MPU_INTC
 
-/* page directory */
-typedef uint32_t	*pgd_t;
-
-#endif /* __ASSEMBLY__ */
-#endif /* !_ARM_MMU_H */
+#endif /* !_BEAGLE_PLATFORM_H */

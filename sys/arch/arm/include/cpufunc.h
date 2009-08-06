@@ -39,6 +39,7 @@ void	set_ttb(paddr_t ttb);
 void	switch_ttb(paddr_t ttb);
 void	flush_tlb(void);
 void	flush_cache(void);
+void	mpu_intc_sync(void);
 __END_DECLS
 
 #endif /* !_ARM_CPUFUNC_H */

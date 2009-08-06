@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+/*
+ * Copyright (c) 2009, Richard Pandion
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,25 +27,30 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _ARM_MMU_H
-#define _ARM_MMU_H
+#ifndef _BEAGLE_PLATFORM_H
+#define _BEAGLE_PLATFORM_H
 
-#ifdef __beagle__
-#define UMEM_MAX	0xC0000000
-#else
-#define UMEM_MAX	0x80000000
-#endif
+/* vector relocation target                      */
+/* shadowed in internal SRAM on the Beagle Board */
+#define ARM_VECTORS	0x4020FFC8
 
-#ifdef CONFIG_MMU
-#define PAGE_OFFSET	0x80000000
-#else
-#define PAGE_OFFSET	0x00000000
-#endif
+/* base address of user stack */
+#define USTACK_BASE	(0 + PAGE_SIZE)
 
-#ifndef __ASSEMBLY__
+/* number of interrupt vectors */
+#define NIRQS		96
 
-/* page directory */
-typedef uint32_t	*pgd_t;
+/* base address for L4 Peripherals registers */
+#define L4_Per		0x49000000
+/* base address for L4 Core registers */
+#define L4_Core		0x48000000
 
-#endif /* __ASSEMBLY__ */
-#endif /* !_ARM_MMU_H */
+#define L4_UART3	(L4_Per  + 0x20000)
+#define L4_GPTIMER2	(L4_Per  + 0x32000)
+#define L4_MPU_INTC	(L4_Core + 0x200000)
+
+#define UART_BASE	L4_UART3
+#define TIMER_BASE	L4_GPTIMER2
+#define MPU_INTC_BASE	L4_MPU_INTC
+
+#endif /* !_BEAGLE_PLATFORM_H */
