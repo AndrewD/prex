@@ -6,6 +6,7 @@
 # Memory configuration
 #
 memory		PAGE_OFFSET	0x80000000
+memory		UMEM_MAX	0x80000000
 memory		LOADER_BASE	0x00010000
 memory		KERNEL_BASE	0x80080000
 memory		DRIVER_BASE	AUTODETECT

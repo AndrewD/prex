@@ -30,12 +30,6 @@
 #ifndef _ARM_MMU_H
 #define _ARM_MMU_H
 
-#ifdef __beagle__
-#define UMEM_MAX	0xC0000000
-#else
-#define UMEM_MAX	0x80000000
-#endif
-
 #ifndef __ASSEMBLY__
 
 /* page directory */

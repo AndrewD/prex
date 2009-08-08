@@ -30,8 +30,6 @@
 #ifndef _I386_MMU_H
 #define _I386_MMU_H
 
-#define UMEM_MAX	0x80000000
-
 #ifndef __ASSEMBLY__
 
 /* page directory */
