@@ -35,6 +35,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <verbose.h>
 
 #define PROGNAME	"/boot/cmdbox"
 
@@ -65,7 +67,8 @@ main(int argc, char *argv[])
 		signal(SIGINT, SIG_DFL);
 		signal(SIGALRM, SIG_DFL);
 
-      		open("/dev/console", O_RDWR);	/* stdin */
+		if (open("/dev/console", O_RDWR) < 0) /* stdin */
+			VERBOSE(VB_CRIT, "console: %s", strerror(errno));
 		dup(0);				/* stdout */
 		dup(0);				/* stderr */
 
