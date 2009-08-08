@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2008, Kohsuke Ohtani
+/*
+ * Copyright (c) 2009, Richard Pandion
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,53 +27,16 @@
  * SUCH DAMAGE.
  */
 
-/*
- * head.S - low level platform support
- */
+#ifndef _BEAGLE_PLATFORM_H
+#define _BEAGLE_PLATFORM_H
 
-#include <conf/config.h>
-#include <syspage.h>
+#define L4_Per		0x49000000
+#define L4_Core		0x48000000
 
-#define ENTRY(x) .global x; .align; x##:
+#define L4_UART3	(L4_Per  + 0x20000)
+#define L4_MPU_INTC	(L4_Core + 0x200000)
 
-	.section ".start","ax"
-	.code 32
-/*
- * Loader entry point
- */
-ENTRY(boot_entry)
-	b	start_vector
+#define UART_BASE	L4_UART3
+#define MPU_INTC_BASE	L4_MPU_INTC
 
-	.section ".text","ax"
-	.code 32
-
-	.align
-	.code 32
-stack_end:	.word	(BOOT_STACKTOP - PAGE_OFFSET)
-
-start_vector:
-	mov	r0, #0xd3		/* Enter SVC mode, Disable IRQ,FIQ */
-	msr	cpsr_c, r0
-	ldr	sp, stack_end
-
-	adr	r0, thumb_mode + 1
-	bx	r0
-	.code 16
-thumb_mode:
-
-	ldr	r0, =loader_main
-	bx	r0		/* Change to ARM mode */
-
-	.code 32
-
-/*
- * Start kernel
- */
-ENTRY(start_kernel)
-	bx	r0
-
-	.section .tail,"ax"
-dummy:
-	.byte	0xff
-
-.end
+#endif /* !_BEAGLE_PLATFORM_H */

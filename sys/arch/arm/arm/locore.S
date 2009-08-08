@@ -60,7 +60,7 @@ vector_start:
 	ldr	pc, swi_target		/* 0x08 mode: svc */
 	ldr	pc, prefetch_target	/* 0x0c mode: abort */
 	ldr	pc, abort_target	/* 0x10 mode: abort */
-	nop				/* 0x14 reserved */
+	ldr	pc, unused_target	/* 0x14 unused */
 	ldr	pc, irq_target		/* 0x18 mode: irq */
 	ldr	pc, fiq_target		/* 0x1c mode: fiq */
 
@@ -69,6 +69,7 @@ undefined_target:	.word	undefined_entry
 swi_target:		.word	syscall_entry
 prefetch_target:	.word	prefetch_entry
 abort_target:		.word	abort_entry
+unused_target:		.word	unused_entry
 irq_target:		.word	interrupt_entry
 fiq_target:		.word	fiq_entry
 
@@ -208,6 +209,9 @@ reload_pc:
  */
 ENTRY(vector_copy)
 	ldr	r1, =vector_start
+#ifdef __beagle__
+	add r1, r1, #4	/* skip reset vector */
+#endif
 	ldr	r2, =vector_end
 copy_loop:
 	ldmia	r1!, {r3}
@@ -405,6 +409,9 @@ ENTRY(trap_common)
 	ldmfd	r5, {r0-r14}^		/* Restore user mode registers */
 	nop				/* Instruction gap for ldm^ */
 	movs	pc, lr			/* Exit, with restoring cpsr */
+
+ENTRY(unused_entry)
+	b	unused_entry		/* Not support... */
 
 ENTRY(fiq_entry)
 	b	fiq_entry		/* Not support... */

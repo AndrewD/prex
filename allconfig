@@ -11,13 +11,15 @@ base=$1
 shift
 
 # configure arm targets
-targets="arm-gba arm-integrator arm-integrator-nommu"
+targets="arm-gba arm-integrator arm-integrator-nommu arm-beagle"
 ./configure --build=$base/arm-gba --target=arm-gba \
     --cross-compile=arm-elf- $* || exit 1
 ./configure --build=$base/arm-integrator --target=arm-integrator \
     --cross-compile=arm-elf- $* || exit 1
 ./configure --build=$base/arm-integrator-nommu --target=arm-integrator \
     --cross-compile=arm-elf- --profile=nommu $* || exit 1
+./configure --build=$base/arm-beagle --target=arm-beagle \
+    --cross-compile=arm-elf- $* || exit 1
 
 # configure i386 targets
 targets="$targets i386-pc i386-pc-tiny"

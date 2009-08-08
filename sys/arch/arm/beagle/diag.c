@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2009, Richard Pandion
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,19 +27,59 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _ARM_CPUFUNC_H
-#define _ARM_CPUFUNC_H
+/*
+ * diag.c - diagnostic message support
+ */
 
-#include <sys/cdefs.h>
+#include <kernel.h>
+#include <syspage.h>
+#include <cpu.h>
 
-__BEGIN_DECLS
-void	cpu_idle(void);
-paddr_t	get_ttb(void);
-void	set_ttb(paddr_t ttb);
-void	switch_ttb(paddr_t ttb);
-void	flush_tlb(void);
-void	flush_cache(void);
-void	mpu_intc_sync(void);
-__END_DECLS
+#ifdef DEBUG
 
-#endif /* !_ARM_CPUFUNC_H */
+#ifdef CONFIG_DIAG_SERIAL
+
+#define UART_THR	(*(volatile uint32_t *)(UART_BASE + 0x00))
+#define UART_LSR	(*(volatile uint32_t *)(UART_BASE + 0x14))
+
+/* Flag register */
+#define THRE	0x20	/* Transmit FIFO full */
+
+static void
+serial_putc(int c)
+{
+
+	while ((UART_LSR & THRE) == 0) ;
+	UART_THR = (uint32_t)c;
+}
+#endif /* CONFIG_DIAG_SERIAL */
+
+void
+diag_print(char *buf)
+{
+
+#ifdef CONFIG_DIAG_SERIAL
+	while (*buf) {
+		if (*buf == '\n')
+			serial_putc('\r');
+		serial_putc(*buf);
+		++buf;
+	}
+#endif
+}
+
+#endif /* DEBUG */
+
+/*
+ * Init
+ */
+void
+diag_init(void)
+{
+
+#ifdef CONFIG_DIAG_SERIAL
+#ifdef CONFIG_MMU
+	mmu_premap((void *)0x49020000, (void *)UART_BASE);
+#endif
+#endif
+}

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,19 +27,50 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _ARM_CPUFUNC_H
-#define _ARM_CPUFUNC_H
+/*
+ * head.S - low level platform support
+ */
 
-#include <sys/cdefs.h>
+#include <conf/config.h>
+#include <syspage.h>
 
-__BEGIN_DECLS
-void	cpu_idle(void);
-paddr_t	get_ttb(void);
-void	set_ttb(paddr_t ttb);
-void	switch_ttb(paddr_t ttb);
-void	flush_tlb(void);
-void	flush_cache(void);
-void	mpu_intc_sync(void);
-__END_DECLS
+#define ENTRY(x) .global x; .align; x##:
 
-#endif /* !_ARM_CPUFUNC_H */
+	.section ".start","ax"
+	.code 32
+/*
+ * Loader entry point
+ */
+ENTRY(boot_entry)
+	b	start_vector
+
+	.align
+	.code 32
+stack_end:	.word	(BOOT_STACKTOP - PAGE_OFFSET)
+
+start_vector:
+	mov	r0, #0xd3		/* Enter SVC mode, Disable IRQ,FIQ */
+	msr	cpsr_c, r0
+	ldr	sp, stack_end
+
+	adr	r0, thumb_mode + 1
+	bx	r0
+	.code 16
+thumb_mode:
+
+	ldr	r0, =loader_main
+	bx	r0		/* Change to ARM mode */
+
+	.code 32
+
+/*
+ * Start kernel
+ */
+ENTRY(start_kernel)
+	bx	r0
+
+	.section .tail,"ax"
+dummy:
+	.byte	0xff
+
+.end

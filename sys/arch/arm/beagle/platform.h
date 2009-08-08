@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+/*
+ * Copyright (c) 2009, Richard Pandion
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,19 +27,30 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _ARM_CPUFUNC_H
-#define _ARM_CPUFUNC_H
+#ifndef _BEAGLE_PLATFORM_H
+#define _BEAGLE_PLATFORM_H
 
-#include <sys/cdefs.h>
+/* vector relocation target                      */
+/* shadowed in internal SRAM on the Beagle Board */
+#define ARM_VECTORS	0x4020FFC8
 
-__BEGIN_DECLS
-void	cpu_idle(void);
-paddr_t	get_ttb(void);
-void	set_ttb(paddr_t ttb);
-void	switch_ttb(paddr_t ttb);
-void	flush_tlb(void);
-void	flush_cache(void);
-void	mpu_intc_sync(void);
-__END_DECLS
+/* base address of user stack */
+#define USTACK_BASE	(0 + PAGE_SIZE)
 
-#endif /* !_ARM_CPUFUNC_H */
+/* number of interrupt vectors */
+#define NIRQS		96
+
+/* base address for L4 Peripherals registers */
+#define L4_Per		0x49000000
+/* base address for L4 Core registers */
+#define L4_Core		0x48000000
+
+#define L4_UART3	(L4_Per  + 0x20000)
+#define L4_GPTIMER2	(L4_Per  + 0x32000)
+#define L4_MPU_INTC	(L4_Core + 0x200000)
+
+#define UART_BASE	L4_UART3
+#define TIMER_BASE	L4_GPTIMER2
+#define MPU_INTC_BASE	L4_MPU_INTC
+
+#endif /* !_BEAGLE_PLATFORM_H */
