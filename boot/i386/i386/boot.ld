@@ -7,6 +7,7 @@ SECTIONS {
 	. = LOADER_BASE ;
 
 	.text . : {
+		*(.start)
 		*(.text)
 	}
 	.rodata . : {

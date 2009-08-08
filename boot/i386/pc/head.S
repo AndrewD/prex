@@ -42,7 +42,7 @@
 
 #define ENTRY(x) .global x; .align; x##:
 
-	.text
+	.section ".start","ax"
 	.code16
 
 /*
