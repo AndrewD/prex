@@ -26,6 +26,7 @@ Usage: configure [options]
     --profile=PROFILE       Target profile
     --cross-compile=PREFIX  Prefix for cros-compile tools
     --build=DIR             Build directory
+    --src=DIR               Source directory
     --no-debug              Disable all debug code
 
 USAGE
@@ -90,6 +91,9 @@ parseargs()
 			;;
 		--build)
 			builddir=$optarg
+			;;
+		--src)
+			srcdir=$optarg
 			;;
 		--no-debug)
 			nodebug=1
