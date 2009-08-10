@@ -58,8 +58,6 @@ OBJCOPY=	$(CROSS_COMPILE)objcopy
 OBJDUMP=	$(CROSS_COMPILE)objdump
 STRIP=		$(CROSS_COMPILE)strip
 LINT=		splint
-MAKE=		make
-#SHELL=		/bin/sh
 ifdef SHELL_PATH
 SHELL=		$(SHELL_PATH)
 endif
@@ -189,7 +187,7 @@ endif
 .PHONY: $(SUBDIR)
 $(SUBDIR):
 	mkdir -p $(BUILDDIR)$(RELDIR)/$@
-	RELDIR=$(RELDIR)/$@ $(MAKE) -C $@ $(MAKECMDGOALS)
+	RELDIR=$(RELDIR)/$@ "$(MAKE)" -C $@ $(MAKECMDGOALS)
 
 #
 # Rules to link a set of .o files into one .o file
