@@ -121,18 +121,22 @@ gettarget()
 		;;
 	esac
 
+	if [ "x$cross" = x ] ; then
 	host_name=`uname -s`
-	case $host_name in
-	CYGWIN*)
-		case $arch in
-		i386)    cross="i386-elf-" ;;
-		arm)     cross="arm-elf-" ;;
-		ppc)     cross="powerpc-eabi-" ;;
-		sh)      cross="sh-elf-" ;;
-		mips)    cross="mips-elf-" ;;
+		case $host_name in
+		Prex*)
+			;;
+		*)
+			case $arch in
+			i386)    cross="i386-elf-" ;;
+			arm)     cross="arm-elf-" ;;
+			ppc)     cross="powerpc-eabi-" ;;
+			sh)      cross="sh-elf-" ;;
+			mips)    cross="mips-elf-" ;;
+			esac
+			;;
 		esac
-		;;
-	esac
+	fi
 	cc="${cross}gcc"
 }
 
