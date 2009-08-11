@@ -45,9 +45,7 @@
  * Kernel start point
  */
 ENTRY(kernel_start)
-#ifdef CONFIG_MMU
 	b	reset_entry		/* Relative jump */
-#endif
 vector_start:
 	/*
 	 * Exception vector
@@ -55,7 +53,9 @@ vector_start:
 	 * This table will be copied to an appropriate location.
 	 * (the location is platform specific.)
 	 */
+#ifndef __beagle__
 	ldr	pc, reset_target	/* 0x00 mode: svc */
+#endif	/* !__beagle__ */
 	ldr	pc, undefined_target	/* 0x04 mode: ? */
 	ldr	pc, swi_target		/* 0x08 mode: svc */
 	ldr	pc, prefetch_target	/* 0x0c mode: abort */
@@ -64,7 +64,9 @@ vector_start:
 	ldr	pc, irq_target		/* 0x18 mode: irq */
 	ldr	pc, fiq_target		/* 0x1c mode: fiq */
 
+#ifndef __beagle__
 reset_target:		.word	reset_entry
+#endif	/* !__beagle__ */
 undefined_target:	.word	undefined_entry
 swi_target:		.word	syscall_entry
 prefetch_target:	.word	prefetch_entry
@@ -209,9 +211,6 @@ reload_pc:
  */
 ENTRY(vector_copy)
 	ldr	r1, =vector_start
-#ifdef __beagle__
-	add r1, r1, #4	/* skip reset vector */
-#endif
 	ldr	r2, =vector_end
 copy_loop:
 	ldmia	r1!, {r3}
