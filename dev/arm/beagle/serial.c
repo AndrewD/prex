@@ -154,7 +154,7 @@ static int serial_init(void);
 /*
  * Driver structure
  */
-struct driver serial_drv = {
+struct driver serial_drv __driver_entry = {
 	/* name */	"Serial Console",
 	/* order */	4,
 	/* init */	serial_init,
