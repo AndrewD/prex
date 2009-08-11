@@ -206,7 +206,7 @@ $(BTARGET): $(BOBJS) $(BOBJS-y) $(BLIBS)
 	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS) $(BOBJS-y)) $(BLIBS)
 else # ensure an object file always exists
 $(BTARGET):
-	echo | $(AS) -o $@ -
+	echo | $(AS) -o $@
 endif
 
 ifneq (,$(strip $(BOBJS-m)))
@@ -235,7 +235,7 @@ $(BTARGET): $(BOBJS-y) $(BLIBS-y)
 	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS-y)) $(BLIBS-y)
 else # ensure an object file always exists
 $(BTARGET):
-	echo | $(AS) -o $@ -
+	echo | $(AS) -o $@
 endif
 
 # modular driver objects
@@ -244,7 +244,7 @@ $(BTARGET:.o=.mo): $(BOBJS-m)
 	$(LD) $(LDFLAGS) -r -o $@ $(sort $(BOBJS-m))
 else
 $(BTARGET:.o=.mo):
-	echo | $(AS) -o $@ -
+	echo | $(AS) -o $@
 endif
 
 endif # driver objects
