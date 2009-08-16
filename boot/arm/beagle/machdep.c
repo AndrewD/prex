@@ -29,6 +29,10 @@
 
 #include <boot.h>
 
+#define SDRC_BASE	0x6D000000
+#define SDRC_MCFG_0	(*(volatile uint32_t *)(SDRC_BASE + 0x80))
+#define SDRC_MCFG_1	(*(volatile uint32_t *)(SDRC_BASE + 0xB0))
+
 #define L4_Per		0x49000000
 #define L4_UART3	(L4_Per  + 0x20000)
 #define UART_BASE	L4_UART3
@@ -66,24 +70,44 @@
 static void
 bootinfo_setup(void)
 {
+	uint32_t size0 = 0, size1 = 0;
 
 	bootinfo->video.text_x = 80;
 	bootinfo->video.text_y = 25;
 
 	/*
-	 * SDRAM - 128 MB
+	 * SDRAM - Autodetect
+	 * Should be 128 MB on RevA/B and 256MB on RevC
 	 */
 
+	size0 = SDRC_MCFG_0 >> 8;
+	size0 &= 0x3FF;		/* get bank size in 2-MB chunks */
+	size0 *= 0x200000;	/* compute size */
+	size1 = SDRC_MCFG_1 >> 8;
+	size1 &= 0x3FF;		/* get bank size in 2-MB chunks */
+	size1 *= 0x200000;	/* compute size */
+
 	bootinfo->ram[0].base = 0x80000000;
-	bootinfo->ram[0].size = 0x8000000;
+	bootinfo->ram[0].size = size0;
 	bootinfo->ram[0].type = MT_USABLE;
-	bootinfo->nr_rams = 1;
+	if (size1 > 0) {
+		/*
+		 * Normally, we are started from U-Boot and
+		 * it should have made memory banks contiguous...
+		 */
+		bootinfo->ram[1].base = 0x80000000 + size0;
+		bootinfo->ram[1].size = size1;
+		bootinfo->ram[1].type = MT_USABLE;
+		bootinfo->nr_rams = 2;
+	} else {
+		bootinfo->nr_rams = 1;
+	}
 }
 
 #ifdef DEBUG
 #ifdef CONFIG_DIAG_SERIAL
 /*
- * Put chracter to serial port
+ * Put character to serial port
  */
 static void
 serial_putc(int c)
