@@ -78,52 +78,90 @@
 
 #define FAT12_MASK	0x00000fff
 #define FAT16_MASK	0x0000ffff
+#define FAT32_MASK	0x0fffffff
 
 
 /*
  * BIOS parameter block
  */
 struct fat_bpb {
-	uint16_t	jmp_instruction;
-	uint8_t		nop_instruction;
-	uint8_t		oem_id[8];
-	uint16_t	bytes_per_sector;
-	uint8_t		sectors_per_cluster;
-	uint16_t	reserved_sectors;
-	uint8_t		num_of_fats;
-	uint16_t	root_entries;
-	uint16_t	total_sectors;
-	uint8_t		media_descriptor;
-	uint16_t	sectors_per_fat;
-	uint16_t	sectors_per_track;
-	uint16_t	heads;
-	uint32_t	hidden_sectors;
-	uint32_t	big_total_sectors;
-	uint8_t		physical_drive;
-	uint8_t		reserved;
-	uint8_t		ext_boot_signature;
-	uint32_t	serial_no;
-	uint8_t		volume_id[11];
-	uint8_t		file_sys_id[8];
+	uint16_t	jmp_instruction;	/* 0 ~ 1 	: 0x00 ~ 0x01	*/
+	uint8_t		nop_instruction;	/* 2 		: 0x02		*/
+	uint8_t		oem_id[8];		/* 3 ~ 10 	: 0x03 ~ 0x0A	*/
+	uint16_t	bytes_per_sector;	/* 11 ~ 12 	: 0x0B ~ 0x0C	*/
+	uint8_t		sectors_per_cluster;	/* 13 		: 0x0D		*/
+	uint16_t	reserved_sectors;	/* 14 ~ 15 	: 0x0E ~ 0x0F	*/
+	uint8_t		num_of_fats;		/* 16 		: 0x10		*/
+	uint16_t	root_entries;		/* 17 ~ 18 	: 0x11 ~ 0x12	*/
+	uint16_t	total_sectors;		/* 19 ~ 20 	: 0x13 ~ 0x14	*/
+	uint8_t		media_descriptor;	/* 21 		: 0x15		*/
+	uint16_t	sectors_per_fat;	/* 22 ~ 23 	: 0x16 ~ 0x17	*/
+	uint16_t	sectors_per_track;	/* 24 ~ 25 	: 0x18 ~ 0x19	*/
+	uint16_t	heads;			/* 26 ~ 27 	: 0x1A ~ 0x1B	*/
+	uint32_t	hidden_sectors;		/* 28 ~ 31 	: 0x1C ~ 0x1F	*/
+	uint32_t	big_total_sectors;	/* 32 ~ 35 	: 0x20 ~ 0x23	*/
+	uint8_t		physical_drive;		/* 36 		: 0x24		*/
+	uint8_t		reserved;		/* 37 		: 0x25		*/
+	uint8_t		ext_boot_signature;	/* 38 		: 0x26		*/
+	uint32_t	serial_no;		/* 39 ~ 42 	: 0x27 ~ 0x2A	*/
+	uint8_t		volume_id[11];		/* 43 ~ 53 	: 0x2B ~ 0x35	*/
+	uint8_t		file_sys_id[8];		/* 54 ~ 61 	: 0x36 ~ 0x3D	*/
+} __packed;
+
+struct fat32_bpb {
+	uint16_t	jmp_instruction;	/* 0 ~ 1 	: 0x00 ~ 0x01	*/
+	uint8_t		nop_instruction;	/* 2 		: 0x02		*/
+	uint8_t		oem_id[8];		/* 3 ~ 10 	: 0x03 ~ 0x0A	*/
+	uint16_t	bytes_per_sector;	/* 11 ~ 12 	: 0x0B ~ 0x0C	*/
+	uint8_t		sectors_per_cluster;	/* 13 		: 0x0D		*/
+	uint16_t	reserved_sectors;	/* 14 ~ 15 	: 0x0E ~ 0x0F	*/
+	uint8_t		num_of_fats;		/* 16 		: 0x10		*/
+	uint16_t	root_entries;		/* 17 ~ 18 	: 0x11 ~ 0x12	*/
+	uint16_t	total_sectors;		/* 19 ~ 20 	: 0x13 ~ 0x14	*/
+	uint8_t		media_descriptor;	/* 21 		: 0x15		*/
+	uint16_t	sectors_per_fat;	/* 22 ~ 23 	: 0x16 ~ 0x17	*/
+	uint16_t	sectors_per_track;	/* 24 ~ 25 	: 0x18 ~ 0x19	*/
+	uint16_t	heads;			/* 26 ~ 27 	: 0x1A ~ 0x1B	*/
+	uint32_t	hidden_sectors;		/* 28 ~ 31 	: 0x1C ~ 0x1F	*/
+	uint32_t	big_total_sectors;	/* 32 ~ 35 	: 0x20 ~ 0x23	*/
+	uint32_t	sectors_per_fat32;	/* 36 ~ 39 	: 0x24 ~ 0x27	*/
+	uint16_t	multi_fat32;		/* 40 ~ 41 	: 0x28 ~ 0x29	*/
+	uint16_t	version;		/* 42 ~ 43 	: 0x2A ~ 0x2B	*/
+	uint32_t	root_clust;		/* 44 ~ 47 	: 0x2C ~ 0x2F	*/
+	uint16_t	fsinfo;			/* 48 ~ 49 	: 0x30 ~ 0x31	*/
+	uint16_t	backup;			/* 50 ~ 51 	: 0x32 ~ 0x33	*/
+	uint8_t		reserved[12];		/* 52 ~ 63 	: 0x34 ~ 0x3F	*/
+	uint8_t		physical_drive;		/* 64 		: 0x40		*/
+	uint8_t		unused;			/* 65 		: 0x41		*/
+	uint8_t		ext_boot_signature;	/* 66 		: 0x42		*/
+	uint32_t	serial_no;		/* 67 ~ 70 	: 0x43 ~ 0x44	*/
+	uint8_t		volume_id[11];		/* 71 ~ 81 	: 0x45 ~ 0x51	*/
+	uint8_t		file_sys_id[8];		/* 82 ~ 89 	: 0x52 ~ 0x59	*/
 } __packed;
 
 /*
  * FAT directory entry
  */
 struct fat_dirent {
-	uint8_t		name[11];
-	uint8_t		attr;
-	uint8_t		reserve[10];
-	uint16_t	time;
-	uint16_t	date;
-	uint16_t	cluster;
-	uint32_t	size;
+	uint8_t		name[11];		/* 0 - 10 	: 0x00 ~ 0x0A	*/
+	uint8_t		attr;			/* 11 		: 0x0B		*/
+	uint8_t		reserve;		/* 12 		: 0x0C		*/
+	uint8_t		ctime_sec;		/* 13 		: 0x0D		*/
+	uint16_t	ctime_hms;		/* 14 ~ 15 	: 0x0E ~ 0x0F	*/
+	uint16_t	cday;			/* 16 ~ 17 	: 0x10 ~ 0x11	*/
+	uint16_t	aday;			/* 18 ~ 19 	: 0x12 ~ 0x13	*/
+	uint16_t	cluster_hi;		/* 20 ~ 21 	: 0x14 ~ 0x15	*/
+	uint16_t	time;			/* 22 ~ 23 	: 0x16 ~ 0x17	*/
+	uint16_t	date;			/* 24 ~ 25 	: 0x18 ~ 0x19	*/
+	uint16_t	cluster;		/* 26 ~ 27 	: 0x1A ~ 0x1B	*/
+	uint32_t	size;			/* 28 ~ 31 	: 0x1C ~ 0x1F	*/
 } __packed;
 
 #define SLOT_EMPTY	0x00
 #define SLOT_DELETED	0xe5
 
 #define DIR_PER_SEC     (SEC_SIZE / sizeof(struct fat_dirent))
+#define FAT_VALID_MEDIA(x) ((0xF8 <= (x) && (x) <= 0xFF) || (x) == 0xF0)
 
 /*
  * FAT attribute for attr
@@ -169,6 +207,9 @@ struct fatfsmount {
 
 #define FAT12(fat)	((fat)->fat_type == 12)
 #define FAT16(fat)	((fat)->fat_type == 16)
+#define FAT32(fat)	((fat)->fat_type == 32)
+
+#define MBR_TABLE	446
 
 #define IS_EOFCL(fat, cl) \
 	(((cl) & EOF_MASK) == ((fat)->fat_mask & EOF_MASK))
@@ -186,7 +227,7 @@ extern struct vnops fatfs_vnops;
 
 /* Macro to convert cluster# to logical sector# */
 #define cl_to_sec(fat, cl) \
-            (fat->data_start + (cl - 2) * fat->sec_per_cl)
+	(fat->data_start + (cl - 2) * fat->sec_per_cl)
 
 __BEGIN_DECLS
 int	 fat_next_cluster(struct fatfsmount *fmp, u_long cl, u_long *next);

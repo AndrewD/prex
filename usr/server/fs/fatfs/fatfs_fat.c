@@ -49,9 +49,11 @@ read_fat_entry(struct fatfsmount *fmp, u_long cl)
 	struct buf *bp;
 
 	/* Get the sector number in FAT entry. */
-	if (FAT16(fmp))
+	if (FAT32(fmp)) {
+		sec = (cl * 4) / SEC_SIZE;
+	} else if (FAT16(fmp)) {
 		sec = (cl * 2) / SEC_SIZE;
-	else {
+	} else {
 		sec = (cl * 3 / 2) / SEC_SIZE;
 		/*
 		 * Check if the entry data is placed at the
@@ -92,9 +94,11 @@ write_fat_entry(struct fatfsmount *fmp, u_long cl)
 	struct buf *bp;
 
 	/* Get the sector number in FAT entry. */
-	if (FAT16(fmp))
+	if (FAT32(fmp)) {
+		sec = (cl * 4) / SEC_SIZE;
+	} else if (FAT16(fmp)) {
 		sec = (cl * 2) / SEC_SIZE;
-	else {
+	} else {
 		sec = (cl * 3 / 2) / SEC_SIZE;
 		/* Check if border entry for FAT12 */
 		if ((cl * 3 / 2) % SEC_SIZE == SEC_SIZE - 1)
@@ -128,7 +132,7 @@ int
 fat_next_cluster(struct fatfsmount *fmp, u_long cl, u_long *next)
 {
 	u_int offset;
-	uint16_t val;
+	uint32_t val;
 	int err;
 
 	/* Read FAT entry */
@@ -137,23 +141,28 @@ fat_next_cluster(struct fatfsmount *fmp, u_long cl, u_long *next)
 		return err;
 
 	/* Get offset in buffer. */
-	if (FAT16(fmp))
-		offset = (cl * 2) % SEC_SIZE;
-	else
-		offset = (cl * 3 / 2) % SEC_SIZE;
-
-	/* Pick up cluster# */
-	val = *((uint16_t *)(fmp->fat_buf + offset));
-
-	/* Adjust data for FAT12 entry */
-	if (FAT12(fmp)) {
-		if (cl & 1)
-			val >>= 4;
+	if (FAT32(fmp)) {
+		offset = (cl * 4) % SEC_SIZE;
+		val = *((uint32_t *)(fmp->fat_buf + offset));
+		*next = (u_long)val;
+	} else {
+		if (FAT16(fmp))
+			offset = (cl * 2) % SEC_SIZE;
 		else
-			val &= 0xfff;
+			offset = (cl * 3 / 2) % SEC_SIZE;
+
+		val = *((uint16_t *)(fmp->fat_buf + offset));
+
+		/* Adjust data for FAT12 entry */
+		if (FAT12(fmp)) {
+			if (cl & 1)
+				val >>= 4;
+			else
+				val &= 0xfff;
+		}
+		*next = (u_long)val;
 	}
-	*next = (u_long)val;
-	DPRINTF(("fat_next_cluster: %d => %d\n", cl, *next));
+	//DPRINTF(("fat_next_cluster: %d => %d\n", cl, *next));
 	return 0;
 }
 
@@ -169,7 +178,7 @@ fat_set_cluster(struct fatfsmount *fmp, u_long cl, u_long next)
 	u_int offset;
 	char *buf = fmp->fat_buf;
 	int err;
-	uint16_t val, tmp;
+	uint32_t val, tmp;
 
 	/* Read FAT entry */
 	err = read_fat_entry(fmp, cl);
@@ -177,24 +186,31 @@ fat_set_cluster(struct fatfsmount *fmp, u_long cl, u_long next)
 		return err;
 
 	/* Get offset in buffer. */
-	if (FAT16(fmp))
-		offset = (cl * 2) % SEC_SIZE;
-	else
-		offset = (cl * 3 / 2) % SEC_SIZE;
+	if (FAT32(fmp)) {
+		offset = (cl * 4) % SEC_SIZE;
+		val = (uint32_t)(next & fmp->fat_mask);
+		*((uint32_t *)(buf + offset)) = val;
+	} else {
+		if (FAT16(fmp))
+			offset = (cl * 2) % SEC_SIZE;
+		else
+			offset = (cl * 3 / 2) % SEC_SIZE;
 
-	/* Modify FAT entry for target cluster. */
-	val = (uint16_t)(next & fmp->fat_mask);
-	if (FAT12(fmp)) {
-		tmp = *((uint16_t *)(buf + offset));
-		if (cl & 1) {
-			val <<= 4;
-			val |= (tmp & 0xf);
-		} else {
-			tmp &= 0xf000;
-			val |= tmp;
+		/* Modify FAT entry for target cluster. */
+		val = (uint16_t)(next & fmp->fat_mask);
+
+		if (FAT12(fmp)) {
+			tmp = *((uint16_t *)(buf + offset));
+			if (cl & 1) {
+				val <<= 4;
+				val |= (tmp & 0xf);
+			} else {
+				tmp &= 0xf000;
+				val |= tmp;
+			}
 		}
+		*((uint16_t *)(buf + offset)) = val;
 	}
-	*((uint16_t *)(buf + offset)) = val;
 
 	/* Write FAT entry */
 	err = write_fat_entry(fmp, cl);
@@ -259,10 +275,12 @@ fat_free_clusters(struct fatfsmount *fmp, u_long start)
 			return err;
 		cl = next;
 	}
-	/* Clear eof */
-	err = fat_set_cluster(fmp, cl, CL_FREE);
-	if (err)
-		return err;
+	/* Clear eof, 20090215, champ: necessary? */
+	if (!FAT32(fmp)) {
+		err = fat_set_cluster(fmp, cl, CL_FREE);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
