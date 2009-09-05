@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2008, Lazarenko Andrew
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,76 +27,78 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _PREX_IOCTL_H
-#define _PREX_IOCTL_H
+/*
+ * clock.c - clock driver for AT91x40
+ */
 
-#include <sys/time.h>
+#include <kernel.h>
+#include <timer.h>
+#include <irq.h>
+#include "platform.h"
+
+
+/*Clock interrupt vector */
+#define TC_IRQ		4
+
+#define TC_CCR		(*(volatile uint32_t *)(TC_BASE + 0x00))
+#define TC_CMR		(*(volatile uint32_t *)(TC_BASE + 0x04))
+#define TC_RC		(*(volatile uint32_t *)(TC_BASE + 0x1c))
+#define TC_SR		(*(volatile uint32_t *)(TC_BASE + 0x20))
+#define TC_IER		(*(volatile uint32_t *)(TC_BASE + 0x24))
+#define TC_IDR		(*(volatile uint32_t *)(TC_BASE + 0x28))
+#define TC_IMR		(*(volatile uint32_t *)(TC_BASE + 0x2c))
+
+/* TC_CCR - Clock control register */
+#define CCR_CLKEN	(1 << 0)
+#define CCR_SWTRG	(1 << 2)
+
+/* TC_CMR - Clock mode register */
+#define CMR_CPCTRG	(1 << 14)
+#define CMR_MCK1024	(4 << 0)
+
+/* TC_SR, TC_IER, TC_IDR, TC_IMR - TC interrupt types */
+#define IR_CPCS		(1 << 4)
 
 /*
- * CPU I/O control code
+ * Clock ISR
  */
-#define CPUIOC_GET_INFO		_IOR('6', 0, struct cpu_info)
-#define CPUIOC_GET_STAT		_IOR('6', 1, struct cpu_stat)
+static int
+clock_isr(int irq)
+{
+	uint32_t dummy;
+
+	/* Ack Timer interrupt */
+	dummy = TC_SR;
+
+	irq_lock();
+	timer_tick();
+	irq_unlock();
+
+	return INT_DONE;
+}
 
 /*
- * CPU information
+ * Initialize clock timer
  */
-struct cpu_info {
-	unsigned int id;	/* processor id */
-	char name[50];		/* name string */
-	int speed;		/* max speed in MHz */
-	int power;		/* max power in mV */
-	int clock_ctrl; 	/* true if it supports clock control */
-};
+void
+clock_init(void)
+{
+	irq_t clock_irq;
 
-/*
- * Current status
- */
-struct cpu_stat {
-	int speed;		/* speed in MHz */
-	int power;		/* power in mVolt */
-};
+	/* RC compare */
+	TC_CMR = CMR_CPCTRG | CMR_MCK1024;
 
-/*
- * Power management I/O control code
- */
-#define PMIOC_SET_POWER		_IOW('P', 0, int)
-#define PMIOC_SET_TIMER		_IOW('P', 1, int)
-#define PMIOC_GET_TIMER		_IOR('P', 2, int)
-#define PMIOC_SET_POLICY	_IOW('P', 3, int)
-#define PMIOC_GET_POLICY	_IOR('P', 4, int)
+	/* Setting up prescaler */
+	TC_RC = (CONFIG_MCU_FREQ / (1024 * HZ));
 
-/*
- * Power Management Policy
- */
-#define PM_PERFORMANCE		0
-#define PM_POWERSAVE		1
+	/* Enable interrupt on RC compare */
+	TC_IER = IR_CPCS;
 
-/*
- * Power state
- */
-#define POWER_ON		0
-#define POWER_SUSPEND		1
-#define POWER_OFF		2
-#define POWER_REBOOT		3
+	clock_irq = irq_attach(TC_IRQ, IPL_CLOCK, 0, &clock_isr, NULL);
 
-/*
- * RTC I/O control code
- */
-#define RTCIOC_GET_TIME		_IOR('R', 0, struct __timeval)
-#define RTCIOC_SET_TIME		_IOR('R', 1, struct __timeval)
+	/* Enable timer clock */
+	TC_CCR = CCR_CLKEN | CCR_SWTRG;
+	TC_CCR = CCR_CLKEN;
 
-struct __timeval {
-	long	tv_sec;		/* seconds */
-	long	tv_usec;	/* and microseconds */
-};
-
-/*
- * LED I/O control code
- */
-#define LEDIOC_ON		_IOW('L', 0, u_int)
-#define LEDIOC_OFF		_IOW('L', 1, u_int)
-#define LEDIOC_STATUS		_IOR('L', 2, u_int)
-#define LEDIOC_COUNT		_IOR('L', 3, u_int)
-
-#endif /* !_PREX_IOCTL_H */
+	ASSERT(clock_irq != NULL);
+}

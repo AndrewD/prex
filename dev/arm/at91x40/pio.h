@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2008, Lazarenko Andrew
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,76 +27,40 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _PREX_IOCTL_H
-#define _PREX_IOCTL_H
-
-#include <sys/time.h>
+#ifndef _PIOLIB_H
+#define _PIOLIB_H
 
 /*
- * CPU I/O control code
+ * Parallel IO access library for AT91X40
  */
-#define CPUIOC_GET_INFO		_IOR('6', 0, struct cpu_info)
-#define CPUIOC_GET_STAT		_IOR('6', 1, struct cpu_stat)
+
+#include <sys/types.h>
 
 /*
- * CPU information
+ * Enable/Disable control of pins
  */
-struct cpu_info {
-	unsigned int id;	/* processor id */
-	char name[50];		/* name string */
-	int speed;		/* max speed in MHz */
-	int power;		/* max power in mV */
-	int clock_ctrl; 	/* true if it supports clock control */
-};
+void pio_enable(uint32_t mask);
+void pio_disable(uint32_t mask);
+uint32_t pio_status(void);
 
 /*
- * Current status
+ * Control input/output direction of pins
  */
-struct cpu_stat {
-	int speed;		/* speed in MHz */
-	int power;		/* power in mVolt */
-};
+void pio_setin(uint32_t mask);
+void pio_setout(uint32_t mask);
+uint32_t pio_getout(void);
 
 /*
- * Power management I/O control code
+ * Control low/high level of pins
  */
-#define PMIOC_SET_POWER		_IOW('P', 0, int)
-#define PMIOC_SET_TIMER		_IOW('P', 1, int)
-#define PMIOC_GET_TIMER		_IOR('P', 2, int)
-#define PMIOC_SET_POLICY	_IOW('P', 3, int)
-#define PMIOC_GET_POLICY	_IOR('P', 4, int)
+void pio_set(uint32_t mask);
+void pio_clear(uint32_t mask);
+uint32_t pio_get(void);
 
 /*
- * Power Management Policy
+ * Query state of pins
  */
-#define PM_PERFORMANCE		0
-#define PM_POWERSAVE		1
+uint32_t pio_state(void);
 
-/*
- * Power state
- */
-#define POWER_ON		0
-#define POWER_SUSPEND		1
-#define POWER_OFF		2
-#define POWER_REBOOT		3
+#endif /* _PIOLIB_H */
 
-/*
- * RTC I/O control code
- */
-#define RTCIOC_GET_TIME		_IOR('R', 0, struct __timeval)
-#define RTCIOC_SET_TIME		_IOR('R', 1, struct __timeval)
-
-struct __timeval {
-	long	tv_sec;		/* seconds */
-	long	tv_usec;	/* and microseconds */
-};
-
-/*
- * LED I/O control code
- */
-#define LEDIOC_ON		_IOW('L', 0, u_int)
-#define LEDIOC_OFF		_IOW('L', 1, u_int)
-#define LEDIOC_STATUS		_IOR('L', 2, u_int)
-#define LEDIOC_COUNT		_IOR('L', 3, u_int)
-
-#endif /* !_PREX_IOCTL_H */

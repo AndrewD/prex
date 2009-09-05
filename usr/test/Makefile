@@ -7,7 +7,7 @@ SUBDIR=		task thread ipc timer exception fault deadlock sem mutex \
 #
 # Test for driver
 #
-SUBDIR+=	console kbd fdd ramdisk reset time zero
+SUBDIR+=	console kbd fdd ramdisk reset time zero led
 
 #
 # Test for library

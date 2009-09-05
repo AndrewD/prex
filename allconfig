@@ -17,6 +17,7 @@ targets="arm-gba arm-integrator arm-integrator-nommu arm-beagle"
 ./configure --build=$base/arm-integrator-nommu --target=arm-integrator \
 	--profile=nommu $* || exit 1
 ./configure --build=$base/arm-beagle --target=arm-beagle $* || exit 1
+./configure --build=$base/arm-at91x40 --target=arm-at91x40 $* || exit 1
 
 # configure i386 targets
 targets="$targets i386-pc i386-pc-tiny"
