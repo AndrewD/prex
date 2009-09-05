@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2008, Lazarenko Andrew
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,76 +27,91 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _PREX_IOCTL_H
-#define _PREX_IOCTL_H
-
-#include <sys/time.h>
+#ifndef _EBI_H
+#define _EBI_H
 
 /*
- * CPU I/O control code
+ * ebi.h - External Bus Interface (EBI) definition for AT91x40
+ *
  */
-#define CPUIOC_GET_INFO		_IOR('6', 0, struct cpu_info)
-#define CPUIOC_GET_STAT		_IOR('6', 1, struct cpu_stat)
 
 /*
- * CPU information
+ * Data Bus Width
  */
-struct cpu_info {
-	unsigned int id;	/* processor id */
-	char name[50];		/* name string */
-	int speed;		/* max speed in MHz */
-	int power;		/* max power in mV */
-	int clock_ctrl; 	/* true if it supports clock control */
-};
+#define EBI_DBW_16	(1 << 0)
+#define EBI_DBW_8	(2 << 0)
 
 /*
- * Current status
+ * Number of Wait States
  */
-struct cpu_stat {
-	int speed;		/* speed in MHz */
-	int power;		/* power in mVolt */
-};
+#define EBI_NWS_1	(0 << 2)
+#define EBI_NWS_2	(1 << 2)
+#define EBI_NWS_3	(2 << 2)
+#define EBI_NWS_4	(3 << 2)
+#define EBI_NWS_5	(4 << 2)
+#define EBI_NWS_6	(5 << 2)
+#define EBI_NWS_7	(6 << 2)
+#define EBI_NWS_8	(7 << 2)
 
 /*
- * Power management I/O control code
+ * Wait State Enable
  */
-#define PMIOC_SET_POWER		_IOW('P', 0, int)
-#define PMIOC_SET_TIMER		_IOW('P', 1, int)
-#define PMIOC_GET_TIMER		_IOR('P', 2, int)
-#define PMIOC_SET_POLICY	_IOW('P', 3, int)
-#define PMIOC_GET_POLICY	_IOR('P', 4, int)
+#define EBI_WSE		(1 << 5)
 
 /*
- * Power Management Policy
+ * Page Size
  */
-#define PM_PERFORMANCE		0
-#define PM_POWERSAVE		1
+#define EBI_PAGES_1M	(0 << 7)
+#define EBI_PAGES_4M	(1 << 7)
+#define EBI_PAGES_16M	(2 << 7)
+#define EBI_PAGES_64M	(3 << 7)
 
 /*
- * Power state
+ * Data Float Output Time
  */
-#define POWER_ON		0
-#define POWER_SUSPEND		1
-#define POWER_OFF		2
-#define POWER_REBOOT		3
+#define EBI_TDF_0	(0 << 9)
+#define EBI_TDF_1	(1 << 9)
+#define EBI_TDF_2	(2 << 9)
+#define EBI_TDF_3	(3 << 9)
+#define EBI_TDF_4	(4 << 9)
+#define EBI_TDF_5	(5 << 9)
+#define EBI_TDF_6	(6 << 9)
+#define EBI_TDF_7	(7 << 9)
 
 /*
- * RTC I/O control code
+ * Byte Access Type
  */
-#define RTCIOC_GET_TIME		_IOR('R', 0, struct __timeval)
-#define RTCIOC_SET_TIME		_IOR('R', 1, struct __timeval)
-
-struct __timeval {
-	long	tv_sec;		/* seconds */
-	long	tv_usec;	/* and microseconds */
-};
+#define EBI_BAT_BYTE_WRITE	(0 << 12)
+#define EBI_BAT_BYTE_SELECT	(1 << 12)
 
 /*
- * LED I/O control code
+ * Chip Select Enable
  */
-#define LEDIOC_ON		_IOW('L', 0, u_int)
-#define LEDIOC_OFF		_IOW('L', 1, u_int)
-#define LEDIOC_STATUS		_IOR('L', 2, u_int)
-#define LEDIOC_COUNT		_IOR('L', 3, u_int)
+#define EBI_CSEN	(1 << 13)
 
-#endif /* !_PREX_IOCTL_H */
+/*
+ * Base Address
+ */
+#define EBI_BA_MASK	0xfff00000
+
+/*
+ * Remap Command
+ */
+#define EBI_RCB		(1 << 0)
+
+/*
+ * Address Line Enable
+ */
+#define EBI_ALE_16M	(0 << 0)
+#define EBI_ALE_8M	(4 << 0)
+#define EBI_ALE_4M	(5 << 0)
+#define EBI_ALE_2M	(6 << 0)
+#define EBI_ALE_1M	(7 << 0)
+
+/*
+ * Data Read Protocol
+ */
+#define EBI_DRP_STANDARD	(0 << 4)
+#define EBI_DRP_EARLY		(1 << 4)
+
+#endif /* _EBI_H */

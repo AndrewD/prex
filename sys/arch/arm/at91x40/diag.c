@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,76 +27,64 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _PREX_IOCTL_H
-#define _PREX_IOCTL_H
+/*
+ * diag.c - diagnostic message support
+ */
 
-#include <sys/time.h>
+#include <kernel.h>
+#include <syspage.h>
+#include <cpu.h>
+#include "platform.h"
+
+#ifdef DEBUG
+
+#ifdef CONFIG_DIAG_SERIAL
+
+#define UART_CSR	(*(volatile uint32_t *)(UART_BASE + 0x14))
+#define UART_THR	(*(volatile uint32_t *)(UART_BASE + 0x1c))
+
+/* UART_CSR - channel status register */
+#define IR_TXRDY	(1 << 1)	/* rx ready */
+
+static void
+serial_putc(char c)
+{
+
+	while (!(UART_CSR & IR_TXRDY))
+		;
+
+	UART_THR = (uint32_t)c;
+}
+#endif /* CONFIG_DIAG_SERIAL */
+
+void
+diag_print(char *buf)
+{
+
+#ifdef CONFIG_DIAG_SERIAL
+	while (*buf) {
+		if (*buf == '\n')
+			serial_putc('\r');
+		serial_putc(*buf);
+		++buf;
+	}
+#endif
+}
+
+#endif /* DEBUG */
 
 /*
- * CPU I/O control code
+ * Init
  */
-#define CPUIOC_GET_INFO		_IOR('6', 0, struct cpu_info)
-#define CPUIOC_GET_STAT		_IOR('6', 1, struct cpu_stat)
+void
+diag_init(void)
+{
 
-/*
- * CPU information
- */
-struct cpu_info {
-	unsigned int id;	/* processor id */
-	char name[50];		/* name string */
-	int speed;		/* max speed in MHz */
-	int power;		/* max power in mV */
-	int clock_ctrl; 	/* true if it supports clock control */
-};
-
-/*
- * Current status
- */
-struct cpu_stat {
-	int speed;		/* speed in MHz */
-	int power;		/* power in mVolt */
-};
-
-/*
- * Power management I/O control code
- */
-#define PMIOC_SET_POWER		_IOW('P', 0, int)
-#define PMIOC_SET_TIMER		_IOW('P', 1, int)
-#define PMIOC_GET_TIMER		_IOR('P', 2, int)
-#define PMIOC_SET_POLICY	_IOW('P', 3, int)
-#define PMIOC_GET_POLICY	_IOR('P', 4, int)
-
-/*
- * Power Management Policy
- */
-#define PM_PERFORMANCE		0
-#define PM_POWERSAVE		1
-
-/*
- * Power state
- */
-#define POWER_ON		0
-#define POWER_SUSPEND		1
-#define POWER_OFF		2
-#define POWER_REBOOT		3
-
-/*
- * RTC I/O control code
- */
-#define RTCIOC_GET_TIME		_IOR('R', 0, struct __timeval)
-#define RTCIOC_SET_TIME		_IOR('R', 1, struct __timeval)
-
-struct __timeval {
-	long	tv_sec;		/* seconds */
-	long	tv_usec;	/* and microseconds */
-};
-
-/*
- * LED I/O control code
- */
-#define LEDIOC_ON		_IOW('L', 0, u_int)
-#define LEDIOC_OFF		_IOW('L', 1, u_int)
-#define LEDIOC_STATUS		_IOR('L', 2, u_int)
-#define LEDIOC_COUNT		_IOR('L', 3, u_int)
-
-#endif /* !_PREX_IOCTL_H */
+#ifdef CONFIG_DIAG_SERIAL
+	/*
+	 * No init needed...
+	 * Usart already has been initialized
+	 * by bootloader
+	 */
+#endif
+}

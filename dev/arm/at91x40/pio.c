@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, Kohsuke Ohtani
+ * Copyright (c) 2008, Lazarenko Andrew
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,74 +27,84 @@
  * SUCH DAMAGE.
  */
 
-#include <driver.h>
+#include "pio.h"
 
-extern struct driver console_drv;
-extern struct driver cpu_drv;
-extern struct driver cpufreq_drv;
-extern struct driver fdd_drv;
-extern struct driver kbd_drv;
-extern struct driver keypad_drv;
-extern struct driver null_drv;
-extern struct driver mouse_drv;
-extern struct driver pm_drv;
-extern struct driver ramdisk_drv;
-extern struct driver rtc_drv;
-extern struct driver tty_drv;
-extern struct driver zero_drv;
-extern struct driver serial_drv;
-extern struct driver wdt_drv;
-extern struct driver led_drv;
+#define PIO_BASE	0xFFFF0000
 
-/*
- * Driver table
- */
-struct driver *driver_table[] = {
-#ifdef CONFIG_CONSOLE
-	&console_drv,
-#endif
-#ifdef CONFIG_CPUFREQ
-	&cpu_drv,
-	&cpufreq_drv,
-#endif
-#ifdef CONFIG_FDD
-	&fdd_drv,
-#endif
-#ifdef CONFIG_KEYBOARD
-	&kbd_drv,
-#endif
-#ifdef CONFIG_KEYPAD
-	&keypad_drv,
-#endif
-#ifdef CONFIG_NULL
-	&null_drv,
-#endif
-#ifdef CONFIG_MOUSE
-	&mouse_drv,
-#endif
-#ifdef CONFIG_PM
-	&pm_drv,
-#endif
-#ifdef CONFIG_RAMDISK
-	&ramdisk_drv,
-#endif
-#ifdef CONFIG_RTC
-	&rtc_drv,
-#endif
-#ifdef CONFIG_TTY
-	&tty_drv,
-#endif
-#ifdef CONFIG_ZERO
-	&zero_drv,
-#endif
-#ifdef CONFIG_SERIAL
-	&serial_drv,
-#endif
-#ifdef CONFIG_WATCHDOG
-	&wdt_drv,
-#endif
-#ifdef CONFIG_LED
-	&led_drv,
-#endif
-	NULL
-};
+#define PIO_PER		(*(volatile uint32_t *)(PIO_BASE + 0x00))
+#define PIO_PDR		(*(volatile uint32_t *)(PIO_BASE + 0x04))
+#define PIO_PSR		(*(volatile uint32_t *)(PIO_BASE + 0x08))
+
+#define PIO_OER		(*(volatile uint32_t *)(PIO_BASE + 0x10))
+#define PIO_ODR		(*(volatile uint32_t *)(PIO_BASE + 0x14))
+#define PIO_OSR		(*(volatile uint32_t *)(PIO_BASE + 0x18))
+#define PIO_SODR	(*(volatile uint32_t *)(PIO_BASE + 0x30))
+#define PIO_CODR	(*(volatile uint32_t *)(PIO_BASE + 0x34))
+#define PIO_ODSR	(*(volatile uint32_t *)(PIO_BASE + 0x38))
+#define PIO_PDSR	(*(volatile uint32_t *)(PIO_BASE + 0x3c))
+
+#define PIO_IER		(*(volatile uint32_t *)(PIO_BASE + 0x40))
+#define PIO_IDR		(*(volatile uint32_t *)(PIO_BASE + 0x44))
+#define PIO_IMR		(*(volatile uint32_t *)(PIO_BASE + 0x48))
+#define PIO_ISR		(*(volatile uint32_t *)(PIO_BASE + 0x4c))
+
+
+void
+pio_enable(uint32_t mask)
+{
+	PIO_PER = mask;
+}
+
+void
+pio_disable(uint32_t mask)
+{
+	PIO_PDR = mask;
+}
+
+uint32_t
+pio_status(void)
+{
+	return PIO_PSR;
+}
+
+void
+pio_setin(uint32_t mask)
+{
+	PIO_ODR = mask;
+}
+
+void
+pio_setout(uint32_t mask)
+{
+	PIO_OER = mask;
+}
+
+uint32_t
+pio_getout(void)
+{
+	return PIO_OSR;
+}
+
+void
+pio_set(uint32_t mask)
+{
+	PIO_SODR = mask;
+}
+
+void
+pio_clear(uint32_t mask)
+{
+	PIO_CODR = mask;
+}
+
+uint32_t
+pio_get(void)
+{
+	return PIO_ODSR;
+}
+
+uint32_t
+pio_state(void)
+{
+	return PIO_PDSR;
+}

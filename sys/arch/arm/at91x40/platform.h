@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2005, Lazarenko Andrew
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,76 +27,24 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _PREX_IOCTL_H
-#define _PREX_IOCTL_H
-
-#include <sys/time.h>
-
 /*
- * CPU I/O control code
+ * AT91x40 kernel options
  */
-#define CPUIOC_GET_INFO		_IOR('6', 0, struct cpu_info)
-#define CPUIOC_GET_STAT		_IOR('6', 1, struct cpu_stat)
 
-/*
- * CPU information
- */
-struct cpu_info {
-	unsigned int id;	/* processor id */
-	char name[50];		/* name string */
-	int speed;		/* max speed in MHz */
-	int power;		/* max power in mV */
-	int clock_ctrl; 	/* true if it supports clock control */
-};
+#ifndef _AT91X40_PLATFORM_H
+#define _AT91X40_PLATFORM_H
 
-/*
- * Current status
- */
-struct cpu_stat {
-	int speed;		/* speed in MHz */
-	int power;		/* power in mVolt */
-};
+/* vector relocation target */
+#define ARM_VECTORS	ARM_VECTORS_LOW
 
-/*
- * Power management I/O control code
- */
-#define PMIOC_SET_POWER		_IOW('P', 0, int)
-#define PMIOC_SET_TIMER		_IOW('P', 1, int)
-#define PMIOC_GET_TIMER		_IOR('P', 2, int)
-#define PMIOC_SET_POLICY	_IOW('P', 3, int)
-#define PMIOC_GET_POLICY	_IOR('P', 4, int)
+/* number of interrupt vectors */
+#define NIRQS		32
 
-/*
- * Power Management Policy
- */
-#define PM_PERFORMANCE		0
-#define PM_POWERSAVE		1
+#define AIC_BASE	0xFFFFF000
+#define TC_BASE		0xFFFE0000
+#define UART_BASE	0xFFFD0000
+#define SF_BASE		0xFFF00000
+#define WD_BASE		0xFFFF8000
+#define PS_BASE		0xFFFF4000
 
-/*
- * Power state
- */
-#define POWER_ON		0
-#define POWER_SUSPEND		1
-#define POWER_OFF		2
-#define POWER_REBOOT		3
-
-/*
- * RTC I/O control code
- */
-#define RTCIOC_GET_TIME		_IOR('R', 0, struct __timeval)
-#define RTCIOC_SET_TIME		_IOR('R', 1, struct __timeval)
-
-struct __timeval {
-	long	tv_sec;		/* seconds */
-	long	tv_usec;	/* and microseconds */
-};
-
-/*
- * LED I/O control code
- */
-#define LEDIOC_ON		_IOW('L', 0, u_int)
-#define LEDIOC_OFF		_IOW('L', 1, u_int)
-#define LEDIOC_STATUS		_IOR('L', 2, u_int)
-#define LEDIOC_COUNT		_IOR('L', 3, u_int)
-
-#endif /* !_PREX_IOCTL_H */
+#endif /* !_AT91X40_PLATFORM_H */

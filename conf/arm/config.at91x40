@@ -1,0 +1,75 @@
+#
+# Prex system configuration file for AT91x40 port
+#
+
+#
+# Module address
+#
+memory		LOADER_BASE	0x00000000
+memory		KERNEL_BASE	0x00008000
+memory		DRIVER_BASE	AUTODETECT
+memory		SYSPAGE_BASE	0x00000000
+memory		BOOTIMG_BASE	0x80002000
+
+#
+# Make options
+#
+makeoptions	CFLAGS+= -mcpu=arm7tdmi -mtune=arm7tdmi
+
+#
+# Tunable paramters
+#
+options		HZ=100		# Ticks/second of the clock
+options		TIME_SLICE=100	# Context switch ratio (msec)
+options		OPEN_MAX=8	# Max open files per process
+options		BUF_CACHE=8	# Blocks for buffer cache
+options		FS_THREADS=1	# Number of file system threads
+
+#
+# Platform settings
+#
+options		ROMBOOT		# Boot from ROM
+options		BOOTDISK	# Disk for /boot directory
+
+#
+# Board setting
+#
+options		MCU_MODEL=AT91R40008	# MCU model
+options		MCU_FREQ=66000000	# MCU clock frequency
+options		UART_BAUD=115200	# Debug usart0 speed in baud
+options		WATCHDOG_INTERVAL=1000	# Watchdog timer interval (msec)
+
+#
+# Device drivers
+#
+options		RAMDISK		# RAM disk
+options		TTY		# TTY driver
+options		PM		# Power management
+options		NULL		# NULL device
+options		ZERO		# Zero device
+options		LED		# LED device
+options		SERIAL		# Serial console
+options		WATCHDOG	# Watchdog device
+
+#
+# Power management
+#
+options		PM_PERFORMANCE	# Power policy: Parformance optimized
+
+#
+# Diagnostic options
+#
+options		DIAG_SERIAL	# Diagnostic via serial port
+
+#
+# File systems
+#
+options		FIFOFS		# FIFO & Pipe
+options		DEVFS		# Device file system
+options		RAMFS		# RAM file system
+options		ARFS		# Archive file system
+
+#
+# Executable file formats
+#
+options		ELF		# ELF file format
