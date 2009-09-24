@@ -19,6 +19,7 @@ memory		BOOTINFO_SIZE	1024
 # Make options
 #
 makeoptions	CFLAGS+= -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fno-stack-protector
+makeoptions 	ASLAGS+= -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp
 
 #
 # Tunable paramters
