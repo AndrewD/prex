@@ -46,7 +46,7 @@
  * call will return EDEADLK error code.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 #include <errno.h>
 
@@ -57,18 +57,18 @@ static mutex_t mtx_A, mtx_B;
 thread_t
 thread_run(void (*start)(void), void *stack)
 {
-	thread_t th;
-	int err;
+	thread_t t;
+	int error;
 
-	err = thread_create(task_self(), &th);
-	if (err)
+	error = thread_create(task_self(), &t);
+	if (error)
 		panic("thread_create is failed");
 
-	err = thread_load(th, start, stack);
-	if (err)
+	error = thread_load(t, start, stack);
+	if (error)
 		panic("thread_load is failed");
 
-	return th;
+	return t;
 }
 
 /*
@@ -77,7 +77,7 @@ thread_run(void (*start)(void), void *stack)
 static void
 thread_1(void)
 {
-	int err;
+	int error;
 
 	printf("thread_1: starting\n");
 
@@ -85,8 +85,8 @@ thread_1(void)
 	 * 2) Lock mutex B
 	 */
 	printf("thread_1: 2) lock B\n");
-	err = mutex_lock(&mtx_B);
-	if (err) printf("err=%d\n", err);
+	error = mutex_lock(&mtx_B);
+	if (error) printf("error=%d\n", error);
 
 	/*
 	 * 3) Lock mutex A
@@ -94,8 +94,8 @@ thread_1(void)
 	 * Switch to thread 1.
 	 */
 	printf("thread_1: 3) lock A\n");
-	err = mutex_lock(&mtx_A);
-	if (err) printf("err=%d\n", err);
+	error = mutex_lock(&mtx_A);
+	if (error) printf("error=%d\n", error);
 
 	printf("thread_1: exit\n");
 	thread_terminate(th_1);
@@ -107,7 +107,7 @@ thread_1(void)
 static void
 thread_2(void)
 {
-	int err;
+	int error;
 
 	printf("thread_2: starting\n");
 
@@ -115,8 +115,8 @@ thread_2(void)
 	 * 1) Lock mutex A
 	 */
 	printf("thread_2: 1) lock A\n");
-	err = mutex_lock(&mtx_A);
-	if (err) printf("err=%d\n", err);
+	error = mutex_lock(&mtx_A);
+	if (error) printf("error=%d\n", error);
 
 	/*
 	 * Switch to thread 1
@@ -130,9 +130,9 @@ thread_2(void)
 	 * Deadlock occurs here!
 	 */
 	printf("thread_2: 4) lock B\n");
-	err = mutex_lock(&mtx_B);
-	if (err) printf("err=%d\n", err);
-	if (err == EDEADLK)
+	error = mutex_lock(&mtx_B);
+	if (error) printf("error=%d\n", error);
+	if (error == EDEADLK)
 		printf("**** DEADLOCK!! ****\n");
 
 	printf("thread_2: exit\n");
@@ -147,7 +147,7 @@ main(int argc, char *argv[])
 	/*
 	 * Boost priority of this thread
 	 */
-	thread_setprio(thread_self(), 90);
+	thread_setpri(thread_self(), 90);
 
 	/*
 	 * Initialize mutexes.
@@ -159,10 +159,10 @@ main(int argc, char *argv[])
 	 * Create new threads
 	 */
 	th_1 = thread_run(thread_1, stack[0]+1024);
-	thread_setprio(th_1, 100);
+	thread_setpri(th_1, 100);
 
 	th_2 = thread_run(thread_2, stack[1]+1024);
-	thread_setprio(th_2, 101);
+	thread_setpri(th_2, 101);
 
 	/*
 	 * Start thread 2

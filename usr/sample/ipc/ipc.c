@@ -31,8 +31,8 @@
  * ipc.c - A sample program for IPC message transmission.
  */
 
-#include <prex/prex.h>
-#include <prex/message.h>
+#include <sys/prex.h>
+#include <ipc/ipc.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -54,7 +54,7 @@ static task_t
 start_client(void (*func)(void), char *stack)
 {
 	task_t task;
-	thread_t th;
+	thread_t t;
 
 #ifdef CONFIG_MMU
 	if (task_create(task_self(), VM_COPY, &task) != 0)
@@ -62,13 +62,13 @@ start_client(void (*func)(void), char *stack)
 #else
 	task = task_self();
 #endif
-	if (thread_create(task, &th) != 0)
+	if (thread_create(task, &t) != 0)
 		return 0;
 
-	if (thread_load(th, func, stack) != 0)
+	if (thread_load(t, func, stack) != 0)
 		return 0;
 
-	if (thread_resume(th) != 0)
+	if (thread_resume(t) != 0)
 		return 0;
 
 	return task;
@@ -96,14 +96,14 @@ static void
 client_task(void)
 {
 	object_t obj;
-	int err;
+	int error;
 
 	printf("Client is started\n");
 
 	/*
 	 * Find objects.
 	 */
-	if ((err = object_lookup("/foo/bar", &obj)) != 0)
+	if ((error = object_lookup("test", &obj)) != 0)
 		panic("can not find object");
 
 	/*
@@ -126,21 +126,21 @@ client_task(void)
 int
 main(int argc, char *argv[])
 {
-	object_t obj;
+	object_t obj = 0;
 	struct chat_msg msg;
-	int err, exit;
+	int error, exit;
 
 	printf("IPC sample program\n");
 
 	/*
 	 * Boost priority of this thread
 	 */
-	thread_setprio(thread_self(), 90);
+	thread_setpri(thread_self(), 90);
 
 	/*
 	 * Create object
 	 */
-	if ((err = object_create("/foo/bar", &obj)) != 0)
+	if ((error = object_create("test", &obj)) != 0)
 		panic("fail to create object");
 
 	/*
@@ -157,8 +157,8 @@ main(int argc, char *argv[])
 		/*
 		 * Wait for an incoming request.
 		 */
-		err = msg_receive(obj, &msg, sizeof(msg));
-		if (err)
+		error = msg_receive(obj, &msg, sizeof(msg));
+		if (error)
 			continue;
 		/*
 		 * Process request.

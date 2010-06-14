@@ -6,4 +6,5 @@ SRCS+=	__file.c \
 	fstat.c stat.c lstat.c fsync.c dup.c dup2.c \
 	opendir.c closedir.c readdir.c rename.c chdir.c getcwd.c \
 	link.c unlink.c rmdir.c mkdir.c mknod.c chmod.c chown.c \
-	umask.c ioctl.c fcntl.c pipe.c
+	umask.c ioctl.c fcntl.c pipe.c isatty.c truncate.c ftruncate.c \
+	fchdir.c

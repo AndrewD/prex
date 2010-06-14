@@ -132,7 +132,9 @@ __BEGIN_DECLS
 int	open(const char *, int, ...);
 int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
+#if 0
 int	flock(int, int);
+#endif
 __END_DECLS
 
 #endif /* !_SYS_FCNTL_H_ */

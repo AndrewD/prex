@@ -27,18 +27,18 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <errno.h>
-	
+
 extern int _timer_waitperiod(void);
 
 int
 timer_waitperiod(void)
 {
-	int err;
+	int error;
 
 	do
-		err = _timer_waitperiod();
-	while (err == EINTR);
-	return err;
+		error = _timer_waitperiod();
+	while (error == EINTR);
+	return error;
 }

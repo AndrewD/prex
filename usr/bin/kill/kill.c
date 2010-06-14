@@ -55,7 +55,8 @@ main(int argc, char *argv[])
 
 	numsig = SIGTERM;
 
-	argc--, argv++;
+	argc--;
+	argv++;
 	if (!strcmp(*argv, "-l")) {
 		argc--, argv++;
 		if (argc > 1)
@@ -153,13 +154,14 @@ printsignals(fp)
 	FILE *fp;
 {
 	int n;
+	const char *name;
 
 	for (n = 1; n < NSIG; n++) {
-		(void)fprintf(fp, "%s", sys_signame[n]);
+		name = sys_signame[n];
 		if (n == (NSIG / 2) || n == (NSIG - 1))
-			(void)fprintf(fp, "\n");
+			(void)fprintf(fp, "%s\n", name);
 		else
-			(void)fprintf(fp, " ");
+			(void)fprintf(fp, "%s ", name);
 	}
 }
 

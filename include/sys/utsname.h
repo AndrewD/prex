@@ -32,8 +32,8 @@
  *	@(#)utsname.h	8.1 (Berkeley) 1/4/94
  */
 
-#ifndef	_SYS_UTSNAME_H
-#define	_SYS_UTSNAME_H
+#ifndef	_SYS_UTSNAME_H_
+#define	_SYS_UTSNAME_H_
 
 #define _SYS_NMLN	16
 
@@ -51,4 +51,4 @@ __BEGIN_DECLS
 int	uname(struct utsname *);
 __END_DECLS
 
-#endif	/* !_SYS_UTSNAME_H */
+#endif	/* !_SYS_UTSNAME_H_ */

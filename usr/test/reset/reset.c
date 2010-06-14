@@ -31,22 +31,24 @@
  * reset.c - reset test
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/ioctl.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 
 int
 main(int argc, char *argv[])
 {
 	device_t pm_dev;
-	int state;
+	int state = PWR_REBOOT;
 
-	timer_sleep(2000, 0);
+	printf("Reset test program. Wait 5 sec...\n");
+	timer_sleep(5000, 0);
 
+	printf("Reset!\n");
 	if (device_open("pm", 0, &pm_dev) != 0)
 		exit(1);
-	state = POWER_REBOOT;
 	device_ioctl(pm_dev, PMIOC_SET_POWER, &state);
 	device_close(pm_dev);
 	exit(1);

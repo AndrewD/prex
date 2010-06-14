@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <errno.h>
 
 extern int _sem_wait(sem_t *sem, unsigned long timeout);
@@ -38,10 +38,10 @@ extern int _sem_wait(sem_t *sem, unsigned long timeout);
 int
 sem_wait(sem_t *sem, unsigned long msec)
 {
-	int err;
+	int error;
 
 	do
-		err = _sem_wait(sem, msec);
-	while (err == EINTR);
-	return err;
+		error = _sem_wait(sem, msec);
+	while (error == EINTR);
+	return error;
 }

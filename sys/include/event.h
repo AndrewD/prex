@@ -31,7 +31,7 @@
 #define _EVENT_H
 
 #include <sys/cdefs.h>
-#include <queue.h>
+#include <sys/queue.h>
 
 /*
  * Event for sleep/wakeup

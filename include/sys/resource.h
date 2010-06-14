@@ -68,8 +68,8 @@ struct rlimit {
 
 __BEGIN_DECLS
 int	getpriority(int, int);
-int	getrlimit(int, struct rlimit *);
 int	setpriority(int, int, int);
+int	getrlimit(int, struct rlimit *);
 int	setrlimit(int, const struct rlimit *);
 __END_DECLS
 

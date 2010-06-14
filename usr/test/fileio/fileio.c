@@ -31,9 +31,8 @@
  * fileio.c - file I/O test program
  */
 
-#include <prex/prex.h>
-#include <server/stdmsg.h>
-#include <server/object.h>
+#include <sys/prex.h>
+#include <ipc/ipc.h>
 
 #include <sys/syslog.h>
 #include <sys/mount.h>
@@ -87,12 +86,12 @@ cat_file(void)
 static void
 test_invalid(void)
 {
-	object_t fs_obj;
+	object_t fsobj;
 	struct msg m;
 
-	object_lookup(OBJNAME_FS, &fs_obj);
+	object_lookup("!fs", &fsobj);
 	m.hdr.code = 0x300;
-	msg_send(fs_obj, &m, sizeof(m));
+	msg_send(fsobj, &m, sizeof(m));
 }
 
 /*

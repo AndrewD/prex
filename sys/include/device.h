@@ -31,43 +31,29 @@
 #define _DEVICE_H
 
 #include <sys/cdefs.h>
+#include <types.h>
+#include <sys/device.h>
 
 /*
- * Device I/O table
- */
-struct devio {
-	int	(*open)	(device_t, int);
-	int	(*close)(device_t);
-	int	(*read)	(device_t, char *, size_t *, int);
-	int	(*write)(device_t, char *, size_t *, int);
-	int	(*ioctl)(device_t, u_long, void *);
-	int	(*event)(int);
-};
-
-/*
- * Device structure
+ * Device object
  */
 struct device {
-	int		magic;		/* magic number */
-	int		refcnt;		/* reference count */
-	int		flags;		/* device characteristics */
-	struct list	link;		/* linkage on device list */
-	struct devio	*devio;		/* device i/o table */
+	struct device	*next;		/* linkage on list of all devices */
+	struct driver	*driver;	/* pointer to the driver object */
 	char		name[MAXDEVNAME]; /* name of device */
+	int		flags;		/* D_* flags defined above */
+	int		active;		/* device has not been destroyed */
+	int		refcnt;		/* reference count */
+	void		*private;	/* private storage */
 };
 
-#define device_valid(dev) (kern_area(dev) && ((dev)->magic == DEVICE_MAGIC))
-
 __BEGIN_DECLS
-device_t device_create(struct devio *, const char *, int);
-int	 device_destroy(device_t);
-int	 device_broadcast(int, int);
 int	 device_open(const char *, int, device_t *);
 int	 device_close(device_t);
 int	 device_read(device_t, void *, size_t *, int);
 int	 device_write(device_t, void *, size_t *, int);
 int	 device_ioctl(device_t, u_long, void *);
-int	 device_info(struct info_device *);
+int	 device_info(struct devinfo *);
 void	 device_init(void);
 __BEGIN_DECLS
 

@@ -29,8 +29,8 @@
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
  */
 
-#ifndef _SYS_MOUNT_H
-#define _SYS_MOUNT_H
+#ifndef _SYS_MOUNT_H_
+#define _SYS_MOUNT_H_
 
 #include <sys/cdefs.h>
 #include <sys/list.h>
@@ -108,49 +108,6 @@ typedef struct mount *mount_t;
 #define	MNT_VISFLAGMASK	0x0000ffff
 
 /*
- * External filesystem control flags.
- */
-#define	MNT_UPDATE	0x00010000	/* not a real mount, just an update */
-#define	MNT_DELEXPORT	0x00020000	/* delete export host lists */
-#define	MNT_RELOAD	0x00040000	/* reload filesystem data */
-#define	MNT_FORCE	0x00080000	/* force unmount or readonly change */
-/*
- * Internal filesystem control flags.
- *
- * MNT_UNMOUNT locks the mount entry so that name lookup cannot proceed
- * past the mount point.  This keeps the subtree stable during mounts
- * and unmounts.
- */
-#define MNT_UNMOUNT	0x01000000	/* unmount in progress */
-#define	MNT_MWAIT	0x02000000	/* waiting for unmount to finish */
-#define MNT_WANTRDWR	0x04000000	/* upgrade to read/write requested */
-
-/*
- * Sysctl CTL_VFS definitions.
- *
- * Second level identifier specifies which filesystem. Second level
- * identifier VFS_GENERIC returns information about all filesystems.
- */
-#define	VFS_GENERIC		0	/* generic filesystem information */
-/*
- * Third level identifiers for VFS_GENERIC are given below; third
- * level identifiers for specific filesystems are given in their
- * mount specific header files.
- */
-#define VFS_MAXTYPENUM	1	/* int: highest defined filesystem type */
-#define VFS_CONF	2	/* struct: vfsconf for filesystem given
-				   as next argument */
-
-/*
- * Flags for various system call interfaces.
- *
- * waitfor flags to vfs_sync() and getfsstat()
- */
-#define MNT_WAIT	1
-#define MNT_NOWAIT	2
-
-
-/*
  * Filesystem type switch table.
  */
 struct vfssw {
@@ -163,11 +120,11 @@ struct vfssw {
  * Operations supported on virtual file system.
  */
 struct vfsops {
-	int (*vfs_mount)	(mount_t mp, char *dev, int flags, void *data);
-	int (*vfs_unmount)	(mount_t mp);
-	int (*vfs_sync)		(mount_t mp);
-	int (*vfs_vget)		(mount_t mp, vnode_t vp);
-	int (*vfs_statfs)	(mount_t mp, struct statfs *sfp);
+	int (*vfs_mount)	(mount_t, char *, int, void *);
+	int (*vfs_unmount)	(mount_t);
+	int (*vfs_sync)		(mount_t);
+	int (*vfs_vget)		(mount_t, vnode_t);
+	int (*vfs_statfs)	(mount_t, struct statfs *);
 	struct vnops	*vfs_vnops;
 };
 
@@ -195,4 +152,4 @@ int	vfs_nullop(void);
 int	vfs_einval(void);
 __END_DECLS
 
-#endif	/* !_SYS_MOUNT_H */
+#endif	/* !_SYS_MOUNT_H_ */

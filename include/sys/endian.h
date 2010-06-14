@@ -52,6 +52,18 @@
 
 #define	BYTE_ORDER	_BYTE_ORDER
 
+
+/*
+ * Macros for network/external number representation conversion.
+ */
+#if BYTE_ORDER == BIG_ENDIAN && !defined(__lint__)
+#define	ntohl(x)	(x)
+#define	ntohs(x)	(x)
+#define	htonl(x)	(x)
+#define	htons(x)	(x)
+
+#else	/* LITTLE_ENDIAN || !defined(__lint__) */
+
 __BEGIN_DECLS
 uint32_t htonl(uint32_t);
 uint16_t htons(uint16_t);
@@ -59,25 +71,6 @@ uint32_t ntohl(uint32_t);
 uint16_t ntohs(uint16_t);
 __END_DECLS
 
-/*
- * Macros for network/external number representation conversion.
- */
-#if BYTE_ORDER == BIG_ENDIAN && !defined(lint)
-#define	ntohl(x)	(x)
-#define	ntohs(x)	(x)
-#define	htonl(x)	(x)
-#define	htons(x)	(x)
+#endif	/* LITTLE_ENDIAN || !defined(__lint__) */
 
-#define	NTOHL(x)	(x)
-#define	NTOHS(x)	(x)
-#define	HTONL(x)	(x)
-#define	HTONS(x)	(x)
-
-#else
-
-#define	NTOHL(x)	(x) = ntohl((uint32_t)(x))
-#define	NTOHS(x)	(x) = ntohs((uint16_t)(x))
-#define	HTONL(x)	(x) = htonl((uint32_t)(x))
-#define	HTONS(x)	(x) = htons((uint16_t)(x))
-#endif
 #endif /* !_SYS_ENDIAN_H_ */

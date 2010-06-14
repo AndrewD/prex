@@ -27,10 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <server/object.h>
-#include <server/stdmsg.h>
-#include <server/proc.h>
+#include <sys/prex.h>
+#include <ipc/ipc.h>
+#include <ipc/proc.h>
 
 #include <stddef.h>
 
@@ -43,11 +42,11 @@ object_t __proc_obj;
 void
 __process_init(void)
 {
-	int err;
+	int error;
 
 	/* Look up process server */
-	err = object_lookup(OBJNAME_PROC, &__proc_obj);
-	if (err)
+	error = object_lookup("!proc", &__proc_obj);
+	if (error)
 		__proc_obj = 0;
 }
 

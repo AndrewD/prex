@@ -48,10 +48,11 @@
  * application.
  */
 
-#include <prex/prex.h>
-#include <server/proc.h>
-#include <server/stdmsg.h>
-#include <server/object.h>
+#include <sys/prex.h>
+#include <sys/param.h>
+#include <ipc/proc.h>
+#include <ipc/ipc.h>
+#include <ipc/exec.h>
 #include <sys/list.h>
 
 #include <unistd.h>
@@ -62,24 +63,36 @@
 #include "proc.h"
 
 /* forward declarations */
-static int proc_debug(struct msg *);
-static int proc_shutdown(struct msg *);
+static int proc_getpid(struct msg *);
+static int proc_getppid(struct msg *);
+static int proc_getpgid(struct msg *);
+static int proc_setpgid(struct msg *);
+static int proc_getsid(struct msg *);
+static int proc_setsid(struct msg *);
+static int proc_fork(struct msg *);
+static int proc_exit(struct msg *);
+static int proc_stop(struct msg *);
+static int proc_waitpid(struct msg *);
+static int proc_kill(struct msg *);
 static int proc_exec(struct msg *);
 static int proc_pstat(struct msg *);
 static int proc_register(struct msg *);
 static int proc_setinit(struct msg *);
+static int proc_trace(struct msg *);
+static int proc_boot(struct msg *);
+static int proc_shutdown(struct msg *);
+static int proc_noop(struct msg *);
+static int proc_debug(struct msg *);
 
 /*
  * Message mapping
  */
 struct msg_map {
-	int code;
-	int (*func)(struct msg *);
+	int	code;
+	int	(*func)(struct msg *);
 };
 
 static const struct msg_map procmsg_map[] = {
-	{STD_DEBUG,	proc_debug},
-	{STD_SHUTDOWN,	proc_shutdown},
 	{PS_GETPID,	proc_getpid},
 	{PS_GETPPID,	proc_getppid},
 	{PS_GETPGID,	proc_getpgid},
@@ -95,7 +108,11 @@ static const struct msg_map procmsg_map[] = {
 	{PS_PSTAT,	proc_pstat},
 	{PS_REGISTER,	proc_register},
 	{PS_SETINIT,	proc_setinit},
-	{0,		NULL},
+	{PS_TRACE,	proc_trace},
+	{STD_BOOT,	proc_boot},
+	{STD_SHUTDOWN,	proc_shutdown},
+	{STD_DEBUG,	proc_debug},
+	{0,		proc_noop},
 };
 
 static struct proc proc0;	/* process data of this server (pid=0) */
@@ -106,25 +123,153 @@ struct proc initproc;		/* process slot for init process (pid=1) */
 struct proc *curproc;		/* current (caller) process */
 struct list allproc;		/* list of all processes */
 
-/*
- * Create a new process.
- */
-static void
-newproc(struct proc *p, pid_t pid, task_t task)
+static int
+proc_getpid(struct msg *msg)
 {
+	pid_t pid;
 
-	p->p_parent = &proc0;
-	p->p_pgrp = &pgrp0;
-	p->p_stat = SRUN;
-	p->p_exitcode = 0;
-	p->p_vforked = 0;
-	p->p_pid = pid;
-	p->p_task = task;
-	list_init(&p->p_children);
-	list_insert(&allproc, &p->p_link);
-	proc_add(p);
-	list_insert(&proc0.p_children, &p->p_sibling);
-	list_insert(&pgrp0.pg_members, &p->p_pgrp_link);
+	pid = sys_getpid();
+
+	msg->data[0] = (int)pid;
+	return 0;
+}
+
+static int
+proc_getppid(struct msg *msg)
+{
+	pid_t ppid;
+
+	ppid = sys_getppid();
+
+	msg->data[0] = (int)ppid;
+	return 0;
+}
+
+static int
+proc_getpgid(struct msg *msg)
+{
+	pid_t pid, pgid;
+	int error;
+
+	pid = (pid_t)msg->data[0];
+
+	error = sys_getpgid(pid, &pgid);
+	if (error)
+		return error;
+
+	msg->data[0] = (int)pgid;
+	return 0;
+}
+
+static int
+proc_setpgid(struct msg *msg)
+{
+	pid_t pid, pgid;
+
+	pid = (pid_t)msg->data[0];
+	pgid = (pid_t)msg->data[1];
+
+	return sys_setpgid(pid, pgid);
+}
+
+static int
+proc_getsid(struct msg *msg)
+{
+	pid_t pid, sid;
+	int error;
+
+	pid = (pid_t)msg->data[0];
+
+	error = sys_getsid(pid, &sid);
+	if (error)
+		return error;
+
+	msg->data[0] = (int)sid;
+	return 0;
+}
+
+static int
+proc_setsid(struct msg *msg)
+{
+	pid_t sid;
+	int error;
+
+	error = sys_setsid(&sid);
+	if (error)
+		return error;
+
+	msg->data[0] = (int)sid;
+	return 0;
+}
+
+static int
+proc_fork(struct msg *msg)
+{
+	task_t child;
+	int vfork;
+	pid_t pid;
+	int error;
+
+	child = (task_t)msg->data[0];
+	vfork = msg->data[1];
+
+	error = sys_fork(child, vfork, &pid);
+	if (error)
+		return error;
+
+	msg->data[0] = (int)pid;
+	return 0;
+}
+
+static int
+proc_exit(struct msg *msg)
+{
+	int exitcode;
+
+	exitcode = msg->data[0];
+
+	return sys_exit(exitcode);
+}
+
+static int
+proc_stop(struct msg *msg)
+{
+	int exitcode;
+
+	exitcode = msg->data[0];
+
+	return stop(exitcode);
+}
+
+static int
+proc_waitpid(struct msg *msg)
+{
+	pid_t pid, pid_child;
+	int options, status, error;
+
+	pid = (pid_t)msg->data[0];
+	options = msg->data[1];
+
+	error = sys_waitpid(pid, &status, options, &pid_child);
+	if (error)
+		return error;
+
+	msg->data[0] = pid_child;
+	msg->data[1] = status;
+
+	return 0;
+}
+
+static int
+proc_kill(struct msg *msg)
+{
+	pid_t pid;
+	int sig;
+
+	pid = (pid_t)msg->data[0];
+	sig = msg->data[1];
+
+	return sys_kill(pid, sig);
 }
 
 /*
@@ -138,21 +283,28 @@ proc_exec(struct msg *msg)
 	task_t orgtask, newtask;
 	struct proc *p, *parent;
 
-	DPRINTF(("proc_exec: pid=%x\n", curproc->p_pid));
+	DPRINTF(("proc: exec pid=%x\n", curproc->p_pid));
 
 	orgtask = (task_t)msg->data[0];
 	newtask = (task_t)msg->data[1];
 	if ((p = task_to_proc(orgtask)) == NULL)
 		return EINVAL;
 
-	proc_remove(p);
+	p_remove(p);
 	p->p_task = newtask;
-	proc_add(p);
+	p_add(p);
+	p->p_invfork = 0;
 	p->p_stackbase = (void *)msg->data[2];
+
+	if (p->p_flag & P_TRACED) {
+		DPRINTF(("proc: traced!\n"));
+		sys_debug(DBGC_TRACE, (void *)newtask);
+	}
 
 	parent = p->p_parent;
 	if (parent != NULL && parent->p_vforked)
 		vfork_end(parent);
+
 	return 0;
 }
 
@@ -165,7 +317,7 @@ proc_pstat(struct msg *msg)
 	task_t task;
 	struct proc *p;
 
-	DPRINTF(("proc_pstat: task=%x\n", msg->data[0]));
+	DPRINTF(("proc: pstat task=%x\n", msg->data[0]));
 
 	task = (task_t)msg->data[0];
 	if ((p = task_to_proc(task)) == NULL)
@@ -186,15 +338,38 @@ proc_pstat(struct msg *msg)
 static int
 proc_setinit(struct msg *msg)
 {
-	struct proc *p;
 
-	DPRINTF(("proc_setinit\n"));
+	DPRINTF(("proc: setinit task=%x\n", msg->hdr.task));
 
-	p = &initproc;
-	if (p->p_stat == SRUN)
+	/* Check client's capability. */
+	if (task_chkcap(msg->hdr.task, CAP_PROTSERV) != 0)
 		return EPERM;
 
-	newproc(p, 1, msg->hdr.task);
+	if (initproc.p_stat == SRUN)
+		return EPERM;
+
+	curproc = &proc0;
+	newproc(&initproc, 1, msg->hdr.task);
+
+	return 0;
+}
+
+/*
+ * Set trace flag
+ */
+static int
+proc_trace(struct msg *msg)
+{
+	task_t task = msg->hdr.task;
+	struct proc *p;
+
+	DPRINTF(("proc: trace task=%x\n", task));
+
+	if ((p = task_to_proc(task)) == NULL)
+		return EINVAL;
+
+	/* Toggle trace flag */
+	p->p_flag ^= P_TRACED;
 	return 0;
 }
 
@@ -205,24 +380,63 @@ static int
 proc_register(struct msg *msg)
 {
 	struct proc *p;
-	pid_t pid;
 
-	DPRINTF(("proc_register\n"));
+	DPRINTF(("proc: register task=%x\n", msg->hdr.task));
+
+	/* Check client's capability. */
+	if (task_chkcap(msg->hdr.task, CAP_PROTSERV) != 0)
+		return EPERM;
+
 	if ((p = malloc(sizeof(struct proc))) == NULL)
 		return ENOMEM;
 	memset(p, 0, sizeof(struct proc));
 
-	if ((pid = pid_assign()) == 0) {
-		free(p);
-		return EAGAIN;	/* Too many processes */
-	}
-	newproc(p, pid, msg->hdr.task);
-	DPRINTF(("proc_register-comp\n"));
+	curproc = &proc0;
+	if (newproc(p, 0, msg->hdr.task))
+		sys_panic("proc: fail to register boot task");
+
+	DPRINTF(("proc: register pid=%d\n", p->p_pid));
+	return 0;
+}
+
+/*
+ * Ready to boot
+ */
+static int
+proc_boot(struct msg *msg)
+{
+	object_t obj;
+	struct bind_msg m;
+
+	DPRINTF(("proc: boot\n"));
+
+	/* Check client's capability. */
+	if (task_chkcap(msg->hdr.task, CAP_PROTSERV) != 0)
+		return EPERM;
+
+	/*
+	 * Request exec server to bind an appropriate
+	 * capability for us.
+	 */
+	if (object_lookup("!exec", &obj) != 0)
+		sys_panic("proc: no exec found");
+	m.hdr.code = EXEC_BINDCAP;
+	strlcpy(m.path, "/boot/proc", sizeof(m.path));
+	msg_send(obj, &m, sizeof(m));
+
 	return 0;
 }
 
 static int
 proc_shutdown(struct msg *msg)
+{
+
+	DPRINTF(("proc: shutdown\n"));
+	return 0;
+}
+
+static int
+proc_noop(struct msg *msg)
 {
 
 	return 0;
@@ -255,39 +469,50 @@ proc_debug(struct msg *msg)
 }
 
 static void
-init(void)
+proc_init(void)
 {
-	struct proc *p;
 
-	p = &proc0;
-	curproc = p;
-
+	list_init(&allproc);
 	tty_init();
 	table_init();
-	list_init(&allproc);
+}
 
-	/*
-	 * Create process 0 (the process server)
-	 */
-	pgrp0.pg_pgid = 0;
-	list_init(&pgrp0.pg_members);
-	pgrp_add(&pgrp0);
 
-	pgrp0.pg_session = &session0;
-	session0.s_refcnt = 1;
-	session0.s_leader = p;
-	session0.s_ttyhold = 0;
+/*
+ * Initialize process 0.
+ */
+static void
+proc0_init(void)
+{
+	struct proc *p;
+	struct pgrp *pg;
+	struct session *sess;
 
-	p->p_pgrp = &pgrp0;
+	p = &proc0;
+	pg = &pgrp0;
+	sess = &session0;
+
+	pg->pg_pgid = 0;
+	list_init(&pg->pg_members);
+	pg_add(pg);
+
+	pg->pg_session = sess;
+	sess->s_refcnt = 1;
+	sess->s_leader = p;
+	sess->s_ttyhold = 0;
+
 	p->p_parent = 0;
+	p->p_pgrp = pg;
 	p->p_stat = SRUN;
 	p->p_exitcode = 0;
-	p->p_vforked = 0;
 	p->p_pid = 0;
 	p->p_task = task_self();
+	p->p_vforked = 0;
+	p->p_invfork = 0;
+
 	list_init(&p->p_children);
-	proc_add(p);
-	list_insert(&pgrp0.pg_members, &p->p_pgrp_link);
+	p_add(p);
+	list_insert(&pg->pg_members, &p->p_pgrp_link);
 }
 
 /*
@@ -299,24 +524,21 @@ main(int argc, char *argv[])
 	static struct msg msg;
 	const struct msg_map *map;
 	object_t obj;
-	int err;
+	int error;
 
-	sys_log("Starting Process Server\n");
+	sys_log("Starting process server\n");
 
-	/*
-	 * Boost current priority.
-	 */
-	thread_setprio(thread_self(), PRIO_PROC);
+	/* Boost thread priority. */
+	thread_setpri(thread_self(), PRI_PROC);
 
-	/*
-	 * Initialize everything.
-	 */
-	init();
+	/* Initialize process and pgrp structures. */
+	proc_init();
 
-	/*
-	 * Create an object to expose our service.
-	 */
-	if ((err = object_create(OBJNAME_PROC, &obj)) != 0)
+	/* Create process 0 (process server). */
+	proc0_init();
+
+	/* Create an object to expose our service. */
+	if ((error = object_create("!proc", &obj)) != 0)
 		sys_panic("proc: fail to create object");
 
 	/*
@@ -326,24 +548,21 @@ main(int argc, char *argv[])
 		/*
 		 * Wait for an incoming request.
 		 */
-		err = msg_receive(obj, &msg, sizeof(msg));
-		if (err)
+		error = msg_receive(obj, &msg, sizeof(msg));
+		if (error)
 			continue;
 
-		err = EINVAL;
+		DPRINTF(("proc: msg code=%x task=%x\n",
+			 msg.hdr.code, msg.hdr.task));
+
+		error = EINVAL;
 		map = &procmsg_map[0];
 		while (map->code != 0) {
 			if (map->code == msg.hdr.code) {
 
 				/* Get current process */
 				curproc = task_to_proc(msg.hdr.task);
-
-				/* Update the capability of caller task. */
-				if (curproc &&
-				    task_getcap(msg.hdr.task, &curproc->p_cap))
-					break;
-
-				err = (*map->func)(&msg);
+				error = (*map->func)(&msg);
 				break;
 			}
 			map++;
@@ -351,13 +570,13 @@ main(int argc, char *argv[])
 		/*
 		 * Reply to the client.
 		 */
-		msg.hdr.status = err;
+		msg.hdr.status = error;
 		msg_reply(obj, &msg, sizeof(msg));
 #ifdef DEBUG_PROC
-		if (err)
-			DPRINTF(("proc: msg code=%x error=%d\n", map->code,
-				 err));
+		if (error) {
+			DPRINTF(("proc: msg code=%x error=%d\n",
+				 map->code, error));
+		}
 #endif
 	}
-	return 0;
 }

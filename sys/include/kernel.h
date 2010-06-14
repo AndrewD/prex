@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,62 +30,33 @@
 #ifndef _KERNEL_H
 #define _KERNEL_H
 
+#include <conf/config.h>
+#include <types.h>
+#include <machine/stdarg.h>
 #include <sys/cdefs.h>
 #include <sys/param.h>
-#include <sys/list.h>
 #include <sys/errno.h>
-#include <prex/bootinfo.h>
-#include <machine/stdarg.h>
-#include <arch.h>
-#include <platform.h>
+#include <task.h>
+#include <thread.h>
+#include <version.h>
 #include <debug.h>
+#include <libkern.h>
 
-typedef struct object	*object_t;
-typedef struct task	*task_t;
-typedef struct thread	*thread_t;
-typedef struct device	*device_t;
-typedef struct mutex	*mutex_t;
-typedef struct cond	*cond_t;
-typedef struct sem	*sem_t;
-typedef struct vm_map	*vm_map_t;
-typedef struct irq	*irq_t;
+#define __s(x) __STRING(x)
 
-typedef void (*sysfn_t)(void);
-typedef void (*dkifn_t)(void);
+#define HOSTNAME	"Preky"
+#define PROFILE		__s(CONFIG_PROFILE)
+#define MACHINE		__s(CONFIG_MACHINE)
+#define VERSION		__s(MAJORVERSION) "." __s(MINORVERSION) "." __s(PATCHLEVEL)
 
-
-#include <prex/sysinfo.h>
+#define BANNER		"Prex version " VERSION PROFILE " for " MACHINE \
+			" ("__DATE__ ")\n" \
+			"Copyright (c) 2005-2009 Kohsuke Ohtani\n"
 
 /*
- * Magic numbers
+ * Global variables in the kernel.
  */
-#define OBJECT_MAGIC	0x4f626a3f	/* 'Obj?' */
-#define TASK_MAGIC	0x54736b3f	/* 'Tsk?' */
-#define THREAD_MAGIC	0x5468723f	/* 'Thr?' */
-#define DEVICE_MAGIC	0x4465763f	/* 'Dev?' */
-#define MUTEX_MAGIC	0x4d75783f	/* 'Mux?' */
-#define COND_MAGIC	0x436f6e3f	/* 'Con?' */
-#define SEM_MAGIC	0x53656d3f	/* 'Sem?' */
-
-/*
- * Global variables in the kernel
- */
-extern struct thread	*cur_thread;	/* pointer to the current thread */
-extern struct task	kern_task;	/* kernel task */
-extern struct bootinfo	*bootinfo;	/* pointer to boot information */
-extern volatile int	irq_level;	/* current interrupt level */
-extern const dkifn_t	driver_service[];
-extern const sysfn_t	syscall_table[];
-extern const u_int	nr_syscalls;
-
-
-__BEGIN_DECLS
-size_t	 strlcpy(char *, const char *, size_t);
-int	 strncmp(const char *, const char *, size_t);
-size_t	 strnlen(const char *, size_t);
-void	*memcpy(void *, const void *, size_t);
-void	*memset(void *, int, size_t);
-int	 vsprintf(char *, const char *, va_list);
-__BEGIN_DECLS
+extern struct thread	*curthread;	/* pointer to the current thread */
+extern struct task	kernel_task;	/* kernel task */
 
 #endif /* !_KERNEL_H */

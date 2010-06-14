@@ -31,12 +31,11 @@
  * Exec server - Execute various types of image files.
  */
 
-#include <prex/prex.h>
-#include <prex/capability.h>
-#include <server/fs.h>
-#include <server/proc.h>
-#include <server/stdmsg.h>
-#include <server/object.h>
+#include <sys/prex.h>
+#include <sys/capability.h>
+#include <ipc/fs.h>
+#include <ipc/proc.h>
+#include <ipc/ipc.h>
 #include <sys/list.h>
 
 #include <limits.h>
@@ -46,253 +45,114 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <assert.h>
 #include <errno.h>
 
 #include "exec.h"
 
-/*
- * Object for system server
- */
-object_t proc_obj;	/* Process server */
-object_t fs_obj;	/* File system server */
+/* forward declarations */
+static int exec_null(struct msg *);
+static int exec_debug(struct msg *);
+static int exec_boot(struct msg *);
+static int exec_shutdown(struct msg *);
 
 /*
- * File header
+ * Message mapping
  */
-static char header[HEADER_SIZE];
+struct msg_map {
+	int	code;
+	int	(*func)(struct msg *);
+};
 
-/*
- * Wait until specified server starts.
- */
-static void
-wait_server(const char *name, object_t *obj)
-{
-	int i, err = 0;
+#define MSGMAP(code, fn) {code, (int (*)(struct msg *))fn}
 
-	/*
-	 * Check the server existence. Timeout is 1sec.
-	 */
-	for (i = 0; i < 100; i++) {
-		err = object_lookup((char *)name, obj);
-		if (err == 0)
-			break;
-
-		/* Wait 10msec */
-		timer_sleep(10, 0);
-		thread_yield();
-	}
-	if (err)
-		sys_panic("exec: server not found");
-}
+static const struct msg_map execmsg_map[] = {
+	MSGMAP(EXEC_EXECVE,	exec_execve),
+	MSGMAP(EXEC_BINDCAP,	exec_bindcap),
+	MSGMAP(STD_BOOT,	exec_boot),
+	MSGMAP(STD_SHUTDOWN,	exec_shutdown),
+	MSGMAP(STD_DEBUG,	exec_debug),
+	MSGMAP(0,		exec_null),
+};
 
 static void
-process_init(void)
+register_process(void)
 {
 	struct msg m;
+	object_t obj;
+	int error;
+
+	error = object_lookup("!proc", &obj);
+	if (error)
+		sys_panic("exec: no proc");
 
 	m.hdr.code = PS_REGISTER;
-	msg_send(proc_obj, &m, sizeof(m));
+	msg_send(obj, &m, sizeof(m));
 }
 
-/*
- * Notify exec() to servers.
- */
-static void
-notify_server(task_t org_task, task_t new_task, void *stack)
-{
-	struct msg m;
-	int err;
-
-	/* Notify to file system server */
-	do {
-		m.hdr.code = FS_EXEC;
-		m.data[0] = (int)org_task;
-		m.data[1] = (int)new_task;
-		err = msg_send(fs_obj, &m, sizeof(m));
-	} while (err == EINTR);
-
-	/* Notify to process server */
-	do {
-		m.hdr.code = PS_EXEC;
-		m.data[0] = (int)org_task;
-		m.data[1] = (int)new_task;
-		m.data[2] = (int)stack;
-		err = msg_send(proc_obj, &m, sizeof(m));
-	} while (err == EINTR);
-}
-
-/*
- * Execute program
- */
 static int
-do_exec(struct exec_msg *msg)
+exec_null(struct msg *msg)
 {
-	struct exec_loader *ldr;
-	char *name;
-	int err, fd, count;
-	struct stat st;
-	task_t old_task, new_task;
-	thread_t th;
-	void *stack, *sp;
-	void (*entry)(void);
-	cap_t cap;
 
-	DPRINTF(("do_exec: path=%s task=%x\n", msg->path, msg->hdr.task));
-
-	old_task = msg->hdr.task;
-
-	/*
-	 * Check capability of caller task.
-	 */
-	if (task_getcap(old_task, &cap)) {
-		err = EINVAL;
-		goto err1;
-	}
-	if ((cap & CAP_EXEC) == 0) {
-		err = EPERM;
-		goto err1;
-	}
-	/*
-	 * Check target file
-	 */
-	if ((fd = open(msg->path, O_RDONLY)) == -1) {
-		err = ENOENT;
-		goto err1;
-	}
-	if (fstat(fd, &st) == -1) {
-		err = EIO;
-		goto err2;
-	}
-	if (!S_ISREG(st.st_mode)) {
-		err = EACCES;	/* must be regular file */
-		goto err2;
-	}
-	/*
-	 * Find file loader from the file header.
-	 */
-	if ((count = read(fd, header, HEADER_SIZE)) == -1) {
-		err = EIO;
-		goto err2;
-	}
-	for (ldr = loader_table; ldr->el_name != NULL; ldr++) {
-		if (ldr->el_probe(header) == 0)
-			break;
-		/* Check next format */
-	}
-	if (ldr->el_name == NULL) {
-		DPRINTF(("Unsupported file format\n"));
-		err = ENOEXEC;
-		goto err2;
-	}
-	DPRINTF(("exec loader=%s\n", ldr->el_name));
-
-	/*
-	 * Suspend old task
-	 */
-	if ((err = task_suspend(old_task)) != 0)
-		goto err2;
-
-	/*
-	 * Create new task
-	 */
-	if ((err = task_create(old_task, VM_NEW, &new_task)) != 0)
-		goto err2;
-
-	if (msg->path[0] != '\0') {
-		name = strrchr(msg->path, '/');
-		if (name)
-			name++;
-		else
-			name = msg->path;
-		task_name(new_task, name);
-	}
-	/*
-	 * Copy capabilities
-	 */
-	task_getcap(old_task, &cap);
-
-	/*
-	 * XXX: Temporary removed...
-	 */
-	/* cap &= CONFIG_CAP_MASK; */
-
-	task_setcap(new_task, &cap);
-
-	if ((err = thread_create(new_task, &th)) != 0)
-		goto err3;
-
-	/*
-	 * Allocate stack and build arguments on it.
-	 */
-	err = vm_allocate(new_task, &stack, USTACK_SIZE, 1);
-	if (err)
-		goto err4;
-	if ((err = build_args(new_task, stack, msg, &sp)) != 0)
-		goto err5;
-
-	/*
-	 * Load file image.
-	 */
-	if ((err = ldr->el_load(header, new_task, fd, (void **)&entry)) != 0)
-		goto err5;
-	if ((err = thread_load(th, entry, sp)) != 0)
-		goto err5;
-
-	/*
-	 * Notify to servers.
-	 */
-	notify_server(old_task, new_task, stack);
-
-	/*
-	 * Terminate old task.
-	 */
-	task_terminate(old_task);
-
-	/*
-	 * Set him running.
-	 */
-	thread_resume(th);
-
-	close(fd);
-	DPRINTF(("exec complete successfully\n"));
 	return 0;
- err5:
-	vm_free(new_task, stack);
- err4:
-	thread_terminate(th);
- err3:
-	task_terminate(new_task);
- err2:
-	close(fd);
- err1:
-	DPRINTF(("exec failed err=%d\n", err));
-	return err;
 }
 
-/*
- * Debug
- */
-static void
-exec_debug(void)
+static int
+exec_boot(struct msg *msg)
+{
+
+	/* Check client's capability. */
+	if (task_chkcap(msg->hdr.task, CAP_PROTSERV) != 0)
+		return EPERM;
+
+	/* Register to process server */
+	register_process();
+
+	/* Register to file server */
+	fslib_init();
+
+	return 0;
+}
+
+static int
+exec_debug(struct msg *msg)
 {
 
 #ifdef DEBUG
 	/* mstat(); */
 #endif
+	return 0;
+}
+
+static int
+exec_shutdown(struct msg *msg)
+{
+
+	DPRINTF(("exec_shutdown\n"));
+	return 0;
 }
 
 /*
- * Initialize all exec loaders
+ * Initialize all exec loaders.
  */
 static void
 exec_init(void)
 {
 	struct exec_loader *ldr;
+	int i;
 
-	for (ldr = loader_table; ldr->el_name; ldr++) {
+	for (i = 0; i < nloader; i++) {
+		ldr = &loader_table[i];
 		DPRINTF(("Initialize \'%s\' loader\n", ldr->el_name));
 		ldr->el_init();
 	}
+}
+
+static void
+exception_handler(int sig)
+{
+
+	exception_return();
 }
 
 /*
@@ -301,44 +161,40 @@ exec_init(void)
 int
 main(int argc, char *argv[])
 {
-	struct exec_msg msg;
+	const struct msg_map *map;
+	struct msg *msg;
 	object_t obj;
-	int err;
+	int error;
 
-	sys_log("Starting Exec Server\n");
+	sys_log("Starting exec server\n");
+
+	/* Boost thread priority. */
+	thread_setpri(thread_self(), PRI_EXEC);
 
 	/*
-	 * Boost current priority
+	 * Set capability for us
 	 */
-	thread_setprio(thread_self(), PRIO_EXEC);
+	bind_cap("/boot/exec", task_self());
 
 	/*
-	 * Wait until system server becomes available.
+	 * Setup exception handler.
 	 */
-	wait_server(OBJNAME_PROC, &proc_obj);
-	wait_server(OBJNAME_FS, &fs_obj);
+	exception_setup(exception_handler);
 
 	/*
-	 * Register to process server
-	 */
-	process_init();
-
-	/*
-	 * Register to file server
-	 */
-	fslib_init();
-
-	/*
-	 * Initialize everything
+	 * Initialize exec loaders.
 	 */
 	exec_init();
 
 	/*
 	 * Create an object to expose our service.
 	 */
-	err = object_create(OBJNAME_EXEC, &obj);
-	if (err)
+	error = object_create("!exec", &obj);
+	if (error)
 		sys_panic("fail to create object");
+
+	msg = malloc(MAX_EXECMSG);
+	ASSERT(msg);
 
 	/*
 	 * Message loop
@@ -347,32 +203,33 @@ main(int argc, char *argv[])
 		/*
 		 * Wait for an incoming request.
 		 */
-		err = msg_receive(obj, &msg, sizeof(struct exec_msg));
-		if (err)
+		error = msg_receive(obj, msg, MAX_EXECMSG);
+		if (error)
 			continue;
-		/*
-		 * Process request.
-		 */
-		err = EINVAL;
-		switch (msg.hdr.code) {
-		case STD_DEBUG:
-			exec_debug();
-			err = 0;
-			break;
 
-		case EX_EXEC:
-			err = do_exec(&msg);
-			break;
+		error = EINVAL;
+		map = &execmsg_map[0];
+		while (map->code != 0) {
+			if (map->code == msg->hdr.code) {
+				error = (*map->func)(msg);
+				break;
+			}
+			map++;
 		}
 #ifdef DEBUG_EXEC
-		if (err)
-			DPRINTF(("msg error=%d\n", err));
+		if (error)
+			DPRINTF(("exec: msg error=%d code=%x\n",
+				 error, msg->hdr.code));
 #endif
 		/*
 		 * Reply to the client.
+		 *
+		 * Note: If EXEC_EXECVE request is handled successfully,
+		 * the receiver task has been terminated here. But, we
+		 * have to call msg_reply() even in such case to reset
+		 * our IPC state.
 		 */
-		msg.hdr.status = err;
-		err = msg_reply(obj, &msg, sizeof(struct exec_msg));
+		msg->hdr.status = error;
+		error = msg_reply(obj, msg, MAX_EXECMSG);
 	}
-	return 0;
 }

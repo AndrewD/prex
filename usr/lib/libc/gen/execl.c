@@ -40,7 +40,7 @@ int
 execl(const char *name, const char *arg, ...)
 {
 	int r;
-#if defined(__i386__) || defined(__m68k__) || defined(__ns32k__)
+#if defined(__x86__)
 	r = execve(name, (char **) &arg, environ);
 	return (r);
 #else
@@ -54,13 +54,13 @@ execl(const char *name, const char *arg, ...)
 	va_end(ap);
 
 	argv = alloca (i * sizeof (char *));
-	
+
 	va_start(ap, arg);
 	argv[0] = (char *) arg;
 	for (i = 1; (argv[i] = (char *) va_arg(ap, char *)) != NULL; i++)
 		;
 	va_end(ap);
-	
+
 	r = execve(name, argv, environ);
 	return (r);
 #endif

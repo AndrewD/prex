@@ -41,7 +41,7 @@
 #include <sys/time.h>
 #include <sys/param.h>
 #ifdef __gba__
-#include <prex/keycode.h>
+#include <sys/keycode.h>
 #endif
 
 #include <signal.h>
@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 	scr_init();
 	setup_board();
 
-	srandom(getpid());
+	srandom((unsigned long)getpid());
 	scr_set();
 
 	pos = A_FIRST*B_COLS + (B_COLS/2)-1;

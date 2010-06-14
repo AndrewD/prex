@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SYS_FILE_H
-#define _SYS_FILE_H
+#ifndef _SYS_FILE_H_
+#define _SYS_FILE_H_
 
 #include <sys/types.h>
 #include <sys/vnode.h>
@@ -46,4 +46,4 @@ struct file {
 };
 typedef struct file *file_t;
 
-#endif /* !_SYS_FILE_H */
+#endif /* !_SYS_FILE_H_ */

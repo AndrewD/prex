@@ -39,7 +39,6 @@
 
 /* Machine type dependent parameters. */
 #include <machine/types.h>
-#include <prex/types.h>
 
 typedef	unsigned char	u_char;
 typedef	unsigned short	u_short;
@@ -49,12 +48,34 @@ typedef	unsigned long	u_long;
 typedef	uint32_t	dev_t;		/* device number */
 typedef	uint32_t	gid_t;		/* group id */
 typedef	uint32_t	ino_t;		/* inode number */
-typedef	uint16_t	mode_t;		/* permissions */
-typedef	uint16_t	nlink_t;	/* link count */
+typedef	uint32_t	mode_t;		/* permissions */
+typedef	uint32_t	nlink_t;	/* link count */
 typedef	int32_t		off_t;		/* file offset */
 typedef	int32_t		pid_t;		/* process id */
 typedef	uint32_t	uid_t;		/* user id */
 typedef unsigned long	rlim_t;		/* resource limit */
+
+#ifndef KERNEL
+typedef unsigned long	object_t;
+typedef unsigned long	task_t;
+typedef unsigned long	thread_t;
+typedef unsigned long	mutex_t;
+typedef unsigned long	cond_t;
+typedef unsigned long	sem_t;
+typedef unsigned long	device_t;
+#endif /* KERNEL */
+
+#define OBJECT_NULL	((object_t)0)
+#define TASK_NULL	  ((task_t)0)
+#define THREAD_NULL	((thread_t)0)
+#define MUTEX_NULL	 ((mutex_t)0)
+#define COND_NULL	  ((cond_t)0)
+#define SEM_NULL	   ((sem_t)0)
+#define NODEV		((device_t)0)
+
+#ifdef KERNEL
+typedef void (*dkifn_t)(void);
+#endif
 
 #include <sys/endian.h>
 

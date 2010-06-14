@@ -31,7 +31,7 @@
  * fifo.c - test FIFO function
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
@@ -49,7 +49,7 @@ main(int argc, char *argv[])
 
 	printf("FIFO test program\n");
 
-	if (mknod("/fifo/test", S_IFIFO | 0666, 0) == -1) {
+	if (mknod("/mnt/fifo/test", (mode_t)(S_IFIFO | 0666), 0) == -1) {
 		perror("mkfifo");
 		exit(1);
 	}
@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 		/* child */
 		printf("child: task=%x\n", (int)task_self());
 
-		fd1 = open("/fifo/test", O_RDONLY);
+		fd1 = open("/mnt/fifo/test", O_RDONLY);
 		if (fd1 == -1) {
 			perror("open");
 			exit(1);
@@ -81,7 +81,7 @@ main(int argc, char *argv[])
 	}
 	printf("parent: task=%x\n", (int)task_self());
 
-	fd2 = open("/fifo/test", O_WRONLY);
+	fd2 = open("/mnt/fifo/test", O_WRONLY);
 	if (fd2 == -1) {
 		perror("open");
 		exit(1);

@@ -27,10 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/proc.h>
-#include <server/stdmsg.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/proc.h>
+#include <ipc/ipc.h>
 
 #include <stddef.h>
 #include <unistd.h>

@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <unistd.h>
 
 void
 strmode(mode, p)

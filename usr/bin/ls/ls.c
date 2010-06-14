@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 
 #include <unistd.h>
+#include <termios.h>
 #include <err.h>
 #include <string.h>
 #include <stdlib.h>
@@ -42,7 +43,7 @@
 #define main(argc, argv)	ls_main(argc, argv)
 #endif
 
-static void print_entry(char *name, struct stat *sp);
+static void printentry(char *name, struct stat *sp);
 static int do_ls(char *path);
 
 /* Flags */
@@ -55,11 +56,16 @@ static int do_ls(char *path);
 #define LSF_RECURSIVE	0x20	/* List Subdirectory */
 #define LSF_TIMESORT	0x40	/* Sort by time */
 
+#define DEFAULT_WIDTH	80
+
 static unsigned int ls_flags;
+static int termwidth;
+static int cols;
 
 int
 main(int argc, char *argv[])
 {
+	struct winsize ws;
 	int ch, rc;
 
 	ls_flags = 0;
@@ -96,6 +102,15 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (isatty(STDOUT_FILENO)) {
+		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 &&
+		    ws.ws_col != 0) {
+			termwidth = ws.ws_col;
+		} else {
+			termwidth = DEFAULT_WIDTH;
+		}
+	}
+
 	if (argc == 0)
 		rc = do_ls(".");
 	else {
@@ -110,10 +125,62 @@ main(int argc, char *argv[])
 }
 
 static void
-print_entry(char *name, struct stat *sp)
+printtype(u_int mode)
+{
+	char type;
+
+	switch (mode & S_IFMT) {
+	case S_IFIFO:
+		type = 'p';
+		break;
+	case S_IFCHR:
+		type = 'c';
+			break;
+	case S_IFDIR:
+		type = 'd';
+		break;
+	case S_IFBLK:
+		type = 'b';
+		break;
+	case S_IFLNK:
+		type = 'l';
+		break;
+	case S_IFSOCK:
+		type = 's';
+		break;
+	case S_IFREG:
+	default:
+		type = '-';
+		break;
+	}
+	putchar(type);
+}
+
+/* We don't use strmode() to save code. */
+static void
+printmode(u_int mode)
+{
+
+	if (mode & S_IRUSR)
+		putchar('r');
+	else
+		putchar('-');
+	if (mode & S_IWUSR)
+		putchar('w');
+	else
+		putchar('-');
+	if (mode & S_IXUSR)
+		putchar('x');
+	else
+		putchar('-');
+}
+
+static void
+printentry(char *name, struct stat *sp)
 {
 	int color;
 	int dot = 0;
+	int len;
 
 	if (name[0] == '.') {
 		if ((ls_flags & LSF_DOT) == 0)
@@ -133,21 +200,9 @@ print_entry(char *name, struct stat *sp)
 		color = 33;  /* yellow */
 
 	if (ls_flags & LSF_LONG) {
-		/* print mode */
-		if (S_ISDIR(sp->st_mode))
-			putchar('d');
-		else if (S_ISLNK(sp->st_mode))
-			putchar('@');
-		else if (S_ISFIFO(sp->st_mode))
-			putchar('|');
-		else
-			putchar('-');
+		printtype(sp->st_mode);
+		printmode(sp->st_mode);
 
-		printf("rw");
-		if (sp->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
-			putchar('x');
-		else
-			putchar('-');
 		printf("------");
 
 		/* print link */
@@ -169,23 +224,7 @@ print_entry(char *name, struct stat *sp)
 
 	/* print type */
 	if (!dot && (ls_flags & LSF_TYPE)) {
-		switch (sp->st_mode & S_IFMT) {
-		case S_IFDIR:
-			putchar('/');
-			break;
-		case S_IFIFO:
-			putchar('|');
-			break;
-		case S_IFLNK:
-			putchar('@');
-			break;
-		case S_IFSOCK:
-			putchar('=');
-			break;
-		case S_IFWHT:
-			putchar('%');
-			break;
-		}
+		printtype(sp->st_mode);
 		if (sp->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
 			putchar('*');
 	}
@@ -193,7 +232,22 @@ print_entry(char *name, struct stat *sp)
 	if (ls_flags & LSF_LONG || ls_flags & LSF_SINGLE) {
 		putchar('\n');
 	} else {
-		putchar(' ');
+		len = strlen(name);
+		cols += len;
+		if (cols > termwidth / 2 + 8) {
+			printf("\n");
+			cols = 0;
+		} else {
+			if (len > 8) {
+				putchar(' ');
+				cols++;
+			} else {
+				for (; len <= 9; len++) {
+					putchar(' ');
+					cols++;
+				}
+			}
+		}
 	}
 }
 
@@ -215,10 +269,13 @@ do_ls(char *path)
 		if (dir == NULL)
 			return ENOTDIR;
 
+		cols = 0;
 		for (;;) {
+
 			entry = readdir(dir);
 			if (entry == NULL)
 				break;
+
 			buf[0] = 0;
 			strlcpy(buf, path, sizeof(buf));
 			buf[sizeof(buf) - 1] = '\0';
@@ -230,9 +287,9 @@ do_ls(char *path)
 				strlcat(buf, "/", sizeof(buf));
 				strlcat(buf, entry->d_name, sizeof(buf));
 			}
-			if (stat(buf, &st) == -1)
+			if (stat(buf, &st) == -1 && errno != EACCES)
 				break;
-			print_entry(entry->d_name, &st);
+			printentry(entry->d_name, &st);
 			nr_file++;
 		}
 		closedir(dir);
@@ -241,7 +298,8 @@ do_ls(char *path)
 		else
 			putchar('\n');
 	} else {
-		print_entry(path, &st);
+
+		printentry(path, &st);
 		putchar('\n');
 	}
 	return 0;

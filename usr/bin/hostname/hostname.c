@@ -36,6 +36,10 @@
 #define main(argc, argv)	hostname_main(argc, argv)
 #endif
 
+/*
+ * TODO: we should get the hostname from net server.
+ */
+
 int
 main(int argc, char *argv[])
 {

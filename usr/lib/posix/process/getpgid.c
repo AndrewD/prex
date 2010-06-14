@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/posix.h>
-#include <server/proc.h>
-#include <server/stdmsg.h>
+#include <sys/posix.h>
+#include <ipc/proc.h>
+#include <ipc/ipc.h>
 
 #include <stddef.h>
 #include <unistd.h>

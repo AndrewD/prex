@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,60 +30,62 @@
 #ifndef _VM_H
 #define _VM_H
 
+#include <types.h>
 #include <sys/cdefs.h>
-#include <arch.h>	/* for pgd_t */
+#include <sys/sysinfo.h>
+#include <sys/bootinfo.h>
 
 /*
- * One structure per allocated region.
+ * One structure per allocated segment.
  */
-struct region {
-	struct region	*prev;		/* region list sorted by address */
-	struct region	*next;
-	struct region	*sh_prev;	/* link for all shared region */
-	struct region	*sh_next;
-	void		*addr;		/* base address */
+struct seg {
+	struct seg	*prev;		/* segment list sorted by address */
+	struct seg	*next;
+	struct seg	*sh_prev;	/* link for all shared segments */
+	struct seg	*sh_next;
+	vaddr_t		addr;		/* base address */
 	size_t		size;		/* size */
-	int		flags;		/* flag */
-#ifdef CONFIG_MMU
-	void		*phys;		/* physical address */
-#endif
+	int		flags;		/* SEG_* flag */
+	paddr_t		phys;		/* physical address */
 };
 
-/* Flags for region */
-#define REG_READ	0x00000001
-#define REG_WRITE	0x00000002
-#define REG_EXEC	0x00000004
-#define REG_SHARED	0x00000008
-#define REG_MAPPED	0x00000010
-#define REG_FREE	0x00000080
+/* Flags for segment */
+#define SEG_READ	0x00000001
+#define SEG_WRITE	0x00000002
+#define SEG_EXEC	0x00000004
+#define SEG_SHARED	0x00000008
+#define SEG_MAPPED	0x00000010
+#define SEG_FREE	0x00000080
+
+/* Attribute for vm_attribute() */
+#define	PROT_NONE	0x0		/* pages cannot be accessed */
+#define	PROT_READ	0x1		/* pages can be read */
+#define	PROT_WRITE	0x2		/* pages can be written */
+#define	PROT_EXEC	0x4		/* pages can be executed */
 
 /*
  * VM mapping per one task.
  */
 struct vm_map {
-	struct region	head;		/* list head of regions */
+	struct seg	head;		/* list head of segements */
 	int		refcnt;		/* reference count */
 	pgd_t		pgd;		/* page directory */
+	size_t		total;		/* total used size */
 };
-
-/* VM attributes */
-#define VMA_READ	0x01
-#define VMA_WRITE	0x02
-#define VMA_EXEC	0x04
 
 __BEGIN_DECLS
 int	 vm_allocate(task_t, void **, size_t, int);
 int	 vm_free(task_t, void *);
 int	 vm_attribute(task_t, void *, int);
 int	 vm_map(task_t, void *, size_t, void **);
-vm_map_t vm_fork(vm_map_t);
+vm_map_t vm_dup(vm_map_t);
 vm_map_t vm_create(void);
 int	 vm_reference(vm_map_t);
 void	 vm_terminate(vm_map_t);
 void	 vm_switch(vm_map_t);
 int	 vm_load(vm_map_t, struct module *, void **);
-void	*vm_translate(void *, size_t);
-void	 vm_dump(void);
+paddr_t	 vm_translate(vaddr_t, size_t);
+int	 vm_info(struct vminfo *);
 void	 vm_init(void);
 __END_DECLS
 

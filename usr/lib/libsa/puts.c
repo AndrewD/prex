@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <string.h>
 #include <stdio.h>
 

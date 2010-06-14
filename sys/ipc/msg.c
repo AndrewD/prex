@@ -31,65 +31,57 @@
  * msg.c - routines to transmit a message.
  */
 
-/*
- * Design:
+/**
+ * IPC transmission:
  *
- * Messages are sent to the specific object by using msg_send().
- * The transmission of a message is completely synchronous with
- * this kernel. This means the thread which sent a message is
- * blocked until it receives a response from another thread.
- * msg_receive() performs reception of a message. msg_receive() is
- * also blocked when no message is reached to the target object.
- * The receiver thread must answer the message using msg_reply()
- * after it finishes its message processing.
+ * Messages are sent to the specific object by using msg_send.  The
+ * transmission of a message is completely synchronous with this
+ * kernel. This means the thread which sent a message is blocked until
+ * it receives a response from another thread.  msg_receive performs
+ * reception of a message. msg_receive is also blocked when no message
+ * is reached to the target object.  The receiver thread must answer the
+ * message using msg_reply after processing the message.
  *
- * The receiver thread can not receive another message until it
+ * The receiver thread can not receive an additional message until it
  * replies to the sender. In short, a thread can receive only one
- * message at once. Once the thread receives message, it can send
- * another message to different object. This mechanism allows
- * threads to redirect the sender's request to another thread.
+ * message at once. In other hand, once the thread receives a message,
+ * it can send another message to different object. This mechanism
+ * allows threads to redirect the sender's request to another thread.
  *
- * The message is copied from thread to thread directly without any
- * kernel buffering. If sent message contains a buffer, sender's
- * memory region is automatically mapped to the receiver's memory
- * in kernel. Since there is no page out of memory in this system,
- * we can copy the message data via physical memory at anytime.
+ * A message is copied from thread to thread directly without any kernel
+ * buffering. The message buffer in sender's memory space is automatically
+ * mapped to the receiver's memory by kernel. Since there is no page
+ * out of memory in this system, we can copy the message data via physical
+ * memory at anytime.
  */
 
 #include <kernel.h>
-#include <queue.h>
-#include <event.h>
-#include <kmem.h>
 #include <sched.h>
+#include <task.h>
+#include <kmem.h>
 #include <thread.h>
 #include <task.h>
-#include <vm.h>
+#include <event.h>
 #include <ipc.h>
-
-#define min(a,b)	(((a) < (b)) ? (a) : (b))
 
 /* forward declarations */
 static thread_t	msg_dequeue(queue_t);
 static void	msg_enqueue(queue_t, thread_t);
 
-/* event for IPC operation */
-static struct event ipc_event;
+static struct event ipc_event;		/* event for IPC operation */
 
 /*
  * Send a message.
  *
  * The current thread will be blocked until any other thread
- * receives the message and calls msg_reply() for the target
- * object. When new message has been reached to the object, it
- * will be received by highest priority thread waiting for
- * that message. A thread can send a message to any object if
- * it knows the object id.
+ * receives and reply the message.  A thread can send a
+ * message to any object if it knows the object id.
  */
 int
 msg_send(object_t obj, void *msg, size_t size)
 {
 	struct msg_header *hdr;
-	thread_t th;
+	thread_t t;
 	void *kmsg;
 	int rc;
 
@@ -105,16 +97,12 @@ msg_send(object_t obj, void *msg, size_t size)
 		sched_unlock();
 		return EINVAL;
 	}
-	if (obj->owner != cur_task() && !task_capable(CAP_IPC)) {
-		sched_unlock();
-		return EPERM;
-	}
 	/*
-	 * A thread can not send a message when the
-	 * thread is already receiving from the target
-	 * object. This will obviously cause a deadlock.
+	 * A thread can not send a message when it is
+	 * already receiving from the target object.
+	 * It will obviously cause a deadlock.
 	 */
-	if (obj == cur_thread->recvobj) {
+	if (obj == curthread->recvobj) {
 		sched_unlock();
 		return EDEADLK;
 	}
@@ -125,42 +113,39 @@ msg_send(object_t obj, void *msg, size_t size)
 	 * the page fault here.
 	 */
 	if ((kmsg = kmem_map(msg, size)) == NULL) {
-		/* Error - no physical address for the message */
 		sched_unlock();
 		return EFAULT;
 	}
+	curthread->msgaddr = kmsg;
+	curthread->msgsize = size;
+
 	/*
-	 * The sender ID in the message header is filled
+	 * The sender ID is filled in the message header
 	 * by the kernel. So, the receiver can trust it.
 	 */
 	hdr = (struct msg_header *)kmsg;
-	hdr->task = cur_task();
-
-	/* Save information about the message block. */
-	cur_thread->msgaddr = kmsg;
-	cur_thread->msgsize = size;
+	hdr->task = curtask;
 
 	/*
 	 * If receiver already exists, wake it up.
-	 * Highest priority thread will get this message.
+	 * The highest priority thread can get the message.
 	 */
 	if (!queue_empty(&obj->recvq)) {
-		th = msg_dequeue(&obj->recvq);
-		sched_unsleep(th, 0);
+		t = msg_dequeue(&obj->recvq);
+		sched_unsleep(t, 0);
 	}
 	/*
 	 * Sleep until we get a reply message.
 	 * Note: Do not touch any data in the object
 	 * structure after we wakeup. This is because the
-	 * target object may be deleted during we were
-	 * sleeping.
+	 * target object may be deleted while we are sleeping.
 	 */
-	cur_thread->sendobj = obj;
-	msg_enqueue(&obj->sendq, cur_thread);
+	curthread->sendobj = obj;
+	msg_enqueue(&obj->sendq, curthread);
 	rc = sched_sleep(&ipc_event);
 	if (rc == SLP_INTR)
-		queue_remove(&cur_thread->ipc_link);
-	cur_thread->sendobj = NULL;
+		queue_remove(&curthread->ipc_link);
+	curthread->sendobj = NULL;
 
 	sched_unlock();
 
@@ -186,25 +171,25 @@ msg_send(object_t obj, void *msg, size_t size)
  *
  * A thread can receive a message from the object which was
  * created by any thread belongs to same task. If the message
- * has not arrived yet, it blocks until any message comes in.
+ * has not reached yet, it blocks until any message comes in.
  *
  * The size argument specifies the "maximum" size of the message
  * buffer to receive. If the sent message is larger than this
- * size, the kernel will automatically clip the message to the
- * receive buffer size.
+ * size, the kernel will automatically clip the message to this
+ * maximum buffer size.
  *
- * When message is received, the sender thread is removed from
+ * When a message is received, the sender thread is removed from
  * object's send queue. So, another thread can receive the
  * subsequent message from that object. This is important for
- * the multi-thread server which receives some messages
+ * the multi-thread server which must receive multiple messages
  * simultaneously.
  */
 int
 msg_receive(object_t obj, void *msg, size_t size)
 {
-	thread_t th;
+	thread_t t;
 	size_t len;
-	int rc, err = 0;
+	int rc, error = 0;
 
 	if (!user_area(msg))
 		return EFAULT;
@@ -212,32 +197,32 @@ msg_receive(object_t obj, void *msg, size_t size)
 	sched_lock();
 
 	if (!object_valid(obj)) {
-		err = EINVAL;
-		goto out;
+		sched_unlock();
+		return EINVAL;
 	}
-	if (obj->owner != cur_task()) {
-		err = EACCES;
-		goto out;
+	if (obj->owner != curtask) {
+		sched_unlock();
+		return EACCES;
 	}
 	/*
 	 * Check if this thread finished previous receive
 	 * operation.  A thread can not receive different
 	 * messages at once.
 	 */
-	if (cur_thread->recvobj) {
-		err = EBUSY;
-		goto out;
+	if (curthread->recvobj) {
+		sched_unlock();
+		return EBUSY;
 	}
-	cur_thread->recvobj = obj;
+	curthread->recvobj = obj;
 
 	/*
 	 * If no message exists, wait until message arrives.
 	 */
 	while (queue_empty(&obj->sendq)) {
 		/*
-		 * Block until someone sends the message.
+		 * Block until someone sends a message.
 		 */
-		msg_enqueue(&obj->recvq, cur_thread);
+		msg_enqueue(&obj->recvq, curthread);
 		rc = sched_sleep(&ipc_event);
 		if (rc != 0) {
 			/*
@@ -245,96 +230,91 @@ msg_receive(object_t obj, void *msg, size_t size)
 			 */
 			switch (rc) {
 			case SLP_INVAL:
-				err = EINVAL;	/* Object has been deleted */
+				error = EINVAL;	/* Object has been deleted */
 				break;
 			case SLP_INTR:
-				queue_remove(&cur_thread->ipc_link);
-				err = EINTR;	/* Got exception */
+				queue_remove(&curthread->ipc_link);
+				error = EINTR;	/* Got exception */
 				break;
 			default:
 				panic("msg_receive");
 				break;
 			}
-			cur_thread->recvobj = NULL;
-			goto out;
+			curthread->recvobj = NULL;
+			sched_unlock();
+			return error;
 		}
 
 		/*
+		 * Check the existence of the sender thread again.
 		 * Even if this thread is woken by the sender thread,
-		 * the message may be received by another thread
-		 * before this thread runs. This can occur when
-		 * higher priority thread becomes runnable at that
-		 * time. So, it is necessary to check the existence
-		 * of the sender, again.
+		 * the message may be received by another thread.
+		 * This may happen when another high priority thread
+		 * becomes runnable before we receive the message.
 		 */
 	}
 
-	th = msg_dequeue(&obj->sendq);
+	t = msg_dequeue(&obj->sendq);
 
 	/*
 	 * Copy out the message to the user-space.
-	 * The smaller buffer size is used as copy length
-	 * between sender and receiver thread.
 	 */
-	len = min(size, th->msgsize);
+	len = MIN(size, t->msgsize);
 	if (len > 0) {
-		if (umem_copyout(th->msgaddr, msg, len)) {
-			msg_enqueue(&obj->sendq, th);
-			cur_thread->recvobj = NULL;
-			err = EFAULT;
-			goto out;
+		if (copyout(t->msgaddr, msg, len)) {
+			msg_enqueue(&obj->sendq, t);
+			curthread->recvobj = NULL;
+			sched_unlock();
+			return EFAULT;
 		}
 	}
 	/*
 	 * Detach the message from the target object.
 	 */
-	cur_thread->sender = th;
-	th->receiver = cur_thread;
- out:
+	curthread->sender = t;
+	t->receiver = curthread;
+
 	sched_unlock();
-	return err;
+	return error;
 }
 
 /*
  * Send a reply message.
  *
- * The target object must be an appropriate object that current
- * thread has been received from. Otherwise, this function will
- * be failed.
- *
- * Since the target object may already be deleted, we can not
- * access the data of the object within this routine.
+ * The target object must be the object that we are receiving.
+ * Otherwise, this function will be failed.
  */
 int
 msg_reply(object_t obj, void *msg, size_t size)
 {
-	thread_t th;
+	thread_t t;
 	size_t len;
-	int err = 0;
 
 	if (!user_area(msg))
 		return EFAULT;
 
 	sched_lock();
 
-	if (!object_valid(obj) || obj != cur_thread->recvobj) {
+	if (!object_valid(obj) || obj != curthread->recvobj) {
 		sched_unlock();
 		return EINVAL;
 	}
 	/*
 	 * Check if sender still exists
 	 */
-	if (cur_thread->sender == NULL) {
-		err = EINVAL;
-		goto out;
+	if (curthread->sender == NULL) {
+		/* Clear receive state */
+		curthread->recvobj = NULL;
+		sched_unlock();
+		return EINVAL;
 	}
 	/*
-	 * Copy message to the sender's buffer.
+	 * Copy a message to the sender's buffer.
 	 */
-	th = cur_thread->sender;
-	len = min(size, th->msgsize);
+	t = curthread->sender;
+	len = MIN(size, t->msgsize);
 	if (len > 0) {
-		if (umem_copyin(msg, th->msgaddr, len)) {
+		if (copyin(msg, t->msgaddr, len)) {
 			sched_unlock();
 			return EFAULT;
 		}
@@ -342,72 +322,68 @@ msg_reply(object_t obj, void *msg, size_t size)
 	/*
 	 * Wakeup sender with no error.
 	 */
-	sched_unsleep(th, 0);
-	th->receiver = NULL;
- out:
+	sched_unsleep(t, 0);
+	t->receiver = NULL;
+
 	/* Clear transmit state */
-	cur_thread->sender = NULL;
-	cur_thread->recvobj = NULL;
+	curthread->sender = NULL;
+	curthread->recvobj = NULL;
 
 	sched_unlock();
-	return err;
+	return 0;
 }
 
 /*
- * Clean up pending message operation of specified thread in order
- * to prevent deadlock. This is called when the thread is killed.
- * It is necessary to deal with the following conditions.
+ * Cancel pending message operation of the specified thread.
+ * This is called when the thread is terminated.
  *
- * If killed thread is sender:
- *  1. Killed after message is received
- *     -> The received thread will reply to the invalid thread.
+ * We have to handle the following conditions to prevent deadlock.
  *
- *  2. Killed before message is received
+ * If the terminated thread is sending a message:
+ *  1. A message is already received.
+ *     -> The receiver thread will reply to the invalid thread.
+ *
+ *  2. A message is not received yet.
  *     -> The thread remains in send queue of the object.
  *
- * When thread is receiver:
- *  3. Killed after message is sent
- *     -> The sender thread continues waiting for reply forever.
+ * When the terminated thread is receiving a message.
+ *  3. A message is already sent.
+ *     -> The sender thread will wait for reply forever.
  *
- *  4. Killed before message is sent
+ *  4. A message is not sent yet.
  *     -> The thread remains in receive queue of the object.
  */
 void
-msg_cleanup(thread_t th)
+msg_cancel(thread_t t)
 {
 
 	sched_lock();
 
-	if (th->sendobj) {
-		if (th->receiver)
-			th->receiver->sender = NULL;
+	if (t->sendobj != NULL) {
+		if (t->receiver != NULL)
+			t->receiver->sender = NULL;
 		else
-			queue_remove(&th->ipc_link);
+			queue_remove(&t->ipc_link);
 	}
-	if (th->recvobj) {
-		if (th->sender) {
-			sched_unsleep(th->sender, SLP_BREAK);
-			th->sender->receiver = NULL;
+	if (t->recvobj != NULL) {
+		if (t->sender != NULL) {
+			sched_unsleep(t->sender, SLP_BREAK);
+			t->sender->receiver = NULL;
 		} else
-			queue_remove(&th->ipc_link);
+			queue_remove(&t->ipc_link);
 	}
 	sched_unlock();
 }
 
 /*
- * Cancel all message operation relevant to the specified
- * object.
- *
- * This is called when target object is deleted.  All threads
- * in message queue are woken to avoid deadlock.  If the
- * message has already been received, send/reply operation
- * continue processing normally.
+ * Abort all message operations relevant to the specified object.
+ * This is called when the target object is deleted.
  */
 void
-msg_cancel(object_t obj)
+msg_abort(object_t obj)
 {
 	queue_t q;
-	thread_t th;
+	thread_t t;
 
 	sched_lock();
 
@@ -416,36 +392,37 @@ msg_cancel(object_t obj)
 	 */
 	while (!queue_empty(&obj->sendq)) {
 		q = dequeue(&obj->sendq);
-		th = queue_entry(q, struct thread, ipc_link);
-		sched_unsleep(th, SLP_INVAL);
+		t = queue_entry(q, struct thread, ipc_link);
+		sched_unsleep(t, SLP_INVAL);
 	}
 	/*
 	 * Force wakeup all threads waiting for receive.
 	 */
 	while (!queue_empty(&obj->recvq)) {
-		q = dequeue(&obj->sendq);
-		th = queue_entry(q, struct thread, ipc_link);
-		sched_unsleep(th, SLP_INVAL);
+		q = dequeue(&obj->recvq);
+		t = queue_entry(q, struct thread, ipc_link);
+		sched_unsleep(t, SLP_INVAL);
 	}
 	sched_unlock();
 }
 
 /*
- * Dequeue thread from specified queue.
+ * Dequeue thread from the IPC queue.
  * The most highest priority thread will be chosen.
  */
 static thread_t
 msg_dequeue(queue_t head)
 {
 	queue_t q;
-	thread_t th, top;
+	thread_t t, top;
 
 	q = queue_first(head);
 	top = queue_entry(q, struct thread, ipc_link);
+
 	while (!queue_end(head, q)) {
-		th = queue_entry(q, struct thread, ipc_link);
-		if (th->prio < top->prio)
-			top = th;
+		t = queue_entry(q, struct thread, ipc_link);
+		if (t->priority < top->priority)
+			top = t;
 		q = queue_next(q);
 	}
 	queue_remove(&top->ipc_link);
@@ -453,10 +430,10 @@ msg_dequeue(queue_t head)
 }
 
 static void
-msg_enqueue(queue_t head, thread_t th)
+msg_enqueue(queue_t head, thread_t t)
 {
 
-	enqueue(head, &th->ipc_link);
+	enqueue(head, &t->ipc_link);
 }
 
 void

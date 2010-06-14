@@ -27,10 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/fs.h>
-#include <server/stdmsg.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/fs.h>
+#include <ipc/ipc.h>
 
 int
 fsync(int fd)

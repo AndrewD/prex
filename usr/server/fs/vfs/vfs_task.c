@@ -27,10 +27,10 @@
  */
 
 /*
- * task.c - Routines to manage the per task data.
+ * vfs_task.c - Routines to manage the per task data.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/list.h>
 
 #include <limits.h>
@@ -78,11 +78,11 @@ task_lookup(task_t task)
 	TASK_LOCK();
 	head = &task_table[TASKHASH(task)];
 	for (n = list_first(head); n != head; n = list_next(n)) {
-		t = list_entry(n, struct task, link);
-		ASSERT(t->task);
-		if (t->task == task) {
+		t = list_entry(n, struct task, t_link);
+		ASSERT(t->t_taskid);
+		if (t->t_taskid == task) {
 			TASK_UNLOCK();
-			mutex_lock(&t->lock);
+			mutex_lock(&t->t_lock);
 			return t;
 		}
 	}
@@ -93,7 +93,7 @@ task_lookup(task_t task)
 }
 
 /*
- * Allocate new task
+ * Allocate new task.
  */
 int
 task_alloc(task_t task, struct task **pt)
@@ -107,69 +107,82 @@ task_alloc(task_t task, struct task **pt)
 	if (!(t = malloc(sizeof(struct task))))
 		return ENOMEM;
 	memset(t, 0, sizeof(struct task));
-	t->task = task;
-	strcpy(t->cwd, "/");
-	mutex_init(&t->lock);
+	t->t_taskid = task;
+	strlcpy(t->t_cwd, "/", sizeof(t->t_cwd));
+	mutex_init(&t->t_lock);
 
 	TASK_LOCK();
-	list_insert(&task_table[TASKHASH(task)], &t->link);
+	list_insert(&task_table[TASKHASH(task)], &t->t_link);
 	TASK_UNLOCK();
 	*pt = t;
 	return 0;
 }
 
 /*
- * Free needless task.
+ * Free task and related resource.
  */
 void
 task_free(struct task *t)
 {
 
 	TASK_LOCK();
-	list_remove(&t->link);
-	mutex_unlock(&t->lock);
-	mutex_destroy(&t->lock);
+	list_remove(&t->t_link);
+	mutex_unlock(&t->t_lock);
+	mutex_destroy(&t->t_lock);
 	free(t);
 	TASK_UNLOCK();
 }
 
 /*
- * Update task id of the specified task.
+ * Set task id of the specified task.
  */
 void
-task_update(struct task *t, task_t task)
+task_setid(struct task *t, task_t task)
 {
 
 	TASK_LOCK();
-	list_remove(&t->link);
-	t->task = task;
-	list_insert(&task_table[TASKHASH(task)], &t->link);
+	list_remove(&t->t_link);
+	t->t_taskid = task;
+	list_insert(&task_table[TASKHASH(task)], &t->t_link);
 	TASK_UNLOCK();
 }
 
+/*
+ * Unlock task.
+ */
 void
 task_unlock(struct task *t)
 {
 
-	mutex_unlock(&t->lock);
+	mutex_unlock(&t->t_lock);
 }
 
 /*
- * Get file pointer from task/fd pair.
+ * Convert a file descriptor into a pointer
+ * to a file structre.
  */
 file_t
 task_getfp(struct task *t, int fd)
 {
 
-	if (fd >= OPEN_MAX)
+	if (fd < 0 || fd >= OPEN_MAX)
 		return NULL;
 
-	return t->file[fd];
+	return t->t_ofile[fd];
+}
+
+/*
+ * Set file pointer for task/fd pair.
+ */
+void
+task_setfp(struct task *t, int fd, file_t fp)
+{
+
+	t->t_ofile[fd] = fp;
 }
 
 /*
  * Get new file descriptor in the task.
- * Find the smallest empty slot in the fd array.
  * Returns -1 if there is no empty slot.
  */
 int
@@ -177,9 +190,13 @@ task_newfd(struct task *t)
 {
 	int fd;
 
-	for (fd = 0; fd < OPEN_MAX; fd++)
-		if (t->file[fd] == NULL)
+	/*
+	 * Find the smallest empty slot in the fd array.
+	 */
+	for (fd = 0; fd < OPEN_MAX; fd++) {
+		if (t->t_ofile[fd] == NULL)
 			break;
+	}
 	if (fd == OPEN_MAX)
 		return -1;	/* slot full */
 
@@ -187,18 +204,29 @@ task_newfd(struct task *t)
 }
 
 /*
+ * Delete a file descriptor.
+ */
+void
+task_delfd(struct task *t, int fd)
+{
+
+	t->t_ofile[fd] = NULL;
+}
+
+/*
  * Convert to full path from the cwd of task and path.
  * @t:    task structure
  * @path: target path
  * @full: full path to be returned
+ * @acc: access mode
  */
 int
-task_conv(struct task *t, char *path, char *full)
+task_conv(struct task *t, char *path, int acc, char *full)
 {
 	char *src, *tgt, *p, *end, *cwd;
 	size_t len = 0;
 
-	cwd = t->cwd;
+	cwd = t->t_cwd;
 	path[PATH_MAX - 1] = '\0';
 	len = strlen(path);
 	if (len >= PATH_MAX)
@@ -212,7 +240,7 @@ task_conv(struct task *t, char *path, char *full)
 		*tgt++ = *src++;
 		len++;
 	} else {
-		strcpy(full, cwd);
+		strlcpy(full, cwd, PATH_MAX);
 		len = strlen(cwd);
 		tgt += len;
 		if (len > 1 && path[0] != '.') {
@@ -256,14 +284,15 @@ task_conv(struct task *t, char *path, char *full)
 		src = p + 1;
 	}
 	*tgt = '\0';
-	return 0;
+
+	/* Check if the client task has required permission */
+	return sec_file_permission(t->t_taskid, full, acc);
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_VFS
 void
 task_dump(void)
 {
-#ifdef DEBUG_VFS
 	list_t head, n;
 	struct task *t;
 	int i;
@@ -275,14 +304,13 @@ task_dump(void)
 	for (i = 0; i < TASK_MAXBUCKETS; i++) {
 		head = &task_table[i];
 		for (n = list_first(head); n != head; n = list_next(n)) {
-			t = list_entry(n, struct task, link);
-			dprintf(" %08x %7x %s\n", (int)t->task, t->nopens,
-			       t->cwd);
+			t = list_entry(n, struct task, t_link);
+			dprintf(" %08x %7x %s\n", (int)t->t_taskid, t->t_nopens,
+			       t->t_cwd);
 		}
 	}
 	dprintf("\n");
 	TASK_UNLOCK();
-#endif
 }
 #endif
 
@@ -294,20 +322,3 @@ task_init(void)
 	for (i = 0; i < TASK_MAXBUCKETS; i++)
 		list_init(&task_table[i]);
 }
-
-#ifdef DEBUG_VFS
-void
-task_debug(void)
-{
-	int i;
-	list_t head;
-
-	for (i = 0; i < TASK_MAXBUCKETS; i++) {
-		head = &task_table[i];
-		dprintf("head=%x head->next=%x head->prev=%x\n", head,
-			head->next, head->prev);
-		ASSERT(head->next);
-		ASSERT(head->prev);
-	}
-}
-#endif

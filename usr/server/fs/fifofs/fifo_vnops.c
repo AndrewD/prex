@@ -31,7 +31,7 @@
  * fifofs - FIFO/pipe file system.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
@@ -52,6 +52,7 @@
 
 struct fifo_node {
 	struct list fn_link;
+	int	fn_type;	/* type: VFIFO or VPIPE */
 	char	*fn_name;	/* name (null-terminated) */
 	cond_t	fn_rcond;	/* cv for read */
 	cond_t	fn_wcond;	/* cv for write */
@@ -60,7 +61,7 @@ struct fifo_node {
 	int	fn_readers;	/* reader count */
 	int	fn_writers;	/* writer count */
 	int	fn_start;	/* start offset of buffer data */
-	int	fn_size;	/* siez of buffer data */
+	int	fn_size;	/* size of buffer data */
 	char	*fn_buf;	/* pointer to buffer */
 };
 
@@ -89,6 +90,7 @@ static int fifo_remove	(vnode_t, vnode_t, char *);
 #define fifo_inactive	((vnop_inactive_t)vop_nullop)
 #define fifo_truncate	((vnop_truncate_t)vop_nullop)
 
+static void cleanup_fifo(vnode_t);
 static void wait_reader(vnode_t);
 static void wakeup_reader(vnode_t);
 static void wait_writer(vnode_t);
@@ -205,6 +207,11 @@ fifo_close(vnode_t vp, file_t fp)
 	if (vp->v_refcnt > 1)
 		return 0;
 
+	/* Clearn up pipe */
+	if (!strncmp(np->fn_name, "pipe", 4)) {
+		DPRINTF(("fifo_close: remove pipe\n"));
+		cleanup_fifo(vp);
+	}
 	return 0;
 }
 
@@ -213,7 +220,7 @@ fifo_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 {
 	struct fifo_node *np = vp->v_data;
 	char *p = buf;
-	int pos, nbytes;
+	u_int pos, nbytes;
 
 	DPRINTF(("fifo_read\n"));
 
@@ -239,6 +246,7 @@ fifo_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	nbytes = (np->fn_size < size) ? np->fn_size : size;
 	np->fn_size -= nbytes;
 	*result = nbytes;
+
 	pos = np->fn_start;
 	while (nbytes > 0) {
 		*p++ = np->fn_buf[pos];
@@ -257,7 +265,7 @@ fifo_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 {
 	struct fifo_node *np = vp->v_data;
 	char *p = buf;
-	int pos, nfree, nbytes;
+	u_int pos, nfree, nbytes, count = 0;
 
 	DPRINTF(("fifo_write\n"));
 
@@ -286,6 +294,7 @@ fifo_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 		if (++pos > PIPE_BUF)
 			pos = 0;
 		nbytes--;
+		count++;
 	}
 
 	wakeup_reader(vp);
@@ -293,7 +302,7 @@ fifo_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	if (size > 0)
 		goto again;
 
-	*result = size;
+	*result = count;
 	return 0;
 }
 
@@ -333,9 +342,8 @@ fifo_lookup(vnode_t dvp, char *name, vnode_t vp)
 	}
 	vp->v_data = np;
 	vp->v_mode = ALLPERMS;
-	vp->v_type = VFIFO;
 	vp->v_size = 0;
-
+	vp->v_type = VFIFO;
 	mutex_unlock(&fifo_lock);
 	return 0;
 }
@@ -344,6 +352,7 @@ static int
 fifo_create(vnode_t dvp, char *name, mode_t mode)
 {
 	struct fifo_node *np;
+	size_t len;
 
 	DPRINTF(("create %s in %s\n", name, dvp->v_path));
 
@@ -359,14 +368,15 @@ fifo_create(vnode_t dvp, char *name, mode_t mode)
 		free(np);
 		return ENOMEM;
 	}
-	np->fn_name = malloc(strlen(name) + 1);
+	len = strlen(name) + 1;
+	np->fn_name = malloc(len);
 	if (np->fn_name == NULL) {
 		free(np->fn_buf);
 		free(np);
 		return ENOMEM;
 	}
 
-	strcpy(np->fn_name, name);
+	strlcpy(np->fn_name, name, len);
 	mutex_init(&np->fn_rmtx);
 	mutex_init(&np->fn_wmtx);
 	cond_init(&np->fn_rcond);
@@ -382,12 +392,10 @@ fifo_create(vnode_t dvp, char *name, mode_t mode)
 	return 0;
 }
 
-static int
-fifo_remove(vnode_t dvp, vnode_t vp, char *name)
+static void
+cleanup_fifo(vnode_t vp)
 {
 	struct fifo_node *np = vp->v_data;
-
-	DPRINTF(("remove %s in %s\n", name, dvp->v_path));
 
 	mutex_lock(&fifo_lock);
 	list_remove(&np->fn_link);
@@ -398,6 +406,14 @@ fifo_remove(vnode_t dvp, vnode_t vp, char *name)
 	free(np);
 
 	vp->v_data = NULL;
+}
+
+static int
+fifo_remove(vnode_t dvp, vnode_t vp, char *name)
+{
+	DPRINTF(("remove %s in %s\n", name, dvp->v_path));
+
+	cleanup_fifo(vp);
 	return 0;
 }
 
@@ -415,10 +431,10 @@ fifo_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 
 	if (fp->f_offset == 0) {
 		dir->d_type = DT_DIR;
-		strcpy((char *)&dir->d_name, ".");
+		strlcpy((char *)&dir->d_name, ".", sizeof(dir->d_name));
 	} else if (fp->f_offset == 1) {
 		dir->d_type = DT_DIR;
-		strcpy((char *)&dir->d_name, "..");
+		strlcpy((char *)&dir->d_name, "..", sizeof(dir->d_name));
 	} else {
 		i = 0;
 		np = NULL;
@@ -434,10 +450,11 @@ fifo_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 			return ENOENT;
 		}
 		dir->d_type = DT_FIFO;
-		strcpy((char *)&dir->d_name, np->fn_name);
+		strlcpy((char *)&dir->d_name, np->fn_name,
+			sizeof(dir->d_name));
 	}
 	dir->d_fileno = fp->f_offset;
-	dir->d_namlen = strlen(dir->d_name);
+	dir->d_namlen = (uint16_t)strlen(dir->d_name);
 
 	fp->f_offset++;
 

@@ -28,10 +28,10 @@
  */
 
 /*
- * conf.c - File system configuration.
+ * vfs_conf.c - File system configuration.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/mount.h>
 
 #include <limits.h>
@@ -55,7 +55,7 @@ extern int fatfs_init(void);
 /*
  * VFS switch table
  */
-const struct vfssw vfssw_table[] = {
+const struct vfssw vfssw[] = {
 #ifdef CONFIG_RAMFS
 	{"ramfs",	ramfs_init,	&ramfs_vfsops}, /* RAM */
 #endif
@@ -71,5 +71,5 @@ const struct vfssw vfssw_table[] = {
 #ifdef CONFIG_FATFS
 	{"fatfs",	fatfs_init,	&fatfs_vfsops},	/* DOS FAT */
 #endif
-	{NULL, NULL, NULL},
+	{NULL, fs_noop, NULL},
 };

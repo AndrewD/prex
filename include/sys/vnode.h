@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SYS_VNODE_H
-#define _SYS_VNODE_H
+#ifndef _SYS_VNODE_H_
+#define _SYS_VNODE_H_
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -79,6 +79,8 @@ typedef struct vnode *vnode_t;
 
 /* flags for vnode */
 #define VROOT		0x0001		/* root of its file system */
+#define VISTTY		0x0002		/* device is tty */
+#define VPROTDEV	0x0004		/* protected device */
 
 /*
  * Vnode attribute
@@ -89,34 +91,34 @@ struct vattr {
 };
 
 /*
- * Modes
+ *  Modes.
  */
-#define VREAD		0x0004
-#define VWRITE		0x0002
-#define VEXEC		0x0001
+#define	VREAD	00004		/* read, write, execute permissions */
+#define	VWRITE	00002
+#define	VEXEC	00001
 
 /*
  * vnode operations
  */
 struct vnops {
-	int (*vop_open)		(vnode_t vp, int flags);
-	int (*vop_close)	(vnode_t vp, file_t fp);
-	int (*vop_read)		(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result);
-	int (*vop_write)	(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result);
-	int (*vop_seek)		(vnode_t vp, file_t fp, off_t oldoff, off_t newoff);
-	int (*vop_ioctl)	(vnode_t vp, file_t fp, u_long cmd, void *arg);
-	int (*vop_fsync)	(vnode_t vp, file_t fp);
-	int (*vop_readdir)	(vnode_t vp, file_t fp, struct dirent *dirent);
-	int (*vop_lookup)	(vnode_t dvp, char *name, vnode_t vp);
-	int (*vop_create)	(vnode_t dvp, char *name, mode_t mode);
-	int (*vop_remove)	(vnode_t dvp, vnode_t vp, char *name);
-	int (*vop_rename)	(vnode_t dvp1, vnode_t vp1, char *name1, vnode_t dvp2, vnode_t vp2, char *name2);
-	int (*vop_mkdir)	(vnode_t dvp, char *name, mode_t mode);
-	int (*vop_rmdir)	(vnode_t dvp, vnode_t vp, char *name);
-	int (*vop_getattr)	(vnode_t vp, struct vattr *vap);
-	int (*vop_setattr)	(vnode_t vp, struct vattr *vap);
-	int (*vop_inactive)	(vnode_t vp);
-	int (*vop_truncate)	(vnode_t vp);
+	int (*vop_open)		(vnode_t, int);
+	int (*vop_close)	(vnode_t, file_t);
+	int (*vop_read)		(vnode_t, file_t, void *, size_t, size_t *);
+	int (*vop_write)	(vnode_t, file_t, void *, size_t, size_t *);
+	int (*vop_seek)		(vnode_t, file_t, off_t, off_t);
+	int (*vop_ioctl)	(vnode_t, file_t, u_long, void *);
+	int (*vop_fsync)	(vnode_t, file_t);
+	int (*vop_readdir)	(vnode_t, file_t, struct dirent *);
+	int (*vop_lookup)	(vnode_t, char *, vnode_t);
+	int (*vop_create)	(vnode_t, char *, mode_t);
+	int (*vop_remove)	(vnode_t, vnode_t, char *);
+	int (*vop_rename)	(vnode_t, vnode_t, char *, vnode_t, vnode_t, char *);
+	int (*vop_mkdir)	(vnode_t, char *, mode_t);
+	int (*vop_rmdir)	(vnode_t, vnode_t, char *);
+	int (*vop_getattr)	(vnode_t, struct vattr *);
+	int (*vop_setattr)	(vnode_t, struct vattr *);
+	int (*vop_inactive)	(vnode_t);
+	int (*vop_truncate)	(vnode_t, off_t);
 };
 
 typedef	int (*vnop_open_t)	(vnode_t, int);
@@ -136,7 +138,7 @@ typedef	int (*vnop_rmdir_t)	(vnode_t, vnode_t, char *);
 typedef	int (*vnop_getattr_t)	(vnode_t, struct vattr *);
 typedef	int (*vnop_setattr_t)	(vnode_t, struct vattr *);
 typedef	int (*vnop_inactive_t)	(vnode_t);
-typedef	int (*vnop_truncate_t)	(vnode_t);
+typedef	int (*vnop_truncate_t)	(vnode_t, off_t);
 
 /*
  * vnode interface
@@ -159,23 +161,23 @@ typedef	int (*vnop_truncate_t)	(vnode_t);
 #define VOP_GETATTR(VP, VAP)	   ((VP)->v_op->vop_getattr)(VP, VAP)
 #define VOP_SETATTR(VP, VAP)	   ((VP)->v_op->vop_setattr)(VP, VAP)
 #define VOP_INACTIVE(VP)	   ((VP)->v_op->vop_inactive)(VP)
-#define VOP_TRUNCATE(VP)	   ((VP)->v_op->vop_truncate)(VP)
+#define VOP_TRUNCATE(VP, N)	   ((VP)->v_op->vop_truncate)(VP, N)
 
 __BEGIN_DECLS
 int	 vop_nullop(void);
 int	 vop_einval(void);
-
-vnode_t	 vn_lookup(struct mount *mp, char *path);
-void	 vn_lock(vnode_t vp);
-void	 vn_unlock(vnode_t vp);
-int	 vn_stat(vnode_t vp, struct stat *st);
-vnode_t	 vget(struct mount *mp, char *path);
-void	 vput(vnode_t vp);
-void	 vgone(vnode_t vp);
-void	 vref(vnode_t vp);
-void	 vrele(vnode_t vp);
-int	 vcount(vnode_t vp);
-void	 vflush(struct mount *mp);
+vnode_t	 vn_lookup(struct mount *, char *);
+void	 vn_lock(vnode_t);
+void	 vn_unlock(vnode_t);
+int	 vn_stat(vnode_t, struct stat *);
+int	 vn_access(vnode_t, int);
+vnode_t	 vget(struct mount *, char *);
+void	 vput(vnode_t);
+void	 vgone(vnode_t);
+void	 vref(vnode_t);
+void	 vrele(vnode_t);
+int	 vcount(vnode_t);
+void	 vflush(struct mount *);
 __END_DECLS
 
-#endif /* !_SYS_VNODE_H */
+#endif /* !_SYS_VNODE_H_ */

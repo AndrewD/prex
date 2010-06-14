@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, Kohsuke Ohtani
  * All rights reserved.
- *
+x *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -27,10 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <server/object.h>
-#include <server/stdmsg.h>
-#include <server/proc.h>
+#include <sys/prex.h>
+#include <ipc/ipc.h>
+#include <ipc/proc.h>
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -44,7 +43,7 @@
 #define PSFX	0x01
 #define PSFL	0x02
 
-struct info_proc {
+struct procinfo {
 	pid_t	pid;
 	pid_t	ppid;
 	int	stat;
@@ -53,39 +52,39 @@ struct info_proc {
 static object_t procobj;
 
 static int
-pstat(task_t task, struct info_proc *ip)
+pstat(task_t task, struct procinfo *pi)
 {
 	static struct msg m;
 	int rc;
 
 	do {
 		m.hdr.code = PS_PSTAT;
-		m.data[0] = task;
+		m.data[0] = (int)task;
 		rc = msg_send(procobj, &m, sizeof(m));
 	} while (rc == EINTR);
 
 	if (rc || m.hdr.status) {
-		ip->pid = -1;
-		ip->ppid = -1;
-		ip->stat = 1;
+		pi->pid = -1;
+		pi->ppid = -1;
+		pi->stat = 1;
 		return -1;
 	}
 
-	ip->pid = m.data[0];
-	ip->ppid = m.data[1];
-	ip->stat = m.data[2];
+	pi->pid = m.data[0];
+	pi->ppid = m.data[1];
+	pi->stat = m.data[2];
 	return 0;
 }
 
 int
 main(int argc, char *argv[])
 {
+	static const char stat[][2] = { "R", "Z", "S" };
+	static const char pol[][5] = { "FIFO", "RR  " };
+	static struct threadinfo ti;
+	static struct procinfo pi;
 	int ch, rc, ps_flag = 0;
-	static struct info_thread it;
-	static struct info_proc ip;
 	pid_t last_pid = -2;
-	char stat[][2] = { "R", "Z", "S" };
-	char pol[][5] = { "FIFO", "RR  " };
 
 	while ((ch = getopt(argc, argv, "lx")) != -1)
 		switch(ch) {
@@ -104,7 +103,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (object_lookup(OBJNAME_PROC, &procobj))
+	if (object_lookup("!proc", &procobj))
 		exit(1);
 
 	if (ps_flag & PSFL)
@@ -113,40 +112,40 @@ main(int argc, char *argv[])
 		printf("  PID     TIME CMD\n");
 
 	rc = 0;
-	it.cookie = 0;
+	ti.cookie = 0;
 	do {
 		/*
 		 * Get thread info from kernel.
 		 */
-		rc = sys_info(INFO_THREAD, &it);
+		rc = sys_info(INFO_THREAD, &ti);
 		if (!rc) {
 			/*
 			 * Get process info from server.
 			 */
-			if (pstat(it.task, &ip) && !(ps_flag & PSFX))
+			if (pstat(ti.task, &pi) && !(ps_flag & PSFX))
 				continue;
 
 			if (ps_flag & PSFL) {
-				if (ip.pid == -1)
+				if (pi.pid == -1)
 					printf("    -     -"); /* kernel */
 				else
-					printf("%5d %5d", ip.pid, ip.ppid);
+					printf("%5d %5d", pi.pid, pi.ppid);
 
 				printf(" %3d %s    %s %8d "
 				       "%-11s %-11s\n",
-				       it.prio, stat[ip.stat-1],
-				       pol[it.policy],
-				       it.time, it.slpevt, it.taskname);
+				       ti.priority, stat[pi.stat-1],
+				       pol[ti.policy],
+				       ti.time, ti.slpevt, ti.taskname);
 			} else {
-				if (!(ps_flag & PSFX) && (ip.pid == last_pid))
+				if (!(ps_flag & PSFX) && (pi.pid == last_pid))
 					continue;
-				if (ip.pid == -1)
+				if (pi.pid == -1)
 					printf("    -"); /* kernel */
 				else
-					printf("%5d", ip.pid);
+					printf("%5d", pi.pid);
 
-				printf(" %8d %-11s\n", it.time, it.taskname);
-				last_pid = ip.pid;
+				printf(" %8d %-11s\n", ti.time, ti.taskname);
+				last_pid = pi.pid;
 			}
 		}
 	} while (rc == 0);

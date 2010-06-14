@@ -27,11 +27,11 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <server/exec.h>
-#include <server/stdmsg.h>
-#include <server/object.h>
+#include <sys/prex.h>
+#include <ipc/exec.h>
+#include <ipc/ipc.h>
 
+#include <unistd.h>
 #include <limits.h>
 #include <string.h>
 #include <errno.h>
@@ -47,15 +47,15 @@
  * - Any asynchronous I/O operations are cancelled.
  */
 int
-execve(char *path, char *argv[], char *envp[])
+execve(const char *path, char * const *argv, char * const *envp)
 {
-	object_t exec_obj;
+	object_t execobj;
 	struct exec_msg msg;
-	int err, i, argc, envc;
+	int error, i, argc, envc;
 	size_t bufsz;
 	char *dest, *src;
 
-	if ((err = object_lookup(OBJNAME_EXEC, &exec_obj)) != 0)
+	if ((error = object_lookup("!exec", &execobj)) != 0)
 		return ENOSYS;
 
 	if (path == NULL)
@@ -67,7 +67,6 @@ execve(char *path, char *argv[], char *envp[])
 
 	/* Get arg/env buffer size */
 	bufsz = 0;
-
 	argc = 0;
 	if (argv) {
 		while (argv[argc]) {
@@ -96,21 +95,21 @@ execve(char *path, char *argv[], char *envp[])
 	}
 
 	/* Request to exec server */
-	msg.hdr.code = EX_EXEC;
+	msg.hdr.code = EXEC_EXECVE;
 	msg.argc = argc;
 	msg.envc = envc;
 	msg.bufsz = bufsz;
+	getcwd(msg.cwd, PATH_MAX);
 	strlcpy(msg.path, path, PATH_MAX);
-
 	do {
-		err = msg_send(exec_obj, &msg, sizeof(msg));
-	} while (err == EINTR);
+		error = msg_send(execobj, &msg, sizeof(msg));
+	} while (error == EINTR);
 
 	/*
 	 * If exec() request is done successfully, control never comes here.
 	 */
 	errno = 0;
-	if (err)
+	if (error)
 		errno = EIO;
 	else if (msg.hdr.status)
 		errno = msg.hdr.status;

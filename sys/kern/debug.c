@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,186 +34,170 @@
 #include <kernel.h>
 #include <task.h>
 #include <thread.h>
-#include <vm.h>
-#include <irq.h>
+#include <sched.h>
+#include <hal.h>
+#include <sys/dbgctl.h>
 
-#ifdef DEBUG
+typedef void (*diagfn_t)(char *);
+typedef void (*abtfn_t)(void);
 
-/*
- * diag_print() is provided by architecture dependent layer.
- */
-typedef void (*prtfn_t)(char *);
-static prtfn_t	print_func = &diag_print;
+static abtfn_t	db_abort = &machine_abort;	/* abort handler */
+static diagfn_t	db_puts = &diag_puts;		/* function to print string */
+static char	db_msg[DBGMSGSZ];		/* debug message string */
 
-static char	dbg_msg[DBGMSG_SIZE];
+static char	log_buf[LOGBUFSZ];		/* log buffer */
+static u_long	log_head;			/* index for log head */
+static u_long	log_tail;			/* iundex for log tail */
+static u_long	log_len;			/* length of log */
 
-/*
- * dmesg support
- */
-static char	log_buf[LOGBUF_SIZE];
-static u_long	log_head;
-static u_long	log_tail;
-static u_long	log_len;
-
-#define LOGINDEX(x)	((x) & (LOGBUF_SIZE - 1))
+#define LOGINDEX(x)	((x) & (LOGBUFSZ - 1))
 
 /*
- * Print out the specified string.
- *
- * An actual output is displayed via the platform
- * specific device by diag_print() routine in kernel.
- * As an alternate option, the device driver can
- * replace the print routine by using debug_attach().
+ * Scaled down version of C Library printf.
+ * Only %s %u %d %c %x and zero pad flag are recognized.
+ * Printf should not be used for chit-chat.
  */
 void
 printf(const char *fmt, ...)
 {
 	va_list args;
-	int i;
+	int i, s;
 	char c;
 
-	irq_lock();
+	s = splhigh();
 	va_start(args, fmt);
+	vsprintf(db_msg, fmt, args);
 
-	vsprintf(dbg_msg, fmt, args);
-
-	/* Print out */
-	(*print_func)(dbg_msg);
+	(*db_puts)(db_msg);
 
 	/*
-	 * Record to log buffer
+	 * Record to log buffer.
 	 */
-	for (i = 0; i < DBGMSG_SIZE; i++) {
-		c = dbg_msg[i];
+	for (i = 0; i < DBGMSGSZ; i++) {
+		c = db_msg[i];
 		if (c == '\0')
 			break;
 		log_buf[LOGINDEX(log_tail)] = c;
 		log_tail++;
-		if (log_len < LOGBUF_SIZE)
+		if (log_len < LOGBUFSZ)
 			log_len++;
 		else
-			log_head = log_tail - LOGBUF_SIZE;
+			log_head = log_tail - LOGBUFSZ;
 	}
 	va_end(args);
-	irq_unlock();
+	splx(s);
 }
 
 /*
  * Kernel assertion.
- *
- * assert() is called only when the expression is false in
- * ASSERT() macro. ASSERT() macro is compiled only when
- * the debug option is enabled.
  */
 void
 assert(const char *file, int line, const char *exp)
 {
 
-	irq_lock();
-	printf("\nAssertion failed: %s line:%d '%s'\n",
-	       file, line, exp);
-	for (;;)
-		machine_idle();
+	printf("Assertion failed: %s line:%d '%s'\n", file, line, exp);
+
+	(*db_abort)();
 	/* NOTREACHED */
 }
 
 /*
  * Kernel panic.
- *
- * panic() is called for a fatal kernel error. It shows
- * specified message, and stops CPU.
  */
 void
 panic(const char *msg)
 {
 
-	irq_lock();
-	printf("\nKernel panic: %s\n", msg);
-	irq_unlock();
-	for (;;)
-		machine_idle();
+	printf("Kernel panic: %s\n", msg);
+
+	(*db_abort)();
 	/* NOTREACHED */
 }
 
 /*
- * Copy log to user buffer.
+ * Copy log to the user's buffer.
  */
-int
-debug_getlog(char *buf)
+static int
+getlog(char *buf)
 {
-	u_long i, len, index;
-	int err = 0;
+	u_long cnt, len, i;
+	int s, error = 0;
 	char c;
 
-	irq_lock();
-	index = log_head;
+	s = splhigh();
+	i = log_head;
 	len = log_len;
-	if (len >= LOGBUF_SIZE) {
+	if (len >= LOGBUFSZ) {
 		/*
 		 * Overrun found. Discard broken message.
 		 */
-		while (len > 0 && log_buf[LOGINDEX(index)] != '\n') {
-			index++;
+		while (len > 0 && log_buf[LOGINDEX(i)] != '\n') {
+			i++;
 			len--;
 		}
 	}
-	for (i = 0; i < LOGBUF_SIZE; i++) {
-		if (i < len)
-			c = log_buf[LOGINDEX(index)];
+	for (cnt = 0; cnt < LOGBUFSZ; cnt++) {
+		if (cnt < len)
+			c = log_buf[LOGINDEX(i)];
 		else
 			c = '\0';
-		if (umem_copyout(&c, buf, 1)) {
-			err = EFAULT;
+		if (copyout(&c, buf, 1)) {
+			error = EFAULT;
 			break;
 		}
-		index++;
+		i++;
 		buf++;
 	}
-	irq_unlock();
-	return err;
+	splx(s);
+	return error;
 }
 
 /*
- * Dump system information.
- *
- * A keyboard driver may call this routine if a user
- * presses a predefined "dump" key.  Since interrupt is
- * locked in this routine, there is no need to lock the
- * interrupt/scheduler in each dump function.
+ * Debug control service.
  */
 int
-debug_dump(int item)
+dbgctl(int cmd, void *data)
 {
-	int err = 0;
+	int error = 0;
+	size_t size;
+	task_t task;
+	struct diag_ops *dops;
+	struct abort_ops *aops;
 
-	irq_lock();
-	switch (item) {
-	case DUMP_THREAD:
-		thread_dump();
+	switch (cmd) {
+	case DBGC_LOGSIZE:
+		size = LOGBUFSZ;
+		error = copyout(&size, data, sizeof(size));
 		break;
-	case DUMP_TASK:
-		task_dump();
+
+	case DBGC_GETLOG:
+		error = getlog(data);
 		break;
-	case DUMP_VM:
-		vm_dump();
+
+	case DBGC_TRACE:
+		task = (task_t)data;
+		if (task_valid(task)) {
+			task->flags ^= TF_TRACE;
+		}
 		break;
+
+	case DBGC_DUMPTRAP:
+		context_dump(&curthread->ctx);
+		break;
+
+	case DBGC_SETDIAG:
+		dops = data;
+		db_puts = dops->puts;
+		break;
+
+	case DBGC_SETABORT:
+		aops = data;
+		db_abort = aops->abort;
+		break;
+
 	default:
-		err = ENOSYS;
+		error = EINVAL;
 		break;
 	}
-	irq_unlock();
-	return err;
+	return error;
 }
-
-/*
- * Attach to a print handler.
- * A device driver can hook the function to display message.
- */
-void
-debug_attach(void (*fn)(char *))
-{
-	ASSERT(fn);
-
-	print_func = fn;
-}
-#endif /* !DEBUG */

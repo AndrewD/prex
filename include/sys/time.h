@@ -111,12 +111,14 @@ struct clockinfo {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+int	gettimeofday(struct timeval *, struct timezone *);
+#if 0
 int	adjtime(const struct timeval *, struct timeval *);
 int	getitimer(int, struct itimerval *);
-int	gettimeofday(struct timeval *, struct timezone *);
 int	setitimer(int, const struct itimerval *, struct itimerval *);
 int	settimeofday(const struct timeval *, const struct timezone *);
 int	utimes(const char *, const struct timeval *);
+#endif
 __END_DECLS
 #endif /* !POSIX */
 #endif /* !KERNEL */

@@ -34,9 +34,9 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/list.h>
-#include <server/proc.h>
-#include <server/stdmsg.h>
-#include <prex/capability.h>
+#include <ipc/proc.h>
+#include <ipc/ipc.h>
+#include <sys/capability.h>
 
 #include <unistd.h>
 #include <stdio.h>
@@ -46,13 +46,12 @@
 
 #ifdef DEBUG_PROC
 #define DPRINTF(a)	dprintf a
-#define ASSERT(e)	assert(e)
+#define ASSERT(e)	dassert(e)
 #else
 #define DPRINTF(a)
 #define ASSERT(e)
 #endif
 
-#define PRIO_PROC	130		/* priority of process server */
 #define PID_MAX		0x8000		/* max number for PID */
 
 #define ID_MAXBUCKETS	32
@@ -93,21 +92,23 @@ struct proc {
 	struct list 	p_pgrp_link;	/* link for process group */
 	struct pgrp 	*p_pgrp;	/* pointer to process group */
 	int		p_stat;		/* process status S* */
+	int		p_flag;		/* P_* flags */
 	int		p_exitcode;	/* exit code to send to parrent */
 	int		p_vforked;	/* true while processing vfork() */
+	int		p_invfork;	/* true if child of vfork() */
 	pid_t		p_pid;		/* process id */
 	task_t		p_task;		/* task id */
-	cap_t		p_cap;		/* capability of the task */
 	void		*p_stackbase;	/* pointer to stack */
 	void		*p_stacksaved;	/* pointer to saved stack */
 };
 
-/*
- * stat codes
- */
+/* Status values. */
 #define SRUN	1	/* running */
 #define SZOMB	2	/* process terminated but not waited for */
 #define SSTOP	3	/* proces stopped */
+
+/* These flags are kept in p_flags. */
+#define	P_TRACED	0x00001		/* debugged process being traced. */
 
 /*
  * Global variables.
@@ -115,33 +116,46 @@ struct proc {
 extern struct proc initproc;		/* process slot for init */
 extern struct list allproc;		/* list of all processes */
 extern struct proc *curproc;		/* current (caller) process */
+extern int perrno;			/* errno */
 
 __BEGIN_DECLS
-struct proc *proc_find(pid_t);
-struct pgrp *pgrp_find(pid_t);
-struct proc *task_to_proc(task_t);
-pid_t	pid_assign(void);
-void	proc_add(struct proc *);
-void	proc_remove(struct proc *);
-void	pgrp_add(struct pgrp *);
-void	pgrp_remove(struct pgrp *);
-void	table_init(void);
-void	pid_init(void);
-void	proc_cleanup(struct proc *);
+
+/* pid.c */
+pid_t	sys_getpid(void);
+pid_t	sys_getppid(void);
+int	sys_getpgid(pid_t, pid_t *);
+int	sys_setpgid(pid_t, pid_t);
+int	sys_getsid(pid_t, pid_t *);
+int	sys_setsid(pid_t *);
+
+/* fork.c */
+int	newproc(struct proc *, pid_t, task_t);
+int	sys_fork(task_t, int, pid_t *);
+void	cleanup(struct proc *);
 void	vfork_end(struct proc *);
+
+/* exit.c */
+int	sys_exit(int);
+int	stop(int);
+int	sys_waitpid(pid_t, int *, int, pid_t *);
+
+/* kill.c */
+int	sys_kill(pid_t pid, int sig);
 int	kill_pg(pid_t, int);
+
+/* hash.c */
+struct proc *p_find(pid_t);
+struct pgrp *pg_find(pid_t);
+struct proc *task_to_proc(task_t);
+void	p_add(struct proc *);
+void	p_remove(struct proc *);
+void	pg_add(struct pgrp *);
+void	pg_remove(struct pgrp *);
+void	table_init(void);
+
+/* tty.c */
 void	tty_init(void);
-int	proc_getpid(struct msg *);
-int	proc_getppid(struct msg *);
-int	proc_getpgid(struct msg *);
-int	proc_setpgid(struct msg *);
-int	proc_getsid(struct msg *);
-int	proc_setsid(struct msg *);
-int	proc_fork(struct msg *);
-int	proc_exit(struct msg *);
-int	proc_stop(struct msg *);
-int	proc_waitpid(struct msg *);
-int	proc_kill(struct msg *);
+
 __END_DECLS
 
 #endif /* !_PROC_H */

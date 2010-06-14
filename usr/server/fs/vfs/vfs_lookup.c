@@ -28,7 +28,7 @@
  */
 
 /*
- * lookup.c - vnode lookup function.
+ * vfs_lookup.c - vnode lookup function.
  */
 
 #include <sys/vnode.h>
@@ -39,12 +39,11 @@
 #include <string.h>
 #include <errno.h>
 
-#include <stdlib.h>
-
 #include "vfs.h"
 
 /*
  * Convert a pathname into a pointer to a locked vnode.
+ *
  * @path: full path name.
  * @vpp:  vnode to be returned.
  */
@@ -56,7 +55,7 @@ namei(char *path, vnode_t *vpp)
 	char name[PATH_MAX];
 	mount_t mp;
 	vnode_t dvp, vp;
-	int err, i;
+	int error, i;
 
 	DPRINTF(VFSDB_VNODE, ("namei: path=%s\n", path));
 
@@ -66,8 +65,8 @@ namei(char *path, vnode_t *vpp)
 	 */
 	if (vfs_findroot(path, &mp, &p))
 		return ENOTDIR;
-	strcpy(node, "/");
-	strlcat(node, p, PATH_MAX);
+	strlcpy(node, "/", sizeof(node));
+	strlcat(node, p, sizeof(node));
 	vp = vn_lookup(mp, node);
 	if (vp) {
 		/* vnode is already active. */
@@ -102,8 +101,8 @@ namei(char *path, vnode_t *vpp)
 		/*
 		 * Get a vnode for the target.
 		 */
-		strlcat(node, "/", PATH_MAX);
-		strlcat(node, name, PATH_MAX);
+		strlcat(node, "/", sizeof(node));
+		strlcat(node, name, sizeof(node));
 		vp = vn_lookup(mp, node);
 		if (vp == NULL) {
 			vp = vget(mp, node);
@@ -112,12 +111,12 @@ namei(char *path, vnode_t *vpp)
 				return ENOMEM;
 			}
 			/* Find a vnode in this directory. */
-			err = VOP_LOOKUP(dvp, name, vp);
-			if (err || (*p == '/' && vp->v_type != VDIR)) {
+			error = VOP_LOOKUP(dvp, name, vp);
+			if (error || (*p == '/' && vp->v_type != VDIR)) {
 				/* Not found */
 				vput(vp);
 				vput(dvp);
-				return err;
+				return error;
 			}
 		}
 		vput(dvp);
@@ -125,17 +124,26 @@ namei(char *path, vnode_t *vpp)
 		while (*p != '\0' && *p != '/')
 			p++;
 	}
+
+	/*
+	 * Detemine X permission.
+	 */
+	if (vp->v_type != VDIR && sec_vnode_permission(path) != 0) {
+		vp->v_mode &= ~(0111);
+	}
+
 	*vpp = vp;
 	return 0;
 }
 
 /*
  * Search a pathname.
+ * This is a very central but not so complicated routine. ;-P
+ *
  * @path: full path.
  * @vpp:  pointer to locked vnode for directory.
  * @name: pointer to file name in path.
  *
- * This is a very central but not so complicated routine. ;-P
  * This routine returns a locked directory vnode and file name.
  */
 int
@@ -145,14 +153,14 @@ lookup(char *path, vnode_t *vpp, char **name)
 	char root[] = "/";
 	char *file, *dir;
 	vnode_t vp;
-	int err;
+	int error;
 
 	DPRINTF(VFSDB_VNODE, ("lookup: path=%s\n", path));
 
 	/*
 	 * Get the path for directory.
 	 */
-	strcpy(buf, path);
+	strlcpy(buf, path, sizeof(buf));
 	file = strrchr(buf, '/');
 	if (!buf[0])
 		return ENOTDIR;
@@ -165,8 +173,8 @@ lookup(char *path, vnode_t *vpp, char **name)
 	/*
 	 * Get the vnode for directory
 	 */
-	if ((err = namei(dir, &vp)) != 0)
-		return err;
+	if ((error = namei(dir, &vp)) != 0)
+		return error;
 	if (vp->v_type != VDIR) {
 		vput(vp);
 		return ENOTDIR;

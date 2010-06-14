@@ -31,7 +31,7 @@
  * thread.c - test to run threads
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 static char stack[1024];
@@ -39,19 +39,19 @@ static char stack[1024];
 static thread_t
 thread_run(void (*start)(void), char *stack)
 {
-	thread_t th;
-	int err;
+	thread_t t;
+	int error;
 
-	if ((err = thread_create(task_self(), &th)) != 0)
+	if ((error = thread_create(task_self(), &t)) != 0)
 		panic("thread_create() is failed");
 
-	if ((err = thread_load(th, start, stack)) != 0)
+	if ((error = thread_load(t, start, stack)) != 0)
 		panic("thread_load() is failed");
 
-	if ((err = thread_resume(th)) != 0)
+	if ((error = thread_resume(t)) != 0)
 		panic("thread_resume() is failed");
 
-	return th;
+	return t;
 }
 
 static void
@@ -65,8 +65,8 @@ test_thread(void)
 int
 main(int argc, char *argv[])
 {
-	int err;
-	thread_t self, th;
+	int error;
+	thread_t self, t;
 
 	printf("Thread test program\n");
 
@@ -76,18 +76,18 @@ main(int argc, char *argv[])
 	 * Create new thread
 	 */
 	printf("Start test thread\n");
-	th = thread_run(test_thread, stack+1024);
+	t = thread_run(test_thread, stack+1024);
 
 	/*
 	 * Wait 1 sec
 	 */
-	timer_sleep(1000, 0);
+	timer_sleep(3000, 0);
 
 	/*
 	 * Suspend test thread
 	 */
 	printf("\nSuspend test thread\n");
-	err = thread_suspend(th);
+	error = thread_suspend(t);
 
 	/*
 	 * Wait 2 sec
@@ -98,7 +98,7 @@ main(int argc, char *argv[])
 	 * Resume test thread
 	 */
 	printf("\nResume test thread\n");
-	err = thread_resume(th);
+	error = thread_resume(t);
 
 	/*
 	 * Wait 100 msec
@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 	/*
 	 * Suspend test thread
 	 */
-	thread_suspend(th);
+	thread_suspend(t);
 
 	/*
 	 * Wait 2 sec
@@ -118,7 +118,7 @@ main(int argc, char *argv[])
 	/*
 	 * Resume test thread
 	 */
-	thread_resume(th);
+	thread_resume(t);
 
 	/*
 	 * We can check this thread can run 10 times than test thread,

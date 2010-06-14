@@ -31,7 +31,7 @@
  * ball.c - move many balls within screen.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 #include <termios.h>
 #include <stdio.h>
@@ -49,15 +49,15 @@ static char stack[NBALLS][STACKLEN];
 static thread_t
 thread_run(void (*start)(void), char *stack)
 {
-	thread_t th;
+	thread_t t;
 
-	if (thread_create(task_self(), &th) != 0)
+	if (thread_create(task_self(), &t) != 0)
 		return 0;
-	if (thread_load(th, start, stack) != 0)
+	if (thread_load(t, start, stack) != 0)
 		return 0;
-	if (thread_resume(th) != 0)
+	if (thread_resume(t) != 0)
 		return 0;
-	return th;
+	return t;
 }
 
 /*
@@ -69,6 +69,7 @@ move_ball(void)
 	int x, y;
 	int delta_x, delta_y;
 	int old_x, old_y;
+	u_long wait_msec;
 
 	/* Get random value for moving speed. */
 	old_x = old_y = 0;
@@ -76,6 +77,7 @@ move_ball(void)
 	y = random() % max_y;
 	delta_x = (random() % 10) + 1;
 	delta_y = (random() % 10) + 1;
+	wait_msec = (u_long)((random() % 20) + 1);
 
 	for (;;) {
 		/* Erase ball at old position */
@@ -84,8 +86,8 @@ move_ball(void)
 		/* Print ball at new position */
 		printf("\33[%d;%dH*", y / 10, x / 10);
 
-		/* Wait 5ms */
-		timer_sleep(5, 0);
+		/* Wait msec */
+		timer_sleep(wait_msec, 0);
 
 		/* Update position */
 		old_x = x;
@@ -108,10 +110,10 @@ main(int argc, char *argv[])
 	device_t cons;
 
 	/* Get screen size */
-	device_open("console", 0, &cons);
+	device_open("tty", 0, &cons);
 	if (device_ioctl(cons, TIOCGWINSZ, &ws) == 0) {
-		rows = ws.ws_row;
-		cols = ws.ws_col;
+		rows = (int)ws.ws_row;
+		cols = (int)ws.ws_col;
 	} else {
 		/* Use default screen setting */
 		rows = 25;
@@ -132,7 +134,9 @@ main(int argc, char *argv[])
 	}
 
 	/* Don't return */
-	for (;;);
+	for (;;)
+		thread_yield();
+
 	/* NOTREACHED */
 	return 0;
 }

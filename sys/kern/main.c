@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,13 +44,13 @@
 #include <ipc.h>
 #include <device.h>
 #include <sync.h>
-#include <version.h>
+#include <hal.h>
 
 /*
  * Initialization code.
  *
  * Called from kernel_start() routine that is
- * implemented in the architecture dependent layer.
+ * implemented in HAL.
  * We assume that the following machine state has
  * been already set before this routine.
  *	- Kernel BSS section is filled with 0.
@@ -62,34 +62,31 @@ int
 main(void)
 {
 
-	/*
-	 * Do machine-dependent
-	 * initialization.
-	 */
 	sched_lock();
 	diag_init();
 	DPRINTF((BANNER));
-	page_init();
-	machine_init();
 
 	/*
 	 * Initialize memory managers.
 	 */
+	page_init();
 	kmem_init();
-	vm_init();
+
+	/*
+	 * Do machine-dependent
+	 * initialization.
+	 */
+	machine_startup();
 
 	/*
 	 * Initialize kernel core.
 	 */
+	vm_init();
 	task_init();
 	thread_init();
 	sched_init();
 	exception_init();
 	timer_init();
-
-	/*
-	 * Initialize IPC related stuff.
-	 */
 	object_init();
 	msg_init();
 
@@ -102,10 +99,14 @@ main(void)
 	device_init();
 
 	/*
-	 * Set up boot tasks and
-	 * start scheduler.
+	 * Set up boot tasks.
 	 */
 	task_bootstrap();
+
+	/*
+	 * Start scheduler and
+	 * enter idle loop.
+	 */
 	sched_unlock();
 	thread_idle();
 

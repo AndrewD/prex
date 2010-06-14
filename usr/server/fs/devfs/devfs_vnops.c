@@ -31,7 +31,8 @@
  * devfs - device file system.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
+#include <sys/device.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
@@ -74,20 +75,6 @@ static int devfs_lookup	(vnode_t, char *, vnode_t);
 #define devfs_inactive	((vnop_inactive_t)vop_nullop)
 #define devfs_truncate	((vnop_truncate_t)vop_nullop)
 
-struct vnops devfs_vnops;
-
-/*
- * File system operations
- */
-struct vfsops devfs_vfsops = {
-	devfs_mount,		/* mount */
-	devfs_unmount,		/* unmount */
-	devfs_sync,		/* sync */
-	devfs_vget,		/* vget */
-	devfs_statfs,		/* statfs */
-	&devfs_vnops,		/* vnops */
-};
-
 /*
  * vnode operations
  */
@@ -112,12 +99,24 @@ struct vnops devfs_vnops = {
 	devfs_truncate,		/* truncate */
 };
 
+/*
+ * File system operations
+ */
+struct vfsops devfs_vfsops = {
+	devfs_mount,		/* mount */
+	devfs_unmount,		/* unmount */
+	devfs_sync,		/* sync */
+	devfs_vget,		/* vget */
+	devfs_statfs,		/* statfs */
+	&devfs_vnops,		/* vnops */
+};
+
 static int
 devfs_open(vnode_t vp, int flags)
 {
 	char *path;
 	device_t dev;
-	int err;
+	int error;
 
 	DPRINTF(("devfs_open: path=%s\n", vp->v_path));
 
@@ -125,13 +124,17 @@ devfs_open(vnode_t vp, int flags)
 	if (!strcmp(path, "/"))	/* root ? */
 		return 0;
 
+	if (vp->v_flags & VPROTDEV) {
+		DPRINTF(("devfs_open: failed to open protected device.\n"));
+		return EPERM;
+	}
 	if (*path == '/')
 		path++;
-	err = device_open(path, flags & DO_RWMASK, &dev);
-	if (err) {
+	error = device_open(path, flags & DO_RWMASK, &dev);
+	if (error) {
 		DPRINTF(("devfs_open: can not open device = %s error=%d\n",
-			 path, err));
-		return err;
+			 path, error));
+		return error;
 	}
 	vp->v_data = (void *)dev;	/* Store private data */
 	return 0;
@@ -152,42 +155,45 @@ devfs_close(vnode_t vp, file_t fp)
 static int
 devfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 {
-	int err;
+	int error;
 	size_t len;
 
 	len = size;
-	err = device_read((device_t)vp->v_data, buf, &len, fp->f_offset);
-	if (!err)
+	error = device_read((device_t)vp->v_data, buf, &len, fp->f_offset);
+	if (!error)
 		*result = len;
-	return err;
+	return error;
 }
 
 static int
 devfs_write(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 {
-	int err;
+	int error;
 	size_t len;
 
 	len = size;
-	err = device_write((device_t)vp->v_data, buf, &len, fp->f_offset);
-	if (!err)
+	error = device_write((device_t)vp->v_data, buf, &len, fp->f_offset);
+	if (!error)
 		*result = len;
-	DPRINTF(("devfs_write: err=%d len=%d\n", err, len));
-	return err;
+	DPRINTF(("devfs_write: error=%d len=%d\n", error, len));
+	return error;
 }
 
 static int
 devfs_ioctl(vnode_t vp, file_t fp, u_long cmd, void *arg)
 {
-	DPRINTF(("devfs_ioctl\n"));
-	return EINVAL;
+	int error;
+
+	error = device_ioctl((device_t)vp->v_data, cmd, arg);
+	DPRINTF(("devfs_ioctl: cmd=%x\n", cmd));
+	return error;
 }
 
 static int
 devfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 {
-	struct info_device info;
-	int err, i;
+	struct devinfo info;
+	int error, i;
 
 	DPRINTF(("devfs_lookup:%s\n", name));
 
@@ -195,19 +201,24 @@ devfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 		return ENOENT;
 
 	i = 0;
-	err = 0;
+	error = 0;
 	info.cookie = 0;
 	for (;;) {
-		err = sys_info(INFO_DEVICE, &info);
-		if (err)
+		error = sys_info(INFO_DEVICE, &info);
+		if (error)
 			return ENOENT;
 		if (!strncmp(info.name, name, MAXDEVNAME))
 			break;
 		i++;
 	}
-	vp->v_type = (info.flags & DF_CHR) ? VCHR : VBLK;
-	vp->v_mode = (mode_t)(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
-			      | S_IROTH | S_IWOTH);
+	vp->v_type = (info.flags & D_CHR) ? VCHR : VBLK;
+	if (info.flags & D_TTY)
+		vp->v_flags |= VISTTY;
+
+	if (info.flags & D_PROT)
+		vp->v_flags |= VPROTDEV;
+	else
+		vp->v_mode = (mode_t)(S_IRUSR | S_IWUSR);
 	return 0;
 }
 
@@ -217,28 +228,28 @@ devfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 static int
 devfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 {
-	struct info_device info;
-	int err, i;
+	struct devinfo info;
+	int error, i;
 
 	DPRINTF(("devfs_readdir offset=%d\n", fp->f_offset));
 
 	i = 0;
-	err = 0;
+	error = 0;
 	info.cookie = 0;
 	do {
-		err = sys_info(INFO_DEVICE, &info);
-		if (err)
+		error = sys_info(INFO_DEVICE, &info);
+		if (error)
 			return ENOENT;
 	} while (i++ != fp->f_offset);
 
 	dir->d_type = 0;
-	if (info.flags & DF_CHR)
+	if (info.flags & D_CHR)
 		dir->d_type = DT_CHR;
-	else if (info.flags & DF_BLK)
+	else if (info.flags & D_BLK)
 		dir->d_type = DT_BLK;
-	strcpy((char *)&dir->d_name, info.name);
-	dir->d_fileno = fp->f_offset;
-	dir->d_namlen = strlen(dir->d_name);
+	strlcpy((char *)&dir->d_name, info.name, sizeof(dir->d_name));
+	dir->d_fileno = (uint32_t)fp->f_offset;
+	dir->d_namlen = (uint16_t)strlen(dir->d_name);
 
 	DPRINTF(("devfs_readdir: %s\n", dir->d_name));
 	fp->f_offset++;

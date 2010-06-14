@@ -77,27 +77,27 @@ struct tm {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-char *asctime(const struct tm *);
-clock_t clock(void);
-char *ctime(const time_t *);
-double difftime(time_t, time_t);
+char	*asctime(const struct tm *);
+clock_t	 clock(void);
+char	*ctime(const time_t *);
+double	 difftime(time_t, time_t);
 struct tm *gmtime(const time_t *);
 struct tm *localtime(const time_t *);
-time_t mktime(struct tm *);
-size_t strftime(char *, size_t, const char *, const struct tm *);
-time_t time(time_t *);
+time_t	 mktime(struct tm *);
+size_t	 strftime(char *, size_t, const char *, const struct tm *);
+time_t	 time(time_t *);
 
 char	 *asctime_r(const struct tm *, char *);
 struct tm *gmtime_r(const time_t *, struct tm *);
 struct tm *localtime_r(const time_t *, struct tm *);
 
 #ifndef _ANSI_SOURCE
-void tzset(void);
+void	 tzset(void);
 #endif /* not ANSI */
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-char *timezone(int, int);
-void tzsetwall(void);
+char	*timezone(int, int);
+void	 tzsetwall(void);
 #endif /* neither ANSI nor POSIX */
 __END_DECLS
 

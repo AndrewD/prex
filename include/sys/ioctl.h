@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,18 +27,19 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SYS_IOCTL_H
-#define _SYS_IOCTL_H
+#ifndef _SYS_IOCTL_H_
+#define _SYS_IOCTL_H_
 
 #include <sys/cdefs.h>
-#include <prex/ioctl.h>
+#include <sys/time.h>
+#include <sys/power.h>
 
 /*
  * Ioctl's have the command encoded in the lower word, and the size of
  * any in or out parameters in the upper word.  The high 3 bits of the
  * upper word are used to encode the in/out status of the parameter.
  */
-#define	IOCPARM_MASK	0x1fff		/* parameter length, at most 13 bits */
+#define	IOCPARM_MASK	0xff		/* parameter length, at most 13 bits */
 #define	IOCPARM_LEN(x)	(((x) >> 16) & IOCPARM_MASK)
 #define	IOCBASECMD(x)	((x) & ~(IOCPARM_MASK << 16))
 #define	IOCGROUP(x)	(((x) >> 8) & 0xff)
@@ -51,6 +52,10 @@
 #define	IOC_INOUT	(IOC_IN|IOC_OUT)
 #define	IOC_DIRMASK	0xe0000000
 
+/* Prex */
+#define IOC_IVAL	0x10000000	/* input argument is immediate value */
+#define IOC_OVAL	0x08000000	/* return value as output */
+
 #define	_IOC(inout,group,num,len) \
 	(u_long)(inout | ((len & IOCPARM_MASK) << 16) | ((group) << 8) | (num))
 #define	_IO(g,n)	_IOC(IOC_VOID,	(g), (n), 0)
@@ -59,9 +64,51 @@
 /* this should be _IORW, but stdio got there first */
 #define	_IOWR(g,n,t)	_IOC(IOC_INOUT,	(g), (n), sizeof(t))
 
+#define	_IORN(g,n,t)	_IOC((IOC_OVAL|IOC_OUT), (g), (n), sizeof(t))
+#define	_IOWN(g,n,t)	_IOC((IOC_IVAL|IOC_IN),  (g), (n), sizeof(t))
+
+
+/*
+ * CPU frequency I/O control code
+ */
+#define CFIOC_GET_INFO		 _IOR('6', 0, struct cpufreqinfo)
+
+/*
+ * CPU frequency information
+ */
+struct cpufreqinfo {
+	int	maxfreq;	/* max speed in MHz */
+	int	maxvolts;	/* max power in mV */
+	int	freq;		/* current speed in MHz */
+	int	volts;		/* current power in mV */
+};
+
+/*
+ * Power management I/O control code
+ */
+#define PMIOC_CONNECT		 _IOW('P', 0, int)
+#define PMIOC_QUERY_EVENT	 _IOW('P', 1, int)
+#define PMIOC_SET_POWER		 _IOW('P', 2, int)
+#define PMIOC_GET_SUSTMR	 _IOR('P', 3, int)
+#define PMIOC_SET_SUSTMR	 _IOW('P', 4, int)
+#define PMIOC_GET_DIMTMR	 _IOR('P', 5, int)
+#define PMIOC_SET_DIMTMR	 _IOW('P', 6, int)
+#define PMIOC_GET_POLICY	 _IOR('P', 7, int)
+#define PMIOC_SET_POLICY	 _IOW('P', 8, int)
+
+/*
+ * RTC I/O control code
+ */
+#define RTCIOC_GET_TIME		 _IOR('R', 0, struct __timeval)
+#define RTCIOC_SET_TIME		 _IOW('R', 1, struct __timeval)
+
+struct __timeval {
+	long	tv_sec;		/* seconds */
+	long	tv_usec;	/* and microseconds */
+};
 
 __BEGIN_DECLS
 int	ioctl(int, unsigned long, ...);
 __END_DECLS
 
-#endif	/* !_SYS_IOCTL_H */
+#endif	/* !_SYS_IOCTL_H_ */

@@ -83,11 +83,10 @@ main(int argc, char *argv[])
 		err (1, "getpriority");
 		/* NOTREACHED */
 	}
-	if (setpriority(PRIO_PROCESS, 0, niceness)) {
+	if (setpriority(PRIO_PROCESS, 0, niceness) == -1) {
 		warn ("setpriority");
 	}
-
-	execvp(argv[0], &argv[0]);
+	execvp(argv[0], &argv[1]);
 	err ((errno == ENOENT) ? 127 : 126, "%s", argv[0]);
 	/* NOTREACHED */
 	return 0;

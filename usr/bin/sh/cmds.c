@@ -27,16 +27,107 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/fcntl.h>
+#include <sys/prex.h>
+
 #include <unistd.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <setjmp.h>
+
 #include "sh.h"
 
-extern int cd_cmd(int argc, char *argv[]);
+extern char **environ;
+
+static int cmd_null(int argc, char *argv[]);
+static int cmd_cd(int argc, char *argv[]);
+static int cmd_mem(int argc, char *argv[]);
+static int cmd_exec(int argc, char *argv[]);
+static int cmd_exit(int argc, char *argv[]);
 
 /*
- * Internal commands
+ * Internal shell commands
  */
-const struct cmd_entry internal_cmds[] = {
-    { "cd"       ,cd_cmd      },
-    { NULL       ,0           },
+const struct cmdentry shell_cmds[] = {
+    { "cd"         ,cmd_cd           },
+    { "exec"       ,cmd_exec         },
+    { "exit"       ,cmd_exit         },
+    { "export"     ,cmd_export       },
+    { "mem"        ,cmd_mem          },
+    { "set"        ,cmd_showvars     },
+    { "unset"      ,cmd_unsetvar     },
+    { NULL         ,cmd_null         },
 };
 
+
+static int
+cmd_null(int argc, char *argv[])
+{
+	return 0;
+}
+
+static int
+cmd_cd(int argc, char *argv[])
+{
+	char *p;
+
+	if (argc > 2) {
+		fprintf(stderr, "usage: cd [dir]\n");
+		return 0;
+	}
+	if (argc == 1) {
+		p = getenv("HOME");
+		if (p == NULL)
+			p = "/";
+	} else
+		p = argv[1];
+
+	if (chdir(p) < 0)
+		return errno;
+	return 0;
+}
+
+static int
+cmd_exec(int argc, char *argv[])
+{
+	char **envp = environ;
+
+	if (argc < 2) {
+		fprintf(stderr, "usage: exec command\n");
+		return 0;
+	}
+
+	close(0);
+	open("/dev/tty", O_RDONLY);
+
+	/*
+	 * Memory size optimization for 'exec sh'.
+	 */
+	if (!strcmp(argv[1], "sh")) {
+		longjmp(jmpbuf, 1);
+		/* NOTREACHED */
+	}
+	return execve(argv[1], &argv[2], envp);
+}
+
+static int
+cmd_mem(int argc, char *argv[])
+{
+	struct meminfo info;
+
+	sys_info(INFO_MEMORY, &info);
+
+	/* UNIX v7 style... */
+	printf("mem = %d\n", (u_int)info.total);
+	return 0;
+}
+
+static int
+cmd_exit(int argc, char *argv[])
+{
+
+	exit(0);
+	/* NOTREACHED */
+}

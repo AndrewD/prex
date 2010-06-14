@@ -54,16 +54,16 @@
 static int
 __sprint(FILE *fp, struct __suio *uio)
 {
-	int err;
+	int error;
 
 	if (uio->uio_resid == 0) {
 		uio->uio_iovcnt = 0;
 		return (0);
 	}
-	err = __sfvwrite(fp, uio);
+	error = __sfvwrite(fp, uio);
 	uio->uio_resid = 0;
 	uio->uio_iovcnt = 0;
-	return (err);
+	return (error);
 }
 
 /*
@@ -158,7 +158,7 @@ __ultoa(u_long val, char *endp, int base, int octzero, char *xdigs)
 		break;
 
 	default:			/* oops */
-		abort();
+		exit(1);
 	}
 	return (cp);
 }

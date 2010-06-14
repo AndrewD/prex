@@ -30,6 +30,8 @@
  * SUCH DAMAGE.
  */
 
+/* modified by Kohsuke Ohtani for Prex. */
+
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 
@@ -49,7 +51,7 @@ static void usage(void);
 static int copy(char *from, char *to, int dirflag);
 
 
-static char iobuf[BUFSIZ];
+static char *iobuf;
 
 int
 main(int argc, char *argv[])
@@ -58,11 +60,8 @@ main(int argc, char *argv[])
 	char *target;
 	struct stat to_stat, tmp_stat;
 
-	while ((ch = getopt(argc, argv, "i")) != -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
-		case 'i':
-			iflag = isatty(fileno(stdin));
-			break;
 		case '?':
 		default:
 			usage();
@@ -73,6 +72,9 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage();
 
+	if ((iobuf = malloc(BUFSIZ)) == NULL)
+		err(1, NULL);
+
 	target = argv[--argc];
 
 	r = stat(target, &to_stat);
@@ -82,11 +84,13 @@ main(int argc, char *argv[])
 		/*
 		 * File to file
 		 */
-		if (argc > 1) {
+		if (argc > 1)
 			usage();
+
+		if (stat(argv[0], &tmp_stat) == -1) {
+			warn("%s", argv[0]);
 			exit(1);
 		}
-		stat(argv[0], &tmp_stat);
 		if (!S_ISREG(tmp_stat.st_mode))
 			usage();
 
@@ -108,14 +112,15 @@ main(int argc, char *argv[])
 		for (i = 0; i < argc; i++)
 			r = copy(argv[i], target, 1);
 	}
+	free(iobuf);
 	exit(r);
 }
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: cp [-i] src target\n"
-		"       cp [-i] src1 ... srcN directory\n");
+	fprintf(stderr, "usage: cp src target\n"
+		"       cp src1 ... srcN directory\n");
 	exit(1);
 	/* NOTREACHED */
 }
@@ -124,21 +129,22 @@ static int
 copy(char *from, char *to, int dirflag)
 {
 	char path[PATH_MAX];
-	int fold, fnew, n, mode;
+	int fold, fnew, n;
 	struct stat stbuf;
+	mode_t mode;
 	char *p;
 
 	if (dirflag) {
 		p = strrchr(from, '/');
 		p = p ? p + 1 : from;
-		strcpy(path, to);
+		strlcpy(path, to, sizeof(path));
 		if (strcmp(to, "/"))
-			strcat(path, "/");
-		strcat(path, p);
+			strlcat(path, "/", sizeof(path));
+		strlcat(path, p, sizeof(path));
 		to = path;
 	}
 
-	if ((fold = open(from, 0)) == -1) {
+	if ((fold = open(from, O_RDONLY)) == -1) {
 		warn("%s", from);
 		return 1;
 	}
@@ -151,7 +157,7 @@ copy(char *from, char *to, int dirflag)
 		return 1;
 	}
 	while ((n = read(fold, iobuf, BUFSIZ)) > 0) {
-		if (write(fnew, iobuf, n) != n) {
+		if (write(fnew, iobuf, (size_t)n) != n) {
 			warn("%s", to);
 			close(fold);
 			close(fnew);

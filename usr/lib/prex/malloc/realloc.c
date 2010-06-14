@@ -41,7 +41,7 @@ realloc(void *addr, size_t size)
 		return malloc(size);
 
 	old = (struct header *)addr - 1;
-#ifdef CONFIG_MCHECK
+#ifdef DEBUG_MALLOC
 	if (old->magic != MALLOC_MAGIC)
 		sys_panic("free: invalid pointer");
 #endif
@@ -52,6 +52,6 @@ realloc(void *addr, size_t size)
 		memcpy(p, addr, old_size);
 	else
 		memcpy(p, addr, size);
-	free(old);
+	free(addr);
 	return p;
 }

@@ -28,10 +28,10 @@
  */
 
 /*
- * mount.c - mount operations
+ * vfs_mount.c - mount operations
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 #include <sys/stat.h>
 #include <sys/vnode.h>
@@ -72,11 +72,11 @@ static mutex_t mount_lock = MUTEX_INITIALIZER;
  * Lookup file system.
  */
 static const struct vfssw *
-fs_lookup(char *name)
+fs_getfs(char *name)
 {
 	const struct vfssw *fs;
 
-	for (fs = vfssw_table; fs->vs_name; fs++) {
+	for (fs = vfssw; fs->vs_name; fs++) {
 		if (!strncmp(name, fs->vs_name, FSMAXNAMES))
 			break;
 	}
@@ -93,15 +93,17 @@ sys_mount(char *dev, char *dir, char *fsname, int flags, void *data)
 	list_t head, n;
 	device_t device;
 	vnode_t vp, vp_covered;
-	int err;
+	int error;
 
-	dprintf("VFS: Mounting %s dev=%s dir=%s\n", fsname, dev, dir);
+#ifdef DEBUG
+	dprintf("VFS: mounting %s at %s\n", fsname, dir);
+#endif
 
 	if (!dir || *dir == '\0')
 		return ENOENT;
 
 	/* Find a file system. */
-	if (!(fs = fs_lookup(fsname)))
+	if (!(fs = fs_getfs(fsname)))
 		return ENODEV;	/* No such file system */
 
 	/* Open device. NULL can be specified as a device. */
@@ -109,8 +111,8 @@ sys_mount(char *dev, char *dir, char *fsname, int flags, void *data)
 	if (*dev != '\0') {
 		if (strncmp(dev, "/dev/", 5))
 			return ENOTBLK;
-		if ((err = device_open(dev + 5, DO_RDWR, &device)) != 0)
-			return err;
+		if ((error = device_open(dev + 5, DO_RDWR, &device)) != 0)
+			return error;
 	}
 
 	MOUNT_LOCK();
@@ -121,23 +123,22 @@ sys_mount(char *dev, char *dir, char *fsname, int flags, void *data)
 		mp = list_entry(n, struct mount, m_link);
 		if (!strcmp(mp->m_path, dir) ||
 		    (device && mp->m_dev == (dev_t)device)) {
-			err = EBUSY;	/* Already mounted */
+			error = EBUSY;	/* Already mounted */
 			goto err1;
 		}
 	}
 	/*
-	 * Create VFS mount entry
+	 * Create VFS mount entry.
 	 */
 	if (!(mp = malloc(sizeof(struct mount)))) {
-		err = ENOMEM;
+		error = ENOMEM;
 		goto err1;
 	}
 	mp->m_count = 0;
 	mp->m_op = fs->vs_op;
 	mp->m_flags = flags;
 	mp->m_dev = (dev_t)device;
-	strlcpy(mp->m_path, dir, PATH_MAX);
-	mp->m_path[PATH_MAX - 1] = '\0';
+	strlcpy(mp->m_path, dir, sizeof(mp->m_path));
 
 	/*
 	 * Get vnode to be covered in the upper file system.
@@ -146,12 +147,13 @@ sys_mount(char *dev, char *dir, char *fsname, int flags, void *data)
 		/* Ignore if it mounts to global root directory. */
 		vp_covered = NULL;
 	} else {
-		if ((err = namei(dir, &vp_covered)) != 0) {
-			err = ENOENT;
+		if ((error = namei(dir, &vp_covered)) != 0) {
+
+			error = ENOENT;
 			goto err2;
 		}
 		if (vp_covered->v_type != VDIR) {
-			err = ENOTDIR;
+			error = ENOTDIR;
 			goto err3;
 		}
 	}
@@ -161,19 +163,22 @@ sys_mount(char *dev, char *dir, char *fsname, int flags, void *data)
 	 * Create a root vnode for this file system.
 	 */
 	if ((vp = vget(mp, "/")) == NULL) {
-		err = ENOMEM;
+		error = ENOMEM;
 		goto err3;
 	}
 	vp->v_type = VDIR;
 	vp->v_flags = VROOT;
-	vp->v_mode = S_IFDIR | S_IRUSR | S_IRGRP | S_IROTH;
+	vp->v_mode = S_IFDIR | S_IRUSR | S_IWUSR | S_IXUSR;
 	mp->m_root = vp;
 
 	/*
-	 * Call a file system specific routine to mount.
+	 * Call a file system specific routine.
 	 */
-	if ((err = VFS_MOUNT(mp, dev, flags, data)) != 0)
+	if ((error = VFS_MOUNT(mp, dev, flags, data)) != 0)
 		goto err4;
+
+	if (mp->m_flags & MNT_RDONLY)
+		vp->v_mode &=~S_IWUSR;
 
 	/*
 	 * Keep reference count for root/covered vnode.
@@ -187,7 +192,8 @@ sys_mount(char *dev, char *dir, char *fsname, int flags, void *data)
 	 */
 	list_insert(&mount_list, &mp->m_link);
 	MOUNT_UNLOCK();
-	return 0;
+
+	return 0;	/* success */
  err4:
 	vput(vp);
  err3:
@@ -197,8 +203,9 @@ sys_mount(char *dev, char *dir, char *fsname, int flags, void *data)
 	free(mp);
  err1:
 	device_close(device);
+
 	MOUNT_UNLOCK();
-	return err;
+	return error;
 }
 
 int
@@ -206,7 +213,7 @@ sys_umount(char *path)
 {
 	mount_t mp;
 	list_t head, n;
-	int err;
+	int error;
 
 	DPRINTF(VFSDB_SYSCALL, ("sys_umount: path=%s\n", path));
 
@@ -220,17 +227,17 @@ sys_umount(char *path)
 			break;
 	}
 	if (n == head) {
-		err = EINVAL;
+		error = EINVAL;
 		goto out;
 	}
 	/*
 	 * Root fs can not be unmounted.
 	 */
 	if (mp->m_covered == NULL) {
-		err = EINVAL;
+		error = EINVAL;
 		goto out;
 	}
-	if ((err = VFS_UNMOUNT(mp)) != 0)
+	if ((error = VFS_UNMOUNT(mp)) != 0)
 		goto out;
 	list_remove(&mp->m_link);
 
@@ -248,7 +255,7 @@ sys_umount(char *path)
 	free(mp);
  out:
 	MOUNT_UNLOCK();
-	return err;
+	return error;
 }
 
 int
@@ -370,7 +377,7 @@ vfs_einval(void)
 	return EINVAL;
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_VFS
 void
 mount_dump(void)
 {

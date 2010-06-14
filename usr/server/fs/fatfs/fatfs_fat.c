@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/buf.h>
 
 #include <ctype.h>
@@ -45,7 +45,7 @@ read_fat_entry(struct fatfsmount *fmp, u_long cl)
 {
 	u_long sec;
 	char *buf = fmp->fat_buf;
-	int err, border = 0;
+	int error, border = 0;
 	struct buf *bp;
 
 	/* Get the sector number in FAT entry. */
@@ -64,8 +64,8 @@ read_fat_entry(struct fatfsmount *fmp, u_long cl)
 	sec += fmp->fat_start;
 
 	/* Read first sector. */
-	if ((err = bread(fmp->dev, sec, &bp)) != 0)
-		return err;
+	if ((error = bread(fmp->dev, sec, &bp)) != 0)
+		return error;
 	memcpy(buf, bp->b_data, SEC_SIZE);
 	brelse(bp);
 
@@ -73,8 +73,8 @@ read_fat_entry(struct fatfsmount *fmp, u_long cl)
 		return 0;
 
 	/* Read second sector for the border entry of FAT12. */
-	if ((err = bread(fmp->dev, sec + 1, &bp)) != 0)
-		return err;
+	if ((error = bread(fmp->dev, sec + 1, &bp)) != 0)
+		return error;
 	memcpy(buf + SEC_SIZE, bp->b_data, SEC_SIZE);
 	brelse(bp);
 	return 0;
@@ -88,7 +88,7 @@ write_fat_entry(struct fatfsmount *fmp, u_long cl)
 {
 	u_long sec;
 	char *buf = fmp->fat_buf;
-	int err, border = 0;
+	int error, border = 0;
 	struct buf *bp;
 
 	/* Get the sector number in FAT entry. */
@@ -105,8 +105,8 @@ write_fat_entry(struct fatfsmount *fmp, u_long cl)
 	/* Write first sector. */
 	bp = getblk(fmp->dev, sec);
 	memcpy(bp->b_data, buf, SEC_SIZE);
-	if ((err = bwrite(bp)) != 0)
-		return err;
+	if ((error = bwrite(bp)) != 0)
+		return error;
 
 	if (!FAT12(fmp) || border == 0)
 		return 0;
@@ -114,8 +114,8 @@ write_fat_entry(struct fatfsmount *fmp, u_long cl)
 	/* Write second sector for the border entry of FAT12. */
 	bp = getblk(fmp->dev, sec + 1);
 	memcpy(bp->b_data, buf + SEC_SIZE, SEC_SIZE);
-	err = bwrite(bp);
-	return err;
+	error = bwrite(bp);
+	return error;
 }
 
 /*
@@ -129,12 +129,12 @@ fat_next_cluster(struct fatfsmount *fmp, u_long cl, u_long *next)
 {
 	u_int offset;
 	uint16_t val;
-	int err;
+	int error;
 
 	/* Read FAT entry */
-	err = read_fat_entry(fmp, cl);
-	if (err)
-		return err;
+	error = read_fat_entry(fmp, cl);
+	if (error)
+		return error;
 
 	/* Get offset in buffer. */
 	if (FAT16(fmp))
@@ -168,13 +168,13 @@ fat_set_cluster(struct fatfsmount *fmp, u_long cl, u_long next)
 {
 	u_int offset;
 	char *buf = fmp->fat_buf;
-	int err;
+	int error;
 	uint16_t val, tmp;
 
 	/* Read FAT entry */
-	err = read_fat_entry(fmp, cl);
-	if (err)
-		return err;
+	error = read_fat_entry(fmp, cl);
+	if (error)
+		return error;
 
 	/* Get offset in buffer. */
 	if (FAT16(fmp))
@@ -197,8 +197,8 @@ fat_set_cluster(struct fatfsmount *fmp, u_long cl, u_long next)
 	*((uint16_t *)(buf + offset)) = val;
 
 	/* Write FAT entry */
-	err = write_fat_entry(fmp, cl);
-	return err;
+	error = write_fat_entry(fmp, cl);
+	return error;
 }
 
 /*
@@ -212,7 +212,7 @@ int
 fat_alloc_cluster(struct fatfsmount *fmp, u_long scan_start, u_long *free)
 {
 	u_long cl, next;
-	int err;
+	int error;
 
 	if (scan_start == 0)
 		scan_start = fmp->free_scan;
@@ -221,9 +221,9 @@ fat_alloc_cluster(struct fatfsmount *fmp, u_long scan_start, u_long *free)
 
 	cl = scan_start + 1;
 	while (cl != scan_start) {
-		err = fat_next_cluster(fmp, cl, &next);
-		if (err)
-			return err;
+		error = fat_next_cluster(fmp, cl, &next);
+		if (error)
+			return error;
 		if (next == CL_FREE) {	/* free ? */
 			DPRINTF(("fat_alloc_cluster: free cluster=%d\n", cl));
 			*free = cl;
@@ -243,7 +243,7 @@ fat_alloc_cluster(struct fatfsmount *fmp, u_long scan_start, u_long *free)
 int
 fat_free_clusters(struct fatfsmount *fmp, u_long start)
 {
-	int err;
+	int error;
 	u_long cl, next;
 
 	cl = start;
@@ -251,18 +251,18 @@ fat_free_clusters(struct fatfsmount *fmp, u_long start)
 		return EINVAL;
 
 	while (!IS_EOFCL(fmp, cl)) {
-		err = fat_next_cluster(fmp, cl, &next);
-		if (err)
-			return err;
-		err = fat_set_cluster(fmp, cl, CL_FREE);
-		if (err)
-			return err;
+		error = fat_next_cluster(fmp, cl, &next);
+		if (error)
+			return error;
+		error = fat_set_cluster(fmp, cl, CL_FREE);
+		if (error)
+			return error;
 		cl = next;
 	}
 	/* Clear eof */
-	err = fat_set_cluster(fmp, cl, CL_FREE);
-	if (err)
-		return err;
+	error = fat_set_cluster(fmp, cl, CL_FREE);
+	if (error)
+		return error;
 	return 0;
 }
 
@@ -278,7 +278,7 @@ int
 fat_seek_cluster(struct fatfsmount *fmp, u_long start, u_long offset,
 		 u_long *cl)
 {
-	int err, i;
+	int error, i;
 	u_long c, target;
 
 	if (start > fmp->last_cluster)
@@ -287,9 +287,9 @@ fat_seek_cluster(struct fatfsmount *fmp, u_long start, u_long offset,
 	c = start;
 	target = offset / fmp->cluster_size;
 	for (i = 0; i < target; i++) {
-		err = fat_next_cluster(fmp, c, &c);
-		if (err)
-			return err;
+		error = fat_next_cluster(fmp, c, &c);
+		if (error)
+			return error;
 		if (IS_EOFCL(fmp, c))
 			return EIO;
 	}
@@ -307,26 +307,26 @@ fat_seek_cluster(struct fatfsmount *fmp, u_long start, u_long offset,
 int
 fat_expand_file(struct fatfsmount *fmp, u_long cl, int size)
 {
-	int i, cl_len, alloc, err;
+	int i, cl_len, alloc, error;
 	u_long next;
 
 	alloc = 0;
 	cl_len = size / fmp->cluster_size + 1;
 
 	for (i = 0; i < cl_len; i++) {
-		err = fat_next_cluster(fmp, cl, &next);
-		if (err)
-			return err;
+		error = fat_next_cluster(fmp, cl, &next);
+		if (error)
+			return error;
 		if (alloc || next >= fmp->fat_eof) {
-			err = fat_alloc_cluster(fmp, cl, &next);
-			if (err)
-				return err;
+			error = fat_alloc_cluster(fmp, cl, &next);
+			if (error)
+				return error;
 			alloc = 1;
 		}
 		if (alloc) {
-			err = fat_set_cluster(fmp, cl, next);
-			if (err)
-				return err;
+			error = fat_set_cluster(fmp, cl, next);
+			if (error)
+				return error;
 		}
 		cl = next;
 	}
@@ -348,28 +348,28 @@ fat_expand_file(struct fatfsmount *fmp, u_long cl, int size)
 int
 fat_expand_dir(struct fatfsmount *fmp, u_long cl, u_long *new_cl)
 {
-	int err;
+	int error;
 	u_long next;
 
 	/* Find last cluster number of FAT chain. */
 	while (!IS_EOFCL(fmp, cl)) {
-		err = fat_next_cluster(fmp, cl, &next);
-		if (err)
-			return err;
+		error = fat_next_cluster(fmp, cl, &next);
+		if (error)
+			return error;
 		cl = next;
 	}
 
-	err = fat_alloc_cluster(fmp, cl, &next);
-	if (err)
-		return err;
+	error = fat_alloc_cluster(fmp, cl, &next);
+	if (error)
+		return error;
 
-	err = fat_set_cluster(fmp, cl, next);
-	if (err)
-		return err;
+	error = fat_set_cluster(fmp, cl, next);
+	if (error)
+		return error;
 
-	err = fat_set_cluster(fmp, next, fmp->fat_eof);
-	if (err)
-		return err;
+	error = fat_set_cluster(fmp, next, fmp->fat_eof);
+	if (error)
+		return error;
 
 	*new_cl = next;
 	return 0;

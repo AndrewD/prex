@@ -1,16 +1,16 @@
+# Rules to link a set of .o files into one .o file
+
 include $(SRCDIR)/mk/own.mk
 
-INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/include -I$(SRCDIR)/usr/include
+_RELOC_OBJ_:=	1
 
-ASFLAGS+=	$(INCLUDE)
-CFLAGS+=	$(INCLUDE) -nostdinc
-CPPFLAGS+=	$(INCLUDE) -nostdinc
-LDFLAGS+=	-static $(USR_LDFLAGS)
-
-TYPE=		OBJECT
-
-ifdef SRCS
-OBJS+= $(SRCS:.c=.o)
+ifndef _KERNEL_
+INCSDIR+=	$(SRCDIR)/usr/include
 endif
 
-include $(SRCDIR)/mk/Makefile.inc
+include $(SRCDIR)/mk/common.mk
+
+$(TARGET): $(OBJS)
+	$(call echo-file,LD     ,$@)
+	$(LD) $(LDFLAGS) $(OUTPUT_OPTION) $^
+

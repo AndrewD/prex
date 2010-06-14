@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,118 +31,46 @@
  * object.c - object service
  */
 
-/*
- * General Design:
+/**
+ * IPC object:
  *
- * An object represents service, state, or policies etc. To
- * manipulate objects, kernel provide 3 functions: create, delete,
- * lookup. Prex task will create an object to provide its interface
- * to other tasks. The tasks will communicate by sending a message
- * to the object each other. For example, a server task creates some
- * objects and client task will send a request message to it.
+ * An object represents service, state, or policies etc. To manipulate
+ * objects, kernel provide 3 functions: create, destroy and lookup.
+ * Prex task will create an object to provide its services to other
+ * tasks. The tasks will communicate by sending a message to the
+ * object each other. In typical case, a server task creates an object
+ * and client tasks will send a request message to it.
  *
- * A substance of object is stored in kernel space, and it is
- * protected from user mode code. Each object data is managed with
- * the hash table by using its name string. Usually, an object has
- * a unique name within a system. Before a task sends a message to
- * the specific object, it must obtain the object ID by looking up
- * the name of the target object.
+ * A substance of object is stored in kernel space, and so it's protected
+ * from user mode code.  Usually, an object has a unique name within a
+ * system. Before a task sends a message to the specific object, it must
+ * obtain the object ID by looking up the name of the target object.
  *
- * An object can be created without its name. These object can be
- * used as private objects that are used by threads in same task.
+ * A task can create a private object which does not have name. Since
+ * another task can not obtain the ID of such object, the IPC operations
+ * for the private object are limited to the threads in the same task.
+ *
+ * The object name started with '!' means that it is a protected object.
+ * The protected object can be created only by the task which has
+ * CAP_PROTSERV capability. Since this capability is given to the known
+ * system servers, the client task can always trust the object owner.
  */
 
 #include <kernel.h>
-#include <queue.h>
 #include <kmem.h>
 #include <sched.h>
 #include <task.h>
 #include <ipc.h>
 
-#define OBJ_MAXBUCKETS	32	/* Size of object hash buckets */
+/* forward declarations */
+static object_t	object_find(const char *);
 
-/*
- * Object hash table
- *
- * All objects are hashed by its name string. If an object
- * has no name, it is linked to index zero. The scheduler
- * must be locked when this table is touched.
- */
-static struct list obj_table[OBJ_MAXBUCKETS];
-
-/*
- * Calculate the hash index for specified name string.
- * The name can be NULL if the object does not have its
- * name.
- */
-static u_int
-object_hash(const char *name)
-{
-	u_int h = 0;
-
-	if (name == NULL)
-		return 0;
-	while (*name)
-		h = ((h << 5) + h) + *name++;
-	return h & (OBJ_MAXBUCKETS - 1);
-}
-
-/*
- * Helper function to find the object from the specified name.
- * Returns NULL if not found.
- */
-static object_t
-object_find(const char *name)
-{
-	list_t head, n;
-	object_t obj = NULL;
-
-	head = &obj_table[object_hash(name)];
-
-	for (n = list_first(head); n != head; n = list_next(n)) {
-		obj = list_entry(n, struct object, hash_link);
-		if (!strncmp(obj->name, name, MAXOBJNAME))
-			break;
-	}
-	if (n == head)
-		return NULL;
-	return obj;
-}
-
-/*
- * Search an object in the object name space. The object
- * name must be null-terminated string. The object ID is
- * returned in obj on success.
- */
-int
-object_lookup(const char *name, object_t *objp)
-{
-	object_t obj;
-	size_t len;
-	char str[MAXOBJNAME];
-
-	if (umem_strnlen(name, MAXOBJNAME, &len))
-		return EFAULT;
-	if (len == 0 || len >= MAXOBJNAME)
-		return ESRCH;
-	if (umem_copyin(name, str, len + 1))
-		return EFAULT;
-
-	sched_lock();
-	obj = object_find(str);
-	sched_unlock();
-
-	if (obj == NULL)
-		return ENOENT;
-	if (umem_copyout(&obj, objp, sizeof(obj)))
-		return EFAULT;
-	return 0;
-}
+static struct list	object_list;	/* list of all objects */
 
 /*
  * Create a new object.
  *
- * The ID of the new object is stored in pobj on success.
+ * The ID of the new object is stored in objp on success.
  * The name of the object must be unique in the system.
  * Or, the object can be created without name by setting
  * NULL as name argument. This object can be used as a
@@ -154,25 +82,30 @@ object_create(const char *name, object_t *objp)
 {
 	struct object *obj = 0;
 	char str[MAXOBJNAME];
-	task_t self;
-	size_t len = 0;
+	int error;
 
-	if (name != NULL) {
-		if (umem_strnlen(name, MAXOBJNAME, &len))
-			return EFAULT;
-		if (len >= MAXOBJNAME)
-			return ENAMETOOLONG;
-		if (umem_copyin(name, str, len + 1))
-			return EFAULT;
+	if (name == NULL)
+		str[0] = '\0';
+	else {
+		error = copyinstr(name, str, MAXOBJNAME);
+		if (error)
+			return error;
+
+		/* Check capability if name is protected object. */
+		if (name[0] == '!' && !task_capable(CAP_PROTSERV))
+			return EPERM;
 	}
-	str[len] = '\0';
 	sched_lock();
 
+	if (curtask->nobjects >= MAXOBJECTS) {
+		sched_unlock();
+		return EAGAIN;
+	}
 	/*
 	 * Check user buffer first. This can reduce the error
 	 * recovery for the subsequence resource allocations.
 	 */
-	if (umem_copyout(&obj, objp, sizeof(obj))) {
+	if (copyout(&obj, objp, sizeof(obj))) {
 		sched_unlock();
 		return EFAULT;
 	}
@@ -185,55 +118,133 @@ object_create(const char *name, object_t *objp)
 		return ENOMEM;
 	}
 	if (name != NULL)
-		strlcpy(obj->name, str, len + 1);
+		strlcpy(obj->name, str, MAXOBJNAME);
 
-	self = cur_task();
-	obj->owner = self;
-	obj->magic = OBJECT_MAGIC;
+	obj->owner = curtask;
 	queue_init(&obj->sendq);
 	queue_init(&obj->recvq);
-	list_insert(&obj_table[object_hash(name)], &obj->hash_link);
-	list_insert(&self->objects, &obj->task_link);
+	list_insert(&curtask->objects, &obj->task_link);
+	curtask->nobjects++;
+	list_insert(&object_list, &obj->link);
+	copyout(&obj, objp, sizeof(obj));
 
-	umem_copyout(&obj, objp, sizeof(obj));
 	sched_unlock();
 	return 0;
 }
 
 /*
+ * Search an object in the object name space. The object
+ * name must be null-terminated string.
+ */
+int
+object_lookup(const char *name, object_t *objp)
+{
+	object_t obj;
+	char str[MAXOBJNAME];
+	int error;
+
+	error = copyinstr(name, str, MAXOBJNAME);
+	if (error)
+		return error;
+
+	sched_lock();
+	obj = object_find(str);
+	sched_unlock();
+
+	if (obj == NULL)
+		return ENOENT;
+
+	if (copyout(&obj, objp, sizeof(obj)))
+		return EFAULT;
+	return 0;
+}
+
+int
+object_valid(object_t obj)
+{
+	object_t tmp;
+	list_t n;
+
+	for (n = list_first(&object_list); n != &object_list;
+	     n = list_next(n)) {
+		tmp = list_entry(n, struct object, link);
+		if (tmp == obj)
+			return 1;
+	}
+	return 0;
+}
+
+static object_t
+object_find(const char *name)
+{
+	object_t obj;
+	list_t n;
+
+	for (n = list_first(&object_list); n != &object_list;
+	     n = list_next(n)) {
+		obj = list_entry(n, struct object, link);
+		if (!strncmp(obj->name, name, MAXOBJNAME))
+			return obj;
+	}
+	return 0;
+}
+
+/*
+ * Deallocate an object-- the internal version of object_destory.
+ */
+static void
+object_deallocate(object_t obj)
+{
+
+	msg_abort(obj);
+	obj->owner->nobjects--;
+	list_remove(&obj->task_link);
+	list_remove(&obj->link);
+	kmem_free(obj);
+}
+
+/*
  * Destroy an object.
  *
- * A thread can delete the object only when the target
- * object is created by the thread of the same task.  All
- * pending messages related to the deleted object are
- * automatically canceled.
+ * All pending messages related to the target object are
+ * automatically cancelled.
  */
 int
 object_destroy(object_t obj)
 {
-	int err = 0;
 
 	sched_lock();
 	if (!object_valid(obj)) {
-		err = EINVAL;
-	} else if (obj->owner != cur_task()) {
-		err = EACCES;
-	} else {
-		obj->magic = 0;
-		msg_cancel(obj);
-		list_remove(&obj->task_link);
-		list_remove(&obj->hash_link);
-		kmem_free(obj);
+		sched_unlock();
+		return EINVAL;
 	}
+	if (obj->owner != curtask) {
+		sched_unlock();
+		return EACCES;
+	}
+	object_deallocate(obj);
 	sched_unlock();
-	return err;
+	return 0;
+}
+
+/*
+ * Clean up for task termination.
+ */
+void
+object_cleanup(task_t task)
+{
+	object_t obj;
+
+	while (!list_empty(&task->objects)) {
+		obj = list_entry(list_first(&task->objects),
+				 struct object, task_link);
+		object_deallocate(obj);
+	}
 }
 
 void
 object_init(void)
 {
-	int i;
 
-	for (i = 0; i < OBJ_MAXBUCKETS; i++)
-		list_init(&obj_table[i]);
+	list_init(&object_list);
 }

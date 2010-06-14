@@ -31,7 +31,7 @@
  * exception.c - test kernel exception feature.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 static void
@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 	exception_raise(task, 8);
 
 	/* Uninstall exception handler */
-	exception_setup(0);
+	exception_setup(EXC_DFL);
 
 	/* Raise exception. This must be ignored */
 	exception_raise(task, 1);

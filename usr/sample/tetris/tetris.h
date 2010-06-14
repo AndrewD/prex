@@ -173,5 +173,5 @@ extern int	score;		/* the obvious thing */
 extern char	key_msg[100];
 
 int	fits_in(const struct shape *, int);
-void	place(const struct shape *, int, int);
+void	place(const struct shape *, int, cell);
 void	stop(char *);

@@ -32,7 +32,7 @@
  */
 
 /**
- * An user mode task can specify its own exception handler with
+ * An user mode task can set its own exception handler with
  * exception_setup() system call.
  *
  * There are two different types of exceptions in a system - H/W and
@@ -76,55 +76,62 @@
 #include <thread.h>
 #include <sched.h>
 #include <task.h>
-#include <irq.h>
+#include <hal.h>
 #include <exception.h>
 
-static struct event exception_event;
+static struct event	exception_event;
 
 /*
  * Install an exception handler for the current task.
  *
- * NULL can be specified as handler to remove current handler.
+ * EXC_DFL can be specified as handler to remove the current handler.
  * If handler is removed, all pending exceptions are discarded
- * immediately. In this case, all threads blocked in
- * exception_wait() are unblocked.
+ * immediately. At this time, all threads blocked in exception_wait()
+ * are automatically unblocked.
  *
- * Only one exception handler can be set per task. If the
- * previous handler exists in task, exception_setup() just
- * override that handler.
+ * We allow only one exception handler per task. If the handler
+ * has already been set in task, exception_setup() just override
+ * the previous handler.
  */
 int
 exception_setup(void (*handler)(int))
 {
-	task_t self = cur_task();
+	task_t self = curtask;
 	list_t head, n;
-	thread_t th;
+	thread_t t;
+	int s;
 
-	if (handler != NULL && !user_area(handler))
+	if (handler != EXC_DFL && !user_area(handler))
 		return EFAULT;
+	if (handler == NULL)
+		return EINVAL;
 
 	sched_lock();
-	if (self->handler && handler == NULL) {
+	if (self->handler != EXC_DFL && handler == EXC_DFL) {
 		/*
 		 * Remove existing exception handler. Do clean up
 		 * job for all threads in the target task.
 		 */
 		head = &self->threads;
 		for (n = list_first(head); n != head; n = list_next(n)) {
+
 			/*
 			 * Clear pending exceptions.
 			 */
-			th = list_entry(n, struct thread, task_link);
-			irq_lock();
-			th->excbits = 0;
-			irq_unlock();
+			s = splhigh();
+			t = list_entry(n, struct thread, task_link);
+			t->excbits = 0;
+			splx(s);
 
 			/*
 			 * If the thread is waiting for an exception,
 			 * cancel it.
 			 */
-			if (th->slpevt == &exception_event)
-				sched_unsleep(th, SLP_BREAK);
+			if (t->slpevt == &exception_event) {
+				DPRINTF(("Exception cancelled task=%s\n",
+					 self->name));
+				sched_unsleep(t, SLP_BREAK);
+			}
 		}
 	}
 	self->handler = handler;
@@ -136,99 +143,111 @@ exception_setup(void (*handler)(int))
  * exception_raise - system call to raise an exception.
  *
  * The exception pending flag is marked here, and it is
- * processed by exception_deliver() later. If the task
- * want to raise an exception to another task, the caller
- * task must have CAP_KILL capability. If the exception
- * is sent to the kernel task, this routine just returns
- * error.
+ * processed by exception_deliver() later. The task must have
+ * CAP_KILL capability to raise an exception to another task.
  */
 int
-exception_raise(task_t task, int exc)
+exception_raise(task_t task, int excno)
 {
-	int err;
+	int error;
 
 	sched_lock();
-
 	if (!task_valid(task)) {
-		err = ESRCH;
-		goto out;
+		DPRINTF(("Bad exception task=%lx\n", (long)task));
+		sched_unlock();
+		return ESRCH;
 	}
-	if (task != cur_task() && !task_capable(CAP_KILL)) {
-		err = EPERM;
-		goto out;
+	if (task != curtask && !task_capable(CAP_KILL)) {
+		sched_unlock();
+		return EPERM;
 	}
-	if (task == &kern_task || task->handler == NULL ||
-	    list_empty(&task->threads)) {
-		err = EPERM;
-		goto out;
-	}
-	err = exception_post(task, exc);
- out:
+	error = exception_post(task, excno);
 	sched_unlock();
-	return err;
+	return error;
 }
 
 /*
  * exception_post-- the internal version of exception_raise().
  */
 int
-exception_post(task_t task, int exc)
+exception_post(task_t task, int excno)
 {
 	list_t head, n;
-	thread_t th;
+	thread_t t = NULL;
+	int s, found = 0;
 
-	if (exc < 0 || exc >= NEXC)
+	sched_lock();
+	if (task->flags & TF_SYSTEM) {
+		sched_unlock();
+		return EPERM;
+	}
+
+	if ((task->handler == EXC_DFL) ||
+	    (task->nthreads == 0) ||
+	    (excno < 0) || (excno >= NEXC)) {
+		sched_unlock();
 		return EINVAL;
+	}
 
 	/*
 	 * Determine which thread should we send an exception.
-	 * First, search the thread that is waiting an exception
-	 * by calling exception_wait(). Then, if no thread is
-	 * waiting exceptions, it is sent to the master thread in
-	 * task.
+	 * First, search the thread that is currently waiting
+	 * an exception by calling exception_wait().
 	 */
 	head = &task->threads;
 	for (n = list_first(head); n != head; n = list_next(n)) {
-		th = list_entry(n, struct thread, task_link);
-		if (th->slpevt == &exception_event)
+		t = list_entry(n, struct thread, task_link);
+		if (t->slpevt == &exception_event) {
+			found = 1;
 			break;
+		}
 	}
-	if (n == head) {
-		n = list_first(head);
-		th = list_entry(n, struct thread, task_link);
+
+	/*
+	 * If no thread is waiting exceptions, we send it to
+	 * the master thread in the task.
+	 */
+	if (!found) {
+		if (!list_empty(&task->threads)) {
+			n = list_first(&task->threads);
+			t = list_entry(n, struct thread, task_link);
+		}
 	}
+
 	/*
 	 * Mark pending bit for this exception.
 	 */
-	irq_lock();
-	th->excbits |= (1 << exc);
-	irq_unlock();
+	s = splhigh();
+	t->excbits |= (1 << excno);
+	splx(s);
 
 	/*
 	 * Wakeup the target thread regardless of its
 	 * waiting event.
 	 */
-	sched_unsleep(th, SLP_INTR);
+	sched_unsleep(t, SLP_INTR);
 
+	sched_unlock();
 	return 0;
 }
 
 /*
- * exception_wait - block a current thread until some exceptions
- * are raised to the current thread.
+ * exception_wait - block a current thread until some
+ * exceptions are raised to the current thread.
  *
  * The routine returns EINTR on success.
  */
 int
-exception_wait(int *exc)
+exception_wait(int *excno)
 {
-	task_t self = cur_task();
-	int i, rc;
+	int i, rc, s;
 
-	self = cur_task();
-	if (self->handler == NULL)
+	if (curtask->handler == EXC_DFL)
 		return EINVAL;
-	if (!user_area(exc))
+
+	/* Check fault before sleeping. */
+	i = 0;
+	if (copyout(&i, excno, sizeof(i)))
 		return EFAULT;
 
 	sched_lock();
@@ -241,16 +260,16 @@ exception_wait(int *exc)
 		sched_unlock();
 		return EINVAL;
 	}
-	irq_lock();
+	s = splhigh();
 	for (i = 0; i < NEXC; i++) {
-		if (cur_thread->excbits & (1 << i))
+		if (curthread->excbits & (1 << i))
 			break;
 	}
-	irq_unlock();
+	splx(s);
 	ASSERT(i != NEXC);
 	sched_unlock();
 
-	if (umem_copyout(&i, exc, sizeof(i)))
+	if (copyout(&i, excno, sizeof(i)))
 		return EFAULT;
 	return EINTR;
 }
@@ -258,78 +277,78 @@ exception_wait(int *exc)
 /*
  * Mark an exception flag for the current thread.
  *
- * This is called from architecture dependent code when H/W
- * trap is occurred. If current task does not have exception
- * handler, then current task will be terminated. This routine
- * may be called at interrupt level.
+ * This is called by HAL code when H/W trap is occurred. If a
+ * current task does not have exception handler, then the
+ * current task will be terminated. This routine can be called
+ * at interrupt level.
  */
 void
-exception_mark(int exc)
+exception_mark(int excno)
 {
-	ASSERT(exc > 0 && exc < NEXC);
+	int s;
+
+	ASSERT(excno > 0 && excno < NEXC);
 
 	/* Mark pending bit */
-	irq_lock();
-	cur_thread->excbits |= (1 << exc);
-	irq_unlock();
+	s = splhigh();
+	curthread->excbits |= (1 << excno);
+	splx(s);
 }
 
 /*
  * exception_deliver - deliver pending exception to the task.
  *
- * Check if pending exception exists for current task, and
+ * Check if pending exception exists for the current task, and
  * deliver it to the exception handler if needed. All
- * exception is delivered at the time when the control goes
- * back to the user mode. This routine is called from
- * architecture dependent code. Some application may use
- * longjmp() during its signal handler. So, current context
- * must be saved to user mode stack.
+ * exceptions are delivered at the time when the control goes
+ * back to the user mode.  Some application may use longjmp()
+ * during its signal handler. So, current context must be
+ * saved to the user mode stack.
  */
 void
 exception_deliver(void)
 {
-	thread_t th = cur_thread;
-	task_t self = cur_task();
+	task_t self = curtask;
 	void (*handler)(int);
 	uint32_t bitmap;
-	int exc;
+	int s, excno;
 
+	ASSERT(curthread->state != TS_EXIT);
 	sched_lock();
-	irq_lock();
-	bitmap = th->excbits;
-	irq_unlock();
+
+	s = splhigh();
+	bitmap = curthread->excbits;
+	splx(s);
 
 	if (bitmap != 0) {
 		/*
 		 * Find a pending exception.
 		 */
-		for (exc = 0; exc < NEXC; exc++) {
-			if (bitmap & (1 << exc))
+		for (excno = 0; excno < NEXC; excno++) {
+			if (bitmap & (1 << excno))
 				break;
 		}
 		handler = self->handler;
-		if (handler == NULL) {
+		if (handler == EXC_DFL) {
 			DPRINTF(("Exception #%d is not handled by task.\n",
-				exc));
-			DPRINTF(("Terminate task:%s (id:%x)\n",
-				 self->name != NULL ? self->name : "no name",
-				 self));
+				excno));
+			DPRINTF(("Terminate task:%s (id:%lx)\n",
+				 self->name, (long)self));
 
 			task_terminate(self);
-			goto out;
+			/* NOTREACHED */
 		}
+
 		/*
 		 * Transfer control to an exception handler.
 		 */
-		context_save(&th->ctx);
-		context_set(&th->ctx, CTX_UENTRY, (vaddr_t)handler);
-		context_set(&th->ctx, CTX_UARG, (vaddr_t)exc);
-
-		irq_lock();
-		th->excbits &= ~(1 << exc);
-		irq_unlock();
+		s = splhigh();
+		context_save(&curthread->ctx);
+		context_set(&curthread->ctx, CTX_UENTRY, (register_t)handler);
+		context_set(&curthread->ctx, CTX_UARG, (register_t)excno);
+		curthread->excbits &= ~(1 << excno);
+		splx(s);
 	}
- out:
 	sched_unlock();
 }
 
@@ -337,12 +356,14 @@ exception_deliver(void)
  * exception_return() is called from exception handler to
  * restore the original context.
  */
-int
+void
 exception_return(void)
 {
+	int s;
 
-	context_restore(&cur_thread->ctx);
-	return 0;
+	s = splhigh();
+	context_restore(&curthread->ctx);
+	splx(s);
 }
 
 void

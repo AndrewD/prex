@@ -27,10 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/proc.h>
-#include <server/stdmsg.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/proc.h>
+#include <ipc/ipc.h>
 #include <sys/wait.h>
 
 #include <stddef.h>
@@ -47,21 +47,20 @@ waitpid(pid_t pid, int *status, int options)
 {
 	struct msg m;
 	pid_t child;
-	int sig, err;
+	int sig, error;
 	thread_t self;
-	int prio;
+	int pri;
 
 	/* Boost current priority */
 	self = thread_self();
-	thread_getprio(self, &prio);
-	thread_setprio(self, prio - 1);
-
+	thread_getpri(self, &pri);
+	thread_setpri(self, pri - 1);
 	for (;;) {
 		m.hdr.code = PS_WAITPID;
 		m.data[0] = pid;
 		m.data[1] = options;
-		err = msg_send(__proc_obj, &m, sizeof(m));
-		if (err == EINTR)
+		error = msg_send(__proc_obj, &m, sizeof(m));
+		if (error == EINTR)
 			continue;
 
 		if (m.hdr.status) {
@@ -72,15 +71,14 @@ waitpid(pid_t pid, int *status, int options)
 		if (child != 0 || options & WNOHANG)
 			break;
 
-		err = exception_wait(&sig);
-		if (err == EINTR) {
+		error = exception_wait(&sig);
+		if (error == EINTR) {
 			errno = EINTR;
 			break;
 		}
 	}
 	/* Restore priority */
-	thread_setprio(self, prio);
-
+	thread_setpri(self, pri);
 	if (status != NULL)
 		*status = m.data[1];
 	return child;

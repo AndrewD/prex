@@ -41,14 +41,14 @@ int
 nice(incr)
 	int incr;
 {
-	int prio;
+	int pri;
 
 	errno = 0;	/* XXX: Do not set 0 in errno... */
 
-	prio = getpriority(PRIO_PROCESS, 0);
-	if (prio == -1 && errno)
+	pri = getpriority(PRIO_PROCESS, 0);
+	if (pri == -1 && errno)
 		return (-1);
-	if (setpriority(PRIO_PROCESS, 0, prio + incr) != 0)
+	if (setpriority(PRIO_PROCESS, 0, pri + incr) != 0)
 		return (-1);
 	return (getpriority(PRIO_PROCESS, 0));
 }

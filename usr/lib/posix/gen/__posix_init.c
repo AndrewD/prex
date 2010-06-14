@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
 
 extern void __exception_init(void);
 extern void __process_init(void);

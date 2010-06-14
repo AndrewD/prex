@@ -27,10 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/fs.h>
-#include <server/stdmsg.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/fs.h>
+#include <ipc/ipc.h>
 
 #include <dirent.h>
 #include <errno.h>
@@ -41,7 +41,7 @@ rewinddir(DIR *dir)
 	struct msg m;
 
 	m.hdr.code = FS_REWINDDIR;
-	m.data[0] = dir->fd;
+	m.data[0] = dir->dd_fd;
 	__posix_call(__fs_obj, &m, sizeof(m), 1);
 
 	/*

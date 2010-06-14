@@ -39,16 +39,17 @@
 #include "local.h"
 
 int	__sdidinit;
+FILE __sF[3];
 
-#define	std(next, flags, file) \
-	{next,NULL,0,0,flags,file,{0,0},{0,0},NULL,0,{0},{0}}
-/*	 p r w flags file _bf z */
+static void
+std(FILE *fp, FILE *next, short flags, short fileno)
+{
 
-FILE __sF[3] = {
-	std(&__sF[1], __SRD, STDIN_FILENO),
-	std(&__sF[2], __SWR, STDOUT_FILENO),
-	std(NULL, __SWR|__SNBF, STDERR_FILENO)
-};
+	memset(fp, 0, sizeof(FILE));
+	fp->next = next;
+	fp->_flags = flags;
+	fp->_file = fileno;
+}
 
 /*
  * Find a free FILE for fopen et al.
@@ -66,7 +67,6 @@ __sfp()
 		if (fp->next == NULL) {
 			if ((tmp = malloc(sizeof(FILE))) == NULL)
 				break;
-			tmp->next = NULL;
 			fp->next = tmp;
 			fp = tmp;
 			goto found;
@@ -74,15 +74,7 @@ __sfp()
 	}
 	return (NULL);
 found:
-	fp->_flags = 1;		/* reserve this slot; caller sets real flags */
-	fp->_p = NULL;		/* no current pointer */
-	fp->_w = 0;		/* nothing to read or write */
-	fp->_r = 0;
-	fp->_bf._base = NULL;	/* no buffer */
-	fp->_bf._size = 0;
-	fp->_file = -1;		/* no file */
-	fp->_ub._base = NULL;	/* no ungetc buffer */
-	fp->_ub._size = 0;
+	std(fp, NULL, 1, -1);
 	return (fp);
 }
 
@@ -106,6 +98,11 @@ _cleanup()
 void
 __sinit()
 {
+
+	std(&__sF[0], &__sF[1], __SRD, STDIN_FILENO);
+	std(&__sF[1], &__sF[2], __SWR, STDOUT_FILENO);
+	std(&__sF[2], NULL, __SWR|__SNBF, STDERR_FILENO);
+
 	/* make sure we clean up on exit */
 	__cleanup = _cleanup;		/* conservative */
 	__sdidinit = 1;

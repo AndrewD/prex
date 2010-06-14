@@ -31,20 +31,61 @@
  * kmon.c - main routine for kernel monitor
  */
 
-#include <prex/prex.h>
-#include <prex/keycode.h>
+#include <sys/prex.h>
+#include <sys/keycode.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <limits.h>
 
-extern int dispatch_cmd(int argc, char **arg_list);
+#define ARGMAX		32
 
-static char *arg_list[LINE_MAX];
+extern int dispatch_cmd(int argc, char **args);
 
 /*
- * Read a line.
+ * Parse an entire given line.
  */
-void
+static int
+parse_line(char *line)
+{
+	static char *args[ARGMAX];
+	char *p, *word = NULL;
+	int argc = 0;
+	int rc = 0;
+
+	if (line[0] != ' ' && line[0] != '\t')
+		word = line;
+
+	p = line;
+	while (*p) {
+		if (word == NULL) {
+			/* Skip white space. */
+			if (*p != ' ' && *p != '\t')
+				word = p;
+		} else {
+			if (*p == ' ' || *p == '\t') {
+				*p = '\0';
+				args[argc++] = word;
+				word = NULL;
+				if (argc >= ARGMAX - 1) {
+					printf("Too many args\n");
+					return 0;
+				}
+			}
+		}
+		p++;
+	}
+	if (word)
+		args[argc++] = word;
+	args[argc] = NULL;
+
+	if (argc) {
+		if (dispatch_cmd(argc, args))
+			rc = 1;
+	}
+	return rc;
+}
+
+static void
 read_line(char *line)
 {
 	int c, len = 0;
@@ -62,50 +103,18 @@ read_line(char *line)
 	}
 }
 
-/*
- * Parse an entire given line.
- */
-int
-parse_line(char *line)
-{
-	char *p = line;
-	int argc = 0;
-
-	for (;;) {
-		/* Skip space */
-		while (*p && *p == ' ')
-			p++;
-		if (*p == 0)
-			break;
-		arg_list[argc++] = p;
-
-		/* Skip word */
-		while (*p && *p != ' ')
-			p++;
-		if (*p == 0)
-			break;
-		*p++ = 0;
-	}
-	arg_list[argc] = NULL;
-	return argc;
-}
-
 int
 main(int argc, char *argv[])
 {
-	char line[LINE_MAX];
-	int c;
+	static char line[LINE_MAX];
 
 	printf("Prex kernel monitor - type 'help' to list commands\n");
 
 	for (;;) {
 		printf("[kmon]$ ");
 		read_line(line);
-		c = parse_line(line);
-		if (c) {
-			if (dispatch_cmd(c, arg_list))
-				break;
-		}
+		if (parse_line(line))
+			break;
 	}
 	return 0;
 }

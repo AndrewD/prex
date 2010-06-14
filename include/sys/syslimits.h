@@ -34,10 +34,7 @@
 #define _SYS_SYSLIMITS_H_
 
 #define	ARG_MAX			  255	/* max bytes for an exec function */
-#define	CHILD_MAX		    6	/* max simultaneous processes */
-#define	LINK_MAX		    8	/* max file link count */
-#define	MAX_CANON		  255	/* max bytes in term canon input line */
-#define	MAX_INPUT		  255	/* max bytes in terminal input */
+#define	MAX_INPUT		  128	/* max bytes in terminal input */
 #define	NAME_MAX		   64	/* max bytes in a file name */
 #define	NGROUPS_MAX		   16	/* max supplemental group id's */
 #define	OPEN_MAX      CONFIG_OPEN_MAX	/* max open files per process */

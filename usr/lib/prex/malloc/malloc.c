@@ -28,7 +28,7 @@
  */
 
 #include <sys/types.h>
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/param.h>
 #include <sys/syslog.h>
 #include <string.h>
@@ -73,11 +73,11 @@ malloc(size_t size)
 				prev->next = p->next;
 			else {			/* allocate tail end */
 				p->size -= size;
-				p = (struct header *)((u_long)p + p->size);
+				p = (struct header *)((char *)p + p->size);
 				p->size = size;
 				p->vm_size = 0;
 			}
-#ifdef CONFIG_MCHECK
+#ifdef DEBUG_MALLOC
 			p->magic = MALLOC_MAGIC;
 #endif
 			scan_head = prev;
@@ -91,7 +91,7 @@ malloc(size_t size)
 	MALLOC_UNLOCK();
 
 	if (p == NULL) {
-#ifdef CONFIG_MCHECK
+#ifdef DEBUG_MALLOC
 		sys_panic("malloc: out of memory");
 #endif
 		return NULL;
@@ -106,7 +106,7 @@ static struct header *more_core(size_t size)
 {
 	struct header *p, *prev;
 
-	size = PAGE_ALIGN(size);
+	size = round_page(size);
 	if (vm_allocate(task_self(), (void *)&p, size, 1))
 		return NULL;
 	p->size = size;
@@ -133,7 +133,7 @@ free(void *addr)
 
 	MALLOC_LOCK();
 	p = (struct header *)addr - 1;
-#ifdef CONFIG_MCHECK
+#ifdef DEBUG_MALLOC
 	if (p->magic != MALLOC_MAGIC)
 		sys_panic("free: invalid pointer");
 	p->magic = 0;
@@ -143,14 +143,14 @@ free(void *addr)
 			break;
 	}
 	if ((prev->next->vm_size == 0) &&	/* join to upper block */
-	    ((u_long)p + p->size == (u_long)prev->next)) {
+	    ((char *)p + p->size == (char *)prev->next)) {
 		p->size += prev->next->size;
 		p->next = prev->next->next;
 	} else {
 		p->next = prev->next;
 	}
 	if ((p->vm_size == 0) &&	/* join to lower block */
-	    ((u_long)prev + prev->size == (u_long)p)) {
+	    ((char *)prev + prev->size == (char *)p)) {
 		prev->size += p->size;
 		prev->next = p->next;
 	} else {
@@ -165,7 +165,7 @@ free(void *addr)
 	MALLOC_UNLOCK();
 }
 
-#ifdef CONFIG_MSTAT
+#ifdef DEBUG_MALLOC
 void
 mstat(void)
 {

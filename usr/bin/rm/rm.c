@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
  */
 
 #include <unistd.h>
+#include <err.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -68,6 +69,9 @@ main(int argc, char *argv[])
 			break;
 		++argv;
 	} while (*argv);
+
+	if (rc < 0)
+		err(1, "%s", *argv);
 
 	exit(rc);
 }

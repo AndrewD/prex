@@ -68,7 +68,8 @@ main(int argc, char *argv[])
 			exitval = 1;
 			continue;
 		}
-		if (mkdir(*argv, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+		if (mkdir(*argv,
+			  (mode_t)(S_IRWXU | S_IRWXG | S_IRWXO)) < 0) {
 			warn("%s", *argv);
 			exitval = 1;
 		}
@@ -95,7 +96,7 @@ build(path)
 		*p = '\0';
 		if (stat(path, &sb)) {
 			if (errno != ENOENT ||
-			    mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+			    mkdir(path, (mode_t)(S_IRWXU | S_IRWXG | S_IRWXO)) < 0) {
 				warn("%s", path);
 				return 1;
 			}

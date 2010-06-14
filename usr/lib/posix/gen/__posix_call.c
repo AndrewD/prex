@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/message.h>
+#include <sys/prex.h>
+#include <ipc/ipc.h>
 
 #include <errno.h>
 
@@ -42,7 +42,7 @@
 int
 __posix_call(object_t obj, void *msg, size_t size, int restart)
 {
-	int err;
+	int error;
 
 	if (obj == 0) {
 		errno = ENOSYS;
@@ -50,11 +50,11 @@ __posix_call(object_t obj, void *msg, size_t size, int restart)
 	}
 
 	do {
-		err = msg_send(obj, msg, size);
-	} while (err == EINTR && restart);
+		error = msg_send(obj, msg, size);
+	} while (error == EINTR && restart);
 
-	if (err) {
-		errno = (err == EINTR) ? EINTR : ENOSYS;
+	if (error) {
+		errno = (error == EINTR) ? EINTR : ENOSYS;
 		return -1;
 	} else if (((struct msg_header *)msg)->status) {
 		errno = ((struct msg_header *)msg)->status;

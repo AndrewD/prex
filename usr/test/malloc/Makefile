@@ -1,3 +1,3 @@
-TASK=	malloc
+TASK=	malloc.rt
 
 include $(SRCDIR)/mk/task.mk

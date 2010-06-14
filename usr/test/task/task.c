@@ -31,7 +31,7 @@
  * task.c - test program for kernel task services.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -54,8 +54,8 @@ int
 main(int argc, char *argv[])
 {
 	task_t task;
-	thread_t th;
-	int i, err;
+	thread_t t;
+	int i, error;
 
 	printf("Task test program\n");
 	sys_log("Task test program\n");
@@ -63,18 +63,18 @@ main(int argc, char *argv[])
 	/*
 	 * Boost priority of this thread
 	 */
-	thread_setprio(thread_self(), 90);
+	thread_setpri(thread_self(), 90);
 
 	/*
 	 * Create test task
 	 */
 #ifdef CONFIG_MMU
-	err = task_create(task_self(), VM_COPY, &task);
+	error = task_create(task_self(), VM_COPY, &task);
 #else
-	err = task_create(task_self(), VM_SHARE, &task);
+	error = task_create(task_self(), VM_SHARE, &task);
 #endif
-	if (err) {
-		printf("task_create failed. err=%d\n", err);
+	if (error) {
+		printf("task_create failed. error=%d\n", error);
 		exit(1);
 	}
 
@@ -82,11 +82,11 @@ main(int argc, char *argv[])
 	 * Run threads
 	 */
 	for (i = 0; i < NR_THREADS; i++) {
-		err = thread_create(task, &th);
-		printf("thread_create: err=%d\n", err);
-		err = thread_load(th, test_thread, stack[i]+1024);
-		printf("thread_load: err=%d\n", err);
-		thread_resume(th);
+		error = thread_create(task, &t);
+		printf("thread_create: error=%d\n", error);
+		error = thread_load(t, test_thread, stack[i]+1024);
+		printf("thread_load: error=%d\n", error);
+		thread_resume(t);
 	}
 
 	/*
@@ -98,8 +98,8 @@ main(int argc, char *argv[])
 	 * Suspend test task
 	 */
 	printf("\nSuspend test task.\n");
-	err = task_suspend(task);
-	if (err)
+	error = task_suspend(task);
+	if (error)
 		panic("task suspend failed");
 
 	/*
@@ -109,8 +109,8 @@ main(int argc, char *argv[])
 	timer_sleep(500, 0);
 
 	printf("\nResume test task.\n");
-	err = task_resume(task);
-	if (err)
+	error = task_resume(task);
+	if (error)
 		panic("task resume failed");
 
 	/*
@@ -119,8 +119,8 @@ main(int argc, char *argv[])
 	timer_sleep(3000, 0);
 
 	printf("\nResume task, again.\n");
-	err = task_resume(task);
-	if (err)
+	error = task_resume(task);
+	if (error)
 		printf("Error - OK!\n");
 
 	timer_sleep(1000, 0);

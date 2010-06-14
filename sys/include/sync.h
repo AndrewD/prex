@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007, Kohsuke Ohtani
+ * Copyright (c) 2005-2008, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,45 +30,41 @@
 #ifndef _SYNC_H
 #define _SYNC_H
 
+#include <types.h>
 #include <sys/cdefs.h>
+#include <sys/list.h>
 #include <event.h>
-#include <task.h>
 
 struct sem {
-	int		magic;		/* magic number */
-	task_t		task;		/* owner task */
+	struct sem	*next;		/* linkage on semaphore list in system */
+	struct list	task_link;	/* linkage on semaphore list in task */
+	task_t		owner;		/* owner task */
 	struct event	event;		/* event */
 	u_int		value;		/* current value */
+	int		refcnt;		/* reference count */
 };
 
 struct mutex {
-	int		magic;		/* magic number */
-	task_t		task;		/* owner task */
+	struct list	task_link;	/* linkage on mutex list in task */
+	task_t		owner;		/* owner task */
 	struct event	event;		/* event */
 	struct list	link;		/* linkage on locked mutex list */
-	thread_t	owner;		/* owner thread locking this mutex */
-	int		prio;		/* highest prio in waiting threads */
+	thread_t	holder;		/* thread that holds the mutex */
+	int		priority;	/* highest priority in waiting threads */
 	int		locks;		/* counter for recursive lock */
 };
 
 struct cond {
-	int		magic;		/* magic number */
-	task_t		task;		/* owner task */
+	struct list	task_link;	/* linkage on cv list in task */
+	task_t		owner;		/* owner task */
 	struct event	event;		/* event */
 };
 
-#define sem_valid(s)	(kern_area(s) && ((s)->magic == SEM_MAGIC))
-
-#define mutex_valid(m)	(kern_area(m) && \
-			 ((m)->magic == MUTEX_MAGIC) && \
-			 ((m)->task == cur_task()))
-
-#define cond_valid(c)	(kern_area(c) && \
-			 ((c)->magic == COND_MAGIC) && \
-			 ((c)->task == cur_task()))
-
 /* maximum value for semaphore. */
 #define MAXSEMVAL		((u_int)((~0u) >> 1))
+
+/* max mutex count to inherit priority */
+#define MAXINHERIT		10
 
 #define MUTEX_INITIALIZER	(mutex_t)0x4d496e69	/* 'MIni' */
 #define COND_INITIALIZER	(cond_t)0x43496e69	/* 'CIni' */
@@ -80,18 +76,23 @@ int	 sem_wait(sem_t *, u_long);
 int	 sem_trywait(sem_t *);
 int	 sem_post(sem_t *);
 int	 sem_getvalue(sem_t *, u_int *);
+void	 sem_cleanup(task_t);
+
 int	 mutex_init(mutex_t *);
 int	 mutex_destroy(mutex_t *);
 int	 mutex_lock(mutex_t *);
 int	 mutex_trylock(mutex_t *);
 int	 mutex_unlock(mutex_t *);
-void	 mutex_cleanup(thread_t);
-void	 mutex_setprio(thread_t, int);
+void	 mutex_cancel(thread_t);
+void	 mutex_setpri(thread_t, int);
+void	 mutex_cleanup(task_t);
+
 int	 cond_init(cond_t *);
 int	 cond_destroy(cond_t *);
 int	 cond_wait(cond_t *, mutex_t *);
 int	 cond_signal(cond_t *);
 int	 cond_broadcast(cond_t *);
+void	 cond_cleanup(task_t);
 __END_DECLS
 
 #endif /* !_SYNC_H */

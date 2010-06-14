@@ -35,13 +35,13 @@
 int
 execle(const char *name, const char *arg, ...)
 {
-#if defined(__i386__) || defined(__m68k__) || defined(__ns32k__)
+#if defined(__x86__)
 	va_list ap;
 	char **envp;
 
 	va_start(ap, arg);
 	while ((va_arg(ap, char *)) != NULL)
-		;
+		continue;
 	envp = va_arg(ap, char **);
 	va_end(ap);
 
@@ -53,11 +53,11 @@ execle(const char *name, const char *arg, ...)
 
 	va_start(ap, arg);
 	for (i = 2; va_arg(ap, char *) != NULL; i++)
-		;
+		continue;
 	va_end(ap);
 
 	argv = alloca (i * sizeof (char *));
-	
+
 	va_start(ap, arg);
 	argv[0] = (char *) arg;
 	for (i = 1; (argv[i] = (char *) va_arg(ap, char *)) != NULL; i++)

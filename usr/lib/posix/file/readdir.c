@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/fs.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/fs.h>
 
 #include <stddef.h>
 #include <dirent.h>
@@ -40,12 +40,12 @@ struct dirent *
 readdir(DIR *dir)
 {
 	struct dir_msg m;
-	struct dirent *entry = &dir->ent;
+	struct dirent *entry = &dir->dd_ent;
 
 	m.hdr.code = FS_READDIR;
-	m.fd = dir->fd;
+	m.fd = dir->dd_fd;
 	if (__posix_call(__fs_obj, &m, sizeof(m), 1) != 0)
 		return NULL;
 	memcpy(entry, &m.dirent, sizeof(struct dirent));
-	return &dir->ent;
+	return &dir->dd_ent;
 }

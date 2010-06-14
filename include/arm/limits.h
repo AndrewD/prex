@@ -56,11 +56,11 @@
 #define	SHRT_MAX	32767		/* max value for a short */
 #define	SHRT_MIN	(-32768)	/* min value for a short */
 
-#define	UINT_MAX	0xffffffff	/* max value for an unsigned int */
+#define	UINT_MAX	0xffffffffU	/* max value for an unsigned int */
 #define	INT_MAX		2147483647	/* max value for an int */
 #define	INT_MIN		(-2147483647-1)	/* min value for an int */
 
-#define	ULONG_MAX	0xffffffffL	/* max value for an unsigned long */
+#define	ULONG_MAX	0xffffffffUL	/* max value for an unsigned long */
 #define	LONG_MAX	2147483647L	/* max value for a long */
 					/* min value for a long */
 #define	LONG_MIN	(-2147483647L-1L)

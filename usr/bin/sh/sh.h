@@ -27,12 +27,31 @@
  * SUCH DAMAGE.
  */
 
-typedef int (*cmd_func_t)(int, char **);
+typedef int (*cmdfn_t)(int, char **);
 
 /*
  * Command description
  */
-struct cmd_entry {
+struct cmdentry {
 	char	*cmd;
-	cmd_func_t func;
+	cmdfn_t func;
 };
+
+/*
+ * Command alias
+ */
+struct alias {
+	char	*name;
+	char	*value;
+};
+
+extern jmp_buf jmpbuf;
+
+extern void	initvar(void);
+extern void	setvar(char *name, char *val);
+extern void	unsetvar(char *name);
+
+extern int	null_cmd(int argc, char *argv[]);
+extern int	cmd_showvars(int argc, char *argv[]);
+extern int	cmd_unsetvar(int argc, char *argv[]);
+extern int	cmd_export(int argc, char *argv[]);

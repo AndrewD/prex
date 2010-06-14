@@ -1,13 +1,12 @@
-LIB=	$(SRCDIR)/usr/lib/libsa.a
-
 include $(SRCDIR)/mk/own.mk
 
-SRCS=	__libc_init.c _exit.c _stdio.c getchar.c \
-	putchar.c puts.c printf.c \
-	vsprintf.c assert.c sprintf.c
+TARGET:=	$(SRCDIR)/usr/lib/libsa.a
 
-CFLAGS+=	-D_STANDALONE
-CPPFLAGS+=	-D_STANDALONE
+SRCS:=		__libc_init.c _exit.c _stdio.c getchar.c \
+		putchar.c puts.c printf.c \
+		vsprintf.c assert.c sprintf.c
+
+DEFS+=		_STANDALONE
 
 include $(SRCDIR)/usr/lib/prex/Makefile.inc
 include $(SRCDIR)/usr/lib/libc/ctype/Makefile.inc

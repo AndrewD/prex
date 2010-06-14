@@ -37,36 +37,20 @@
 #ifndef _SETJMP_H_
 #define _SETJMP_H_
 
+#include <sys/cdefs.h>
 #include <machine/setjmp.h>
 
-#ifndef _ANSI_SOURCE
 /*
  * WARNING: sigsetjmp() isn't supported yet, this is a placeholder.
  */
 typedef int sigjmp_buf[_JBLEN + 1];
-#endif /* not ANSI */
-
 typedef long jmp_buf[_JBLEN];
-
-#include <sys/cdefs.h>
 
 __BEGIN_DECLS
 int	setjmp(jmp_buf);
 void	longjmp(jmp_buf, int);
-
-#ifndef _ANSI_SOURCE
-/*
- * WARNING: sigsetjmp() isn't supported yet, this is a placeholder.
- */
 int	sigsetjmp(sigjmp_buf, int);
 void	siglongjmp(sigjmp_buf, int);
-#endif /* not ANSI */
-
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-int	_setjmp(jmp_buf);
-void	_longjmp(jmp_buf, int);
-void	longjmperror(void);
-#endif /* neither ANSI nor POSIX */
 __END_DECLS
 
 #endif /* !_SETJMP_H_ */

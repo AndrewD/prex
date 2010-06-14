@@ -35,25 +35,13 @@ strerror(num)
 {
 	extern const int sys_nerr;
 	extern const char *sys_errlist[];
-#define	UPREFIX	"Unknown error: "
-	static char ebuf[40] = UPREFIX;		/* 64-bit number + slop */
+#define	UPREFIX	"Unknown error"
+	static const char ebuf[] = UPREFIX;
 	unsigned int errnum;
-	char *p, *t;
-	char tmp[40];
 
 	errnum = num;				/* convert to unsigned */
 	if (errnum < (unsigned int)sys_nerr)
 		return((char *)sys_errlist[errnum]);
 
-	/* Do this by hand, so we don't include stdio(3). */
-	t = tmp;
-	do {
-		*t++ = "0123456789"[errnum % 10];
-	} while (errnum /= 10);
-	for (p = ebuf + sizeof(UPREFIX) - 1;;) {
-		*p++ = *--t;
-		if (t <= tmp)
-			break;
-	}
-	return(ebuf);
+	return((char *)ebuf);
 }

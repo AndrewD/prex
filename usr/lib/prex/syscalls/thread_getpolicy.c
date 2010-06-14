@@ -27,13 +27,13 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 
-extern int thread_schedparam(thread_t th, int op, int *param);
+extern int thread_schedparam(thread_t t, int op, int *param);
 
 int
-thread_getpolicy(thread_t th, int *policy)
+thread_getpolicy(thread_t t, int *policy)
 {
 
-	return thread_schedparam(th, 2, policy);
+	return thread_schedparam(t, 2, policy);
 }

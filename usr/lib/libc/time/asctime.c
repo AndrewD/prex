@@ -50,13 +50,6 @@
     ((TYPE_BIT(type) - TYPE_SIGNED(type)) * 302 / 1000 + 1 + TYPE_SIGNED(type))
 #endif /* !defined INT_STRLEN_MAXIMUM */
 
-/*
-** Big enough for something such as
-** ??? ???-2147483648 -2147483648:-2147483648:-2147483648 -2147483648\n
-** (two three-character abbreviations, five strings denoting integers,
-** three explicit spaces, two explicit colons, a newline,
-** and a trailing ASCII nul).
-*/
 #define	ASCTIME_BUFLEN	(3 * 2 + 5 * INT_STRLEN_MAXIMUM(int) + 3 + 2 + 1 + 1)
 
 char *

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 extern char __console_read(void);

@@ -32,8 +32,8 @@
  */
 
 /**
- * We define the following two different types of interrupt
- * services in order to improve real-time performance.
+ * We define the following two different types of interrupt services
+ * in order to improve real-time performance.
  *
  * - Interrupt Service Routine (ISR)
  *
@@ -42,21 +42,20 @@
  *  interrupt is enabled while ISR runs.
  *  If ISR determines that the corresponding device generated the
  *  interrupt, ISR must program the device to stop that interrupt.
- *  Then, ISR should do minimum I/O operation and return control
- *  as quickly as possible. ISR will run within a context of the
- *  thread running when interrupt occurs. So, only few kernel
- *  services are available within ISR. We can use irq_level value
- *  to detect the illegal call from ISR code.
+ *  Then, ISR should do minimum I/O operation and return control as
+ *  quickly as possible. ISR will run within a context of the thread
+ *  running when interrupt occurs. So, only few kernel services are
+ *  available within ISR.
  *
  * - Interrupt Service Thread (IST)
  *
  *  IST is automatically activated if ISR returns INT_CONTINUE. It
  *  will be called when the system enters safer condition than ISR.
  *  A device driver should use IST to do heavy I/O operation as much
- *  as possible. Since ISR for the same IRQ line may be invoked
- *  during IST, the shared data, resources, and device registers
- *  must be synchronized by using irq_lock(). IST does not have to
- *  be reentrant because it is not interrupted by same IST itself.
+ *  as possible. Since ISR for the same IRQ line may be invoked during
+ *  IST, the shared data, resources, and device registers must be
+ *  synchronized by disabling interrupts. IST does not have to be
+ *  reentrant because it is not interrupted by same IST itself.
  */
 
 #include <kernel.h>
@@ -65,61 +64,57 @@
 #include <sched.h>
 #include <thread.h>
 #include <irq.h>
+#include <hal.h>
 
 /* forward declarations */
 static void	irq_thread(void *);
 
-static struct irq	*irq_table[NIRQS];	/* IRQ descriptor table */
-static volatile int	nr_irq_locks;		/* lock counter */
-static volatile int	saved_irq_state;	/* state saved by irq_lock() */
+static struct irq	*irq_table[MAXIRQS];	/* IRQ descriptor table */
 
 /*
  * irq_attach - attach ISR and IST to the specified interrupt.
  *
- * Returns irq handle, or NULL on failure.  The interrupt of
+ * Returns irq handle, or panic on failure.  The interrupt of
  * attached irq will be unmasked (enabled) in this routine.
  * TODO: Interrupt sharing is not supported, for now.
  */
 irq_t
-irq_attach(int vector, int prio, int shared, int (*isr)(int), void (*ist)(int))
+irq_attach(int vector, int pri, int shared,
+	   int (*isr)(void *), void (*ist)(void *), void *data)
 {
 	struct irq *irq;
 	int mode;
 
-	ASSERT(irq_level == 0);
 	ASSERT(isr != NULL);
 
 	sched_lock();
-	if ((irq = kmem_alloc(sizeof(*irq))) == NULL) {
-		sched_unlock();
-		return NULL;
-	}
+	if ((irq = kmem_alloc(sizeof(*irq))) == NULL)
+		panic("irq_attach");
+
 	memset(irq, 0, sizeof(*irq));
 	irq->vector = vector;
+	irq->priority = pri;
 	irq->isr = isr;
 	irq->ist = ist;
+	irq->data = data;
 
-	if (ist != NULL) {
+	if (ist != IST_NONE) {
 		/*
 		 * Create a new thread for IST.
 		 */
-		irq->thread = kthread_create(&irq_thread, irq, ISTPRIO(prio));
-		if (irq->thread == NULL) {
-			kmem_free(irq);
-			sched_unlock();
-			return NULL;
-		}
+		irq->thread = kthread_create(&irq_thread, irq, ISTPRI(pri));
+		if (irq->thread == NULL)
+			panic("irq_attach");
+
 		event_init(&irq->istevt, "interrupt");
 	}
 	irq_table[vector] = irq;
-	irq_lock();
 	mode = shared ? IMODE_LEVEL : IMODE_EDGE;
 	interrupt_setup(vector, mode);
-	interrupt_unmask(vector, prio);
-	irq_unlock();
+	interrupt_unmask(vector, pri);
 
 	sched_unlock();
-	DPRINTF(("IRQ%d attached priority=%d\n", vector, prio));
+	DPRINTF(("IRQ%d attached priority=%d\n", vector, pri));
 	return irq;
 }
 
@@ -131,55 +126,15 @@ irq_attach(int vector, int prio, int shared, int (*isr)(int), void (*ist)(int))
 void
 irq_detach(irq_t irq)
 {
-	ASSERT(irq_level == 0);
-	ASSERT(irq);
-	ASSERT(irq->vector < NIRQS);
+	ASSERT(irq != NULL);
+	ASSERT(irq->vector < MAXIRQS);
 
-	irq_lock();
 	interrupt_mask(irq->vector);
-	irq_unlock();
-
 	irq_table[irq->vector] = NULL;
 	if (irq->thread != NULL)
 		kthread_terminate(irq->thread);
 
 	kmem_free(irq);
-}
-
-/*
- * Lock IRQ.
- *
- * All H/W interrupts are masked off.
- * Caller is no need to save the interrupt state before
- * irq_lock() because it is automatically restored in
- * irq_unlock() when no one is locking the IRQ anymore.
- */
-void
-irq_lock(void)
-{
-	int s;
-
-	interrupt_save(&s);
-	interrupt_disable();
-	if (++nr_irq_locks == 1)
-		saved_irq_state = s;
-
-	ASSERT(nr_irq_locks != 0);
-}
-
-/*
- * Unlock IRQ.
- *
- * If lock count becomes 0, the interrupt is restored to
- * original state at first irq_lock() call.
- */
-void
-irq_unlock(void)
-{
-	ASSERT(nr_irq_locks > 0);
-
-	if (--nr_irq_locks == 0)
-		interrupt_restore(saved_irq_state);
 }
 
 /*
@@ -189,18 +144,17 @@ irq_unlock(void)
 static void
 irq_thread(void *arg)
 {
-	int vec;
-	void (*func)(int);
+	void (*fn)(void *);
+	void *data;
 	struct irq *irq;
 
-	interrupt_enable();
+	splhigh();
 
 	irq = (struct irq *)arg;
-	func = irq->ist;
-	vec = irq->vector;
+	fn = irq->ist;
+	data = irq->data;
 
 	for (;;) {
-		interrupt_disable();
 		if (irq->istreq <= 0) {
 			/*
 			 * Since the interrupt is disabled above,
@@ -214,12 +168,13 @@ irq_thread(void *arg)
 		}
 		irq->istreq--;
 		ASSERT(irq->istreq >= 0);
-		interrupt_enable();
 
 		/*
 		 * Call IST
 		 */
-		(*func)(vec);
+		spl0();
+		(*fn)(data);
+		splhigh();
 	}
 	/* NOTREACHED */
 }
@@ -228,9 +183,8 @@ irq_thread(void *arg)
  * Interrupt handler.
  *
  * This routine will call the corresponding ISR for the
- * requested interrupt vector. This routine is called from
- * the code in the architecture dependent layer. We
- * assumes the scheduler is already locked by caller.
+ * requested interrupt vector. HAL code must call this
+ * routine with scheduler locked.
  */
 void
 irq_handler(int vector)
@@ -239,31 +193,70 @@ irq_handler(int vector)
 	int rc;
 
 	irq = irq_table[vector];
-	if (irq == NULL)
-		return;		/* Ignore stray interrupt */
-	ASSERT(irq->isr);
+	if (irq == NULL) {
+		DPRINTF(("Random interrupt ignored\n"));
+		return;
+	}
+	ASSERT(irq->isr != NULL);
+
+	/* Profile */
+	irq->count++;
 
 	/*
 	 * Call ISR
 	 */
-	rc = (*irq->isr)(vector);
+	rc = (*irq->isr)(irq->data);
 
 	if (rc == INT_CONTINUE) {
 		/*
 		 * Kick IST
 		 */
-		ASSERT(irq->ist);
+		ASSERT(irq->ist != IST_NONE);
 		irq->istreq++;
 		sched_wakeup(&irq->istevt);
 		ASSERT(irq->istreq != 0);
 	}
 }
 
+/*
+ * Return irq information.
+ */
+int
+irq_info(struct irqinfo *info)
+{
+	int vec = info->cookie;
+	int found = 0;
+	struct irq *irq;
+
+	while (vec < MAXIRQS) {
+		if (irq_table[vec]) {
+			found = 1;
+			break;
+		}
+		vec++;
+	}
+	if (!found)
+		return ESRCH;
+
+	irq = irq_table[vec];
+	info->vector = irq->vector;
+	info->count = irq->count;
+	info->priority = irq->priority;
+	info->istreq = irq->istreq;
+	info->thread = irq->thread;
+	info->cookie = vec + 1;
+	return 0;
+}
+
+/*
+ * Start interrupt processing.
+ */
 void
 irq_init(void)
 {
 
-	/* Start interrupt processing. */
 	interrupt_init();
-	interrupt_enable();
+
+	/* Enable interrupts */
+	spl0();
 }

@@ -27,10 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/stdmsg.h>
-#include <server/proc.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/ipc.h>
+#include <ipc/proc.h>
 
 #include <stddef.h>
 #include <signal.h>
@@ -41,7 +41,7 @@ int
 kill(pid_t pid, int sig)
 {
 	struct msg m;
-	int err;
+	int error;
 
 	/*
 	 * Request process server to send signal.
@@ -49,10 +49,10 @@ kill(pid_t pid, int sig)
 	m.hdr.code = PS_KILL;
 	m.data[0] = pid;
 	m.data[1] = sig;
-	err = msg_send(__proc_obj, &m, sizeof(m));
+	error = msg_send(__proc_obj, &m, sizeof(m));
 
 	/*
-	 * XXX: err is always EINTR, and we can not determine whether
+	 * XXX: error is always EINTR, and we can not determine whether
 	 *      msg_send() is interrupted by signal.
 	 */
 

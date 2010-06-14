@@ -37,7 +37,7 @@
 #include <stdarg.h>
 
 void
-vwarn(fmt, ap)
+vwarnx(fmt, ap)
 	const char *fmt;
 	va_list ap;
 {

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,36 +30,39 @@
 #ifndef _THREAD_H
 #define _THREAD_H
 
+#include <types.h>
 #include <sys/cdefs.h>
-#include <queue.h>
+#include <sys/queue.h>
+#include <sys/list.h>
+#include <sys/sysinfo.h>
 #include <event.h>
 #include <timer.h>
-#include <arch.h>
-
-struct mutex;
+#include <hal.h>
 
 /*
  * Description of a thread.
  */
 struct thread {
-	int		magic;		/* magic number */
-	task_t		task;		/* pointer to owner task */
-	struct list 	task_link;	/* link for threads in same task */
-	struct queue 	link;		/* linkage on scheduling queue */
+	struct list	link;		/* linkage on all threads */
+	struct list 	task_link;	/* linkage on thread list in task */
+	struct queue	sched_link;	/* linkage on scheduling queue */
+	task_t		task;		/* task to which I belong */
 	int		state;		/* thread state */
 	int		policy;		/* scheduling policy */
-	int		prio;		/* current priority */
-	int		baseprio;	/* base priority */
+	int		priority;	/* current priority */
+	int		basepri;	/* statical base priority */
 	int		timeleft;	/* remaining ticks to run */
 	u_int		time;		/* total running time */
 	int		resched;	/* true if rescheduling is needed */
 	int		locks;		/* schedule lock counter */
-	int		suscnt;		/* suspend counter */
-	struct event	*slpevt;	/* sleep event */
-	int		slpret;		/* sleep result code */
+	int		suscnt;		/* suspend count */
+	struct event	*slpevt;	/* event we are waiting on */
+	int		slpret;		/* return value for sched_tleep */
 	struct timer 	timeout;	/* thread timer */
 	struct timer	*periodic;	/* pointer to periodic timer */
 	uint32_t 	excbits;	/* bitmap of pending exceptions */
+	struct list 	mutexes;	/* mutexes locked by this thread */
+	mutex_t 	mutex_waiting;	/* mutex pointer currently waiting */
 	struct queue 	ipc_link;	/* linkage on IPC queue */
 	void		*msgaddr;	/* kernel address of IPC message */
 	size_t		msgsize;	/* size of IPC message */
@@ -67,21 +70,17 @@ struct thread {
 	thread_t	receiver;	/* thread that receives IPC message */
 	object_t 	sendobj;	/* IPC object sending to */
 	object_t 	recvobj;	/* IPC object receiving from */
-	struct list 	mutexes;	/* mutexes locked by this thread */
-	struct mutex 	*wait_mutex;	/* mutex pointer currently waiting */
 	void		*kstack;	/* base address of kernel stack */
 	struct context 	ctx;		/* machine specific context */
 };
 
-#define thread_valid(th) (kern_area(th) && ((th)->magic == THREAD_MAGIC))
-
 /*
  * Thread state
  */
-#define TH_RUN		0x00	/* running or ready to run */
-#define TH_SLEEP	0x01	/* awaiting an event */
-#define TH_SUSPEND	0x02	/* suspend count is not 0 */
-#define TH_EXIT		0x04	/* terminated */
+#define TS_RUN		0x00	/* running or ready to run */
+#define TS_SLEEP	0x01	/* awaiting an event */
+#define TS_SUSP		0x02	/* suspend count is not 0 */
+#define TS_EXIT		0x04	/* terminated */
 
 /*
  * Sleep result
@@ -93,43 +92,29 @@ struct thread {
 #define SLP_INTR	4	/* interrupted by exception */
 
 /*
- * Priorities
- * Probably should not be altered too much.
- */
-#define PRIO_TIMER	15	/* priority for timer thread */
-#define PRIO_IST	16	/* top priority for interrupt threads */
-#define PRIO_DPC	33	/* priority for Deferred Procedure Call */
-#define PRIO_IDLE	255	/* priority for idle thread */
-#define PRIO_USER	PRIO_DFLT	/* default priority for user thread */
-
-#define MAX_PRIO	0
-#define MIN_PRIO	255
-#define NPRIO		256	/* number of thread priority */
-
-/*
  * Scheduling operations for thread_schedparam().
  */
-#define OP_GETPRIO	0	/* get scheduling priority */
-#define OP_SETPRIO	1	/* set scheduling priority */
-#define OP_GETPOLICY	2	/* get scheduling policy */
-#define OP_SETPOLICY	3	/* set scheduling policy */
+#define SOP_GETPRI	0	/* get scheduling priority */
+#define SOP_SETPRI	1	/* set scheduling priority */
+#define SOP_GETPOLICY	2	/* get scheduling policy */
+#define SOP_SETPOLICY	3	/* set scheduling policy */
 
 __BEGIN_DECLS
 int	 thread_create(task_t, thread_t *);
 int	 thread_terminate(thread_t);
+void	 thread_destroy(thread_t);
 int	 thread_load(thread_t, void (*)(void), void *);
 thread_t thread_self(void);
+int	 thread_valid(thread_t);
 void	 thread_yield(void);
 int	 thread_suspend(thread_t);
 int	 thread_resume(thread_t);
 int	 thread_schedparam(thread_t, int, int *);
 void	 thread_idle(void);
-int	 thread_info(struct info_thread *);
-void	 thread_dump(void);
-void	 thread_init(void);
-/* for kernel thread */
+int	 thread_info(struct threadinfo *);
 thread_t kthread_create(void (*)(void *), void *, int);
 void	 kthread_terminate(thread_t);
+void	 thread_init(void);
 __END_DECLS
 
 #endif /* !_THREAD_H */

@@ -1,0 +1,10 @@
+
+OSIMG:=		$(SRCDIR)/prexos
+PREPIMG:=	$(SRCDIR)/prexos.prep
+BOOTSECT:=	$(SRCDIR)/bsp/boot/$(ARCH)/tools/prepboot/bootsect.bin
+BOOTSECTO:=	$(SRCDIR)/bsp/boot/$(ARCH)/tools/prepboot/bootsect.o
+CLEANS+=	$(BOOTSECT) $(BOOTSECTO) $(PREPIMG)
+
+sysgen=		@($(MAKE) -C $(SRCDIR)/bsp/boot/$(ARCH)/tools/prepboot; \
+		  cat $(BOOTSECT) $(OSIMG) > $(PREPIMG);)
+

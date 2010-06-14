@@ -28,13 +28,13 @@
  */
 
 #include <sys/cdefs.h>
-#include <prex/prex.h>
-#include <prex/posix.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
 
 #include <unistd.h>
 
 #ifndef _STANDALONE
-extern void __exception_exit(void);
+extern void __exception_exit(int *);
 extern void __file_exit(void);
 extern void __process_exit(int, int);
 #endif
@@ -42,13 +42,15 @@ extern void __process_exit(int, int);
 void
 _exit(int status)
 {
-
 #ifndef _STANDALONE
-	__exception_exit();
+	int signo;
+
+	__exception_exit(&signo);
 	__file_exit();
-	__process_exit(status, 0);
+	__process_exit(status, signo);
 #endif
 
 	for (;;)
 		task_terminate(task_self());
+	/* NOTREACHED */
 }

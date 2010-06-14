@@ -43,12 +43,13 @@
  * it to the sys_* routines.
  */
 
-#include <prex/prex.h>
-#include <prex/capability.h>
-#include <server/fs.h>
-#include <server/proc.h>
-#include <server/stdmsg.h>
-#include <server/object.h>
+#include <sys/prex.h>
+#include <sys/capability.h>
+#include <sys/param.h>
+#include <ipc/fs.h>
+#include <ipc/proc.h>
+#include <ipc/exec.h>
+#include <ipc/ipc.h>
 #include <sys/list.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
@@ -68,36 +69,40 @@
 #include "vfs.h"
 
 #ifdef DEBUG_VFS
-int	vfs_debug = 0;
+int	vfs_debug = VFSDB_FLAGS;
 #endif
+
 /*
  * Message mapping
  */
 struct msg_map {
-	int code;
-	int (*func)(struct task *, struct msg *);
+	int	code;
+	int	(*func)(struct task *, struct msg *);
 };
 
 #define MSGMAP(code, fn) {code, (int (*)(struct task *, struct msg *))fn}
 
 /* object for file service */
-static object_t fs_obj;
-
+static object_t fsobj;
 
 static int
 fs_mount(struct task *t, struct mount_msg *msg)
 {
-	int err;
+	int error = 0;
 
-	/* Check mount capability. */
-	if ((t->cap & CAP_ADMIN) == 0)
-		return EPERM;
+	/* Check client's mount capability. */
+	if (task_chkcap(t->t_taskid, CAP_DISKADMIN) != 0)
+		error = EPERM;
 
-	err = sys_mount(msg->dev, msg->dir, msg->fs, msg->flags,
-			(void *)msg->data);
-	if (err)
-		dprintf("VFS: mount failed! fs=%s\n", msg->fs);
-	return err;
+	if (error == 0) {
+		error = sys_mount(msg->dev, msg->dir, msg->fs, msg->flags,
+				(void *)msg->data);
+	}
+#ifdef DEBUG
+	if (error)
+		dprintf("VFS: mount failed!\n");
+#endif
+	return error;
 }
 
 static int
@@ -105,8 +110,9 @@ fs_umount(struct task *t, struct path_msg *msg)
 {
 
 	/* Check mount capability. */
-	if ((t->cap & CAP_ADMIN) == 0)
+	if (task_chkcap(t->t_taskid, CAP_DISKADMIN) != 0)
 		return EPERM;
+
 	return sys_umount(msg->path);
 }
 
@@ -122,31 +128,33 @@ fs_open(struct task *t, struct open_msg *msg)
 {
 	char path[PATH_MAX];
 	file_t fp;
-	int fd, err;
-	mode_t mode;
+	int fd, error;
+	int acc;
 
 	/* Find empty slot for file descriptor. */
 	if ((fd = task_newfd(t)) == -1)
 		return EMFILE;
 
-	/*
-	 * Check the capability of caller task.
-	 */
-	mode = msg->mode;
-	if ((mode & 0111) && (t->cap & CAP_EXEC) == 0)
-		return EACCES;
-	if ((mode & 0222) && (t->cap & CAP_FS_WRITE) == 0)
-		return EACCES;
-	if ((mode & 0444) && (t->cap & CAP_FS_READ) == 0)
-		return EACCES;
+	acc = 0;
+	switch (msg->flags & O_ACCMODE) {
+	case O_RDONLY:
+		acc = VREAD;
+		break;
+	case O_WRONLY:
+		acc = VWRITE;
+		break;
+	case O_RDWR:
+		acc = VREAD | VWRITE;
+		break;
+	}
+	if ((error = task_conv(t, msg->path, acc, path)) != 0)
+		return error;
 
-	if ((err = task_conv(t, msg->path, path)) != 0)
-		return err;
-	if ((err = sys_open(path, msg->flags, mode, &fp)) != 0)
-		return err;
+	if ((error = sys_open(path, msg->flags, msg->mode, &fp)) != 0)
+		return error;
 
-	t->file[fd] = fp;
-	t->nopens++;
+	t->t_ofile[fd] = fp;
+	t->t_nopens++;
 	msg->fd = fd;
 	return 0;
 }
@@ -155,21 +163,21 @@ static int
 fs_close(struct task *t, struct msg *msg)
 {
 	file_t fp;
-	int fd, err;
+	int fd, error;
 
 	fd = msg->data[0];
 	if (fd >= OPEN_MAX)
 		return EBADF;
 
-	fp = t->file[fd];
+	fp = t->t_ofile[fd];
 	if (fp == NULL)
 		return EBADF;
 
-	if ((err = sys_close(fp)) != 0)
-		return err;
+	if ((error = sys_close(fp)) != 0)
+		return error;
 
-	t->file[fd] = NULL;
-	t->nopens--;
+	t->t_ofile[fd] = NULL;
+	t->t_nopens--;
 	return 0;
 }
 
@@ -177,12 +185,11 @@ static int
 fs_mknod(struct task *t, struct open_msg *msg)
 {
 	char path[PATH_MAX];
-	int err;
+	int error;
 
-	if ((t->cap & CAP_FS_WRITE) == 0)
-		return EACCES;
-	if ((err = task_conv(t, msg->path, path)) != 0)
-		return err;
+	if ((error = task_conv(t, msg->path, VWRITE, path)) != 0)
+		return error;
+
 	return sys_mknod(path, msg->mode);
 }
 
@@ -191,15 +198,16 @@ fs_lseek(struct task *t, struct msg *msg)
 {
 	file_t fp;
 	off_t offset, org;
-	int err, type;
+	int error, type;
 
 	if ((fp = task_getfp(t, msg->data[0])) == NULL)
 		return EBADF;
 	offset = (off_t)msg->data[1];
 	type = msg->data[2];
-	err = sys_lseek(fp, offset, type, &org);
+
+	error = sys_lseek(fp, offset, type, &org);
 	msg->data[0] = (int)org;
-	return err;
+	return error;
 }
 
 static int
@@ -208,17 +216,18 @@ fs_read(struct task *t, struct io_msg *msg)
 	file_t fp;
 	void *buf;
 	size_t size, bytes;
-	int err;
+	int error;
 
 	if ((fp = task_getfp(t, msg->fd)) == NULL)
 		return EBADF;
 	size = msg->size;
-	if ((err = vm_map(msg->hdr.task, msg->buf, size, &buf)) != 0)
+	if ((error = vm_map(msg->hdr.task, msg->buf, size, &buf)) != 0)
 		return EFAULT;
-	err = sys_read(fp, buf, size, &bytes);
+
+	error = sys_read(fp, buf, size, &bytes);
 	msg->size = bytes;
 	vm_free(task_self(), buf);
-	return err;
+	return error;
 }
 
 static int
@@ -227,17 +236,18 @@ fs_write(struct task *t, struct io_msg *msg)
 	file_t fp;
 	void *buf;
 	size_t size, bytes;
-	int err;
+	int error;
 
 	if ((fp = task_getfp(t, msg->fd)) == NULL)
 		return EBADF;
 	size = msg->size;
-	if ((err = vm_map(msg->hdr.task, msg->buf, size, &buf)) != 0)
+	if ((error = vm_map(msg->hdr.task, msg->buf, size, &buf)) != 0)
 		return EFAULT;
-	err = sys_write(fp, buf, size, &bytes);
+
+	error = sys_write(fp, buf, size, &bytes);
 	msg->size = bytes;
 	vm_free(task_self(), buf);
-	return err;
+	return error;
 }
 
 static int
@@ -247,6 +257,7 @@ fs_ioctl(struct task *t, struct ioctl_msg *msg)
 
 	if ((fp = task_getfp(t, msg->fd)) == NULL)
 		return EBADF;
+
 	return sys_ioctl(fp, msg->request, msg->buf);
 }
 
@@ -257,6 +268,7 @@ fs_fsync(struct task *t, struct msg *msg)
 
 	if ((fp = task_getfp(t, msg->data[0])) == NULL)
 		return EBADF;
+
 	return sys_fsync(fp);
 }
 
@@ -265,11 +277,14 @@ fs_fstat(struct task *t, struct stat_msg *msg)
 {
 	file_t fp;
 	struct stat *st;
+	int error;
 
 	if ((fp = task_getfp(t, msg->fd)) == NULL)
 		return EBADF;
+
 	st = &msg->st;
-	return sys_fstat(fp, st);
+	error = sys_fstat(fp, st);
+	return error;
 }
 
 static int
@@ -277,18 +292,19 @@ fs_opendir(struct task *t, struct open_msg *msg)
 {
 	char path[PATH_MAX];
 	file_t fp;
-	int fd, err;
+	int fd, error;
 
 	/* Find empty slot for file descriptor. */
 	if ((fd = task_newfd(t)) == -1)
 		return EMFILE;
 
 	/* Get the mounted file system and node */
-	if ((err = task_conv(t, msg->path, path)) != 0)
-		return err;
-	if ((err = sys_opendir(path, &fp)) != 0)
-		return err;
-	t->file[fd] = fp;
+	if ((error = task_conv(t, msg->path, VREAD, path)) != 0)
+		return error;
+
+	if ((error = sys_opendir(path, &fp)) != 0)
+		return error;
+	t->t_ofile[fd] = fp;
 	msg->fd = fd;
 	return 0;
 }
@@ -297,17 +313,18 @@ static int
 fs_closedir(struct task *t, struct msg *msg)
 {
 	file_t fp;
-	int fd, err;
+	int fd, error;
 
 	fd = msg->data[0];
 	if (fd >= OPEN_MAX)
 		return EBADF;
-	fp = t->file[fd];
+	fp = t->t_ofile[fd];
 	if (fp == NULL)
 		return EBADF;
-	if ((err = sys_closedir(fp)) != 0)
-		return err;
-	t->file[fd] = NULL;
+
+	if ((error = sys_closedir(fp)) != 0)
+		return error;
+	t->t_ofile[fd] = NULL;
 	return 0;
 }
 
@@ -318,6 +335,7 @@ fs_readdir(struct task *t, struct dir_msg *msg)
 
 	if ((fp = task_getfp(t, msg->fd)) == NULL)
 		return EBADF;
+
 	return sys_readdir(fp, &msg->dirent);
 }
 
@@ -328,6 +346,7 @@ fs_rewinddir(struct task *t, struct msg *msg)
 
 	if ((fp = task_getfp(t, msg->data[0])) == NULL)
 		return EBADF;
+
 	return sys_rewinddir(fp);
 }
 
@@ -340,6 +359,7 @@ fs_seekdir(struct task *t, struct msg *msg)
 	if ((fp = task_getfp(t, msg->data[0])) == NULL)
 		return EBADF;
 	loc = msg->data[1];
+
 	return sys_seekdir(fp, loc);
 }
 
@@ -348,13 +368,14 @@ fs_telldir(struct task *t, struct msg *msg)
 {
 	file_t fp;
 	long loc;
-	int err;
+	int error;
 
 	if ((fp = task_getfp(t, msg->data[0])) == NULL)
 		return EBADF;
 	loc = msg->data[1];
-	if ((err = sys_telldir(fp, &loc)) != 0)
-		return err;
+
+	if ((error = sys_telldir(fp, &loc)) != 0)
+		return error;
 	msg->data[0] = loc;
 	return 0;
 }
@@ -363,12 +384,11 @@ static int
 fs_mkdir(struct task *t, struct open_msg *msg)
 {
 	char path[PATH_MAX];
-	int err;
+	int error;
 
-	if ((t->cap & CAP_FS_WRITE) == 0)
-		return EACCES;
-	if ((err = task_conv(t, msg->path, path)) != 0)
-		return err;
+	if ((error = task_conv(t, msg->path, VWRITE, path)) != 0)
+		return error;
+
 	return sys_mkdir(path, msg->mode);
 }
 
@@ -376,14 +396,13 @@ static int
 fs_rmdir(struct task *t, struct path_msg *msg)
 {
 	char path[PATH_MAX];
-	int err;
+	int error;
 
-	if ((t->cap & CAP_FS_WRITE) == 0)
-		return EACCES;
 	if (msg->path == NULL)
 		return ENOENT;
-	if ((err = task_conv(t, msg->path, path)) != 0)
-		return err;
+	if ((error = task_conv(t, msg->path, VWRITE, path)) != 0)
+		return error;
+
 	return sys_rmdir(path);
 }
 
@@ -392,16 +411,17 @@ fs_rename(struct task *t, struct path_msg *msg)
 {
 	char src[PATH_MAX];
 	char dest[PATH_MAX];
-	int err;
+	int error;
 
-	if ((t->cap & CAP_FS_WRITE) == 0)
-		return EACCES;
 	if (msg->path == NULL || msg->path2 == NULL)
 		return ENOENT;
-	if ((err = task_conv(t, msg->path, src)) != 0)
-		return err;
-	if ((err = task_conv(t, msg->path2, dest)) != 0)
-		return err;
+
+	if ((error = task_conv(t, msg->path, VREAD, src)) != 0)
+		return error;
+
+	if ((error = task_conv(t, msg->path2, VWRITE, dest)) != 0)
+		return error;
+
 	return sys_rename(src, dest);
 }
 
@@ -410,20 +430,37 @@ fs_chdir(struct task *t, struct path_msg *msg)
 {
 	char path[PATH_MAX];
 	file_t fp;
-	int err;
+	int error;
 
 	if (msg->path == NULL)
 		return ENOENT;
-	if ((err = task_conv(t, msg->path, path)) != 0)
-		return err;
+	if ((error = task_conv(t, msg->path, VREAD, path)) != 0)
+		return error;
+
 	/* Check if directory exits */
-	if ((err = sys_opendir(path, &fp)) != 0)
-		return err;
-	if (t->cwdfp)
-		sys_closedir(t->cwdfp);
-	t->cwdfp = fp;
-	strcpy(t->cwd, path);
-	return 0;
+	if ((error = sys_opendir(path, &fp)) != 0)
+		return error;
+	if (t->t_cwdfp)
+		sys_closedir(t->t_cwdfp);
+	t->t_cwdfp = fp;
+	strlcpy(t->t_cwd, path, sizeof(t->t_cwd));
+ 	return 0;
+}
+
+static int
+fs_fchdir(struct task *t, struct msg *msg)
+{
+	file_t fp;
+	int fd;
+
+	fd = msg->data[0];
+	if ((fp = task_getfp(t, fd)) == NULL)
+		return EBADF;
+
+	if (t->t_cwdfp)
+		sys_closedir(t->t_cwdfp);
+	t->t_cwdfp = fp;
+	return sys_fchdir(fp, t->t_cwd);
 }
 
 static int
@@ -437,12 +474,13 @@ static int
 fs_unlink(struct task *t, struct path_msg *msg)
 {
 	char path[PATH_MAX];
+	int error;
 
-	if ((t->cap & CAP_FS_WRITE) == 0)
-		return EACCES;
 	if (msg->path == NULL)
 		return ENOENT;
-	task_conv(t, msg->path, path);
+	if ((error = task_conv(t, msg->path, VWRITE, path)) != 0)
+		return error;
+
 	return sys_unlink(path);
 }
 
@@ -451,24 +489,26 @@ fs_stat(struct task *t, struct stat_msg *msg)
 {
 	char path[PATH_MAX];
 	struct stat *st;
-	int err;
+	int error;
 
-	task_conv(t, msg->path, path);
-	st = &msg->st;
-	err = sys_stat(path, st);
-	return err;
+	error = task_conv(t, msg->path, 0, path);
+	if (error == 0) {
+		st = &msg->st;
+		error = sys_stat(path, st);
+	}
+	return error;
 }
 
 static int
 fs_getcwd(struct task *t, struct path_msg *msg)
 {
 
-	strcpy(msg->path, t->cwd);
+	strlcpy(msg->path, t->t_cwd, sizeof(msg->path));
 	return 0;
 }
 
 /*
- * Duplicate a file descriptor.
+ * Duplicate a file descriptor
  */
 static int
 fs_dup(struct task *t, struct msg *msg)
@@ -477,17 +517,14 @@ fs_dup(struct task *t, struct msg *msg)
 	int old_fd, new_fd;
 
 	old_fd = msg->data[0];
-	if (old_fd >= OPEN_MAX)
-		return EBADF;
-	fp = t->file[old_fd];
-	if (fp == NULL)
+	if ((fp = task_getfp(t, old_fd)) == NULL)
 		return EBADF;
 
 	/* Find smallest empty slot as new fd. */
 	if ((new_fd = task_newfd(t)) == -1)
 		return EMFILE;
 
-	t->file[new_fd] = fp;
+	t->t_ofile[new_fd] = fp;
 
 	/* Increment file reference */
 	vref(fp->f_vnode);
@@ -505,21 +542,26 @@ fs_dup2(struct task *t, struct msg *msg)
 {
 	file_t fp, org;
 	int old_fd, new_fd;
-	int err;
+	int error;
 
 	old_fd = msg->data[0];
 	new_fd = msg->data[1];
 	if (old_fd >= OPEN_MAX || new_fd >= OPEN_MAX)
 		return EBADF;
-	fp = t->file[old_fd];
+	fp = t->t_ofile[old_fd];
 	if (fp == NULL)
 		return EBADF;
-	org = t->file[new_fd];
+	org = t->t_ofile[new_fd];
 	if (org != NULL) {
 		/* Close previous file if it's opened. */
-		err = sys_close(org);
+		error = sys_close(org);
 	}
-	t->file[new_fd] = fp;
+	t->t_ofile[new_fd] = fp;
+
+	/* Increment file reference */
+	vref(fp->f_vnode);
+	fp->f_count++;
+
 	msg->data[0] = new_fd;
 	return 0;
 }
@@ -541,11 +583,15 @@ fs_fcntl(struct task *t, struct fcntl_msg *msg)
 	case F_DUPFD:
 		if (arg >= OPEN_MAX)
 			return EINVAL;
-
 		/* Find smallest empty slot as new fd. */
 		if ((new_fd = task_newfd(t)) == -1)
 			return EMFILE;
-		t->file[new_fd] = fp;
+		t->t_ofile[new_fd] = fp;
+
+		/* Increment file reference */
+		vref(fp->f_vnode);
+		fp->f_count++;
+		msg->arg = new_fd;
 		break;
 	case F_GETFD:
 		msg->arg = fp->f_flags & FD_CLOEXEC;
@@ -553,12 +599,14 @@ fs_fcntl(struct task *t, struct fcntl_msg *msg)
 	case F_SETFD:
 		fp->f_flags = (fp->f_flags & ~FD_CLOEXEC) |
 			(msg->arg & FD_CLOEXEC);
+		msg->arg = 0;
 		break;
 	case F_GETFL:
-		break;
 	case F_SETFL:
+		msg->arg = -1;
 		break;
 	default:
+		msg->arg = -1;
 		break;
 	}
 	return 0;
@@ -571,30 +619,19 @@ static int
 fs_access(struct task *t, struct path_msg *msg)
 {
 	char path[PATH_MAX];
-	int mode, err;
+	int acc, mode, error = 0;
 
 	mode = msg->data[0];
+	acc = 0;
+	if (mode & R_OK)
+		acc |= VREAD;
+	if (mode & W_OK)
+		acc |= VWRITE;
 
-	/*
-	 * Check file permission.
-	 */
-	task_conv(t, msg->path, path);
-	if ((err = sys_access(path, mode)) != 0)
-		return err;
+	if ((error = task_conv(t, msg->path, acc, path)) != 0)
+		return error;
 
-	/*
-	 * Check task permission.
-	 */
-	err = EACCES;
-	if ((mode & X_OK) && (t->cap & CAP_EXEC) == 0)
-		goto out;
-	if ((mode & W_OK) && (t->cap & CAP_FS_WRITE) == 0)
-		goto out;
-	if ((mode & R_OK) && (t->cap & CAP_FS_READ) == 0)
-		goto out;
-	err = 0;
- out:
-	return err;
+	return sys_access(path, mode);
 }
 
 /*
@@ -605,21 +642,21 @@ fs_fork(struct task *t, struct msg *msg)
 {
 	struct task *newtask;
 	file_t fp;
-	int err, i;
+	int error, i;
 
 	DPRINTF(VFSDB_CORE, ("fs_fork\n"));
 
-	if ((err = task_alloc((task_t)msg->data[0], &newtask)) != 0)
-		return err;
+	if ((error = task_alloc((task_t)msg->data[0], &newtask)) != 0)
+		return error;
 
 	/*
 	 * Copy task related data
 	 */
-	newtask->cwdfp = t->cwdfp;
-	strcpy(newtask->cwd, t->cwd);
+	newtask->t_cwdfp = t->t_cwdfp;
+	strlcpy(newtask->t_cwd, t->t_cwd, sizeof(newtask->t_cwd));
 	for (i = 0; i < OPEN_MAX; i++) {
-		fp = t->file[i];
-		newtask->file[i] = fp;
+		fp = t->t_ofile[i];
+		newtask->t_ofile[i] = fp;
 		/*
 		 * Increment file reference if it's
 		 * already opened.
@@ -629,11 +666,13 @@ fs_fork(struct task *t, struct msg *msg)
 			fp->f_count++;
 		}
 	}
-	if (newtask->cwdfp)
-		newtask->cwdfp->f_count++;
+	if (newtask->t_cwdfp)
+		newtask->t_cwdfp->f_count++;
 	/* Increment cwd's reference count */
-	if (newtask->cwdfp)
-		vref(newtask->cwdfp->f_vnode);
+	if (newtask->t_cwdfp)
+		vref(newtask->t_cwdfp->f_vnode);
+
+	DPRINTF(VFSDB_CORE, ("fs_fork-complete\n"));
 	return 0;
 }
 
@@ -657,15 +696,15 @@ fs_exec(struct task *t, struct msg *msg)
 		return EINVAL;
 
 	/* Update task id in the task. */
-	task_update(target, new_id);
+	task_setid(target, new_id);
 
 	/* Close all directory descriptor */
 	for (fd = 0; fd < OPEN_MAX; fd++) {
-		fp = target->file[fd];
+		fp = target->t_ofile[fd];
 		if (fp) {
 			if (fp->f_vnode->v_type == VDIR) {
 				sys_close(fp);
-				target->file[fd] = NULL;
+				target->t_ofile[fd] = NULL;
 			}
 
 			/* XXX: need to check close-on-exec flag */
@@ -684,16 +723,18 @@ fs_exit(struct task *t, struct msg *msg)
 	file_t fp;
 	int fd;
 
+	DPRINTF(VFSDB_CORE, ("fs_exit\n"));
+
 	/*
 	 * Close all files opened by task.
 	 */
 	for (fd = 0; fd < OPEN_MAX; fd++) {
-		fp = t->file[fd];
+		fp = t->t_ofile[fd];
 		if (fp != NULL)
 			sys_close(fp);
 	}
-	if (t->cwdfp)
-		sys_close(t->cwdfp);
+	if (t->t_cwdfp)
+		sys_close(t->t_cwdfp);
 	task_free(t);
 	return 0;
 }
@@ -706,18 +747,12 @@ static int
 fs_register(struct task *t, struct msg *msg)
 {
 	struct task *tmp;
-	cap_t cap;
-	int err;
+	int error;
 
 	DPRINTF(VFSDB_CORE, ("fs_register\n"));
 
-	if (task_getcap(msg->hdr.task, &cap))
-		return EINVAL;
-	if ((cap & CAP_ADMIN) == 0)
-		return EPERM;
-
-	err = task_alloc(msg->hdr.task, &tmp);
-	return err;
+	error = task_alloc(msg->hdr.task, &tmp);
+	return error;
 }
 
 static int
@@ -726,41 +761,119 @@ fs_pipe(struct task *t, struct msg *msg)
 #ifdef CONFIG_FIFOFS
 	char path[PATH_MAX];
 	file_t rfp, wfp;
-	int err, rfd, wfd;
+	int error, rfd, wfd;
 
 	DPRINTF(VFSDB_CORE, ("fs_pipe\n"));
 
 	if ((rfd = task_newfd(t)) == -1)
 		return EMFILE;
-	t->file[rfd] = (file_t)1; /* temp */
+	t->t_ofile[rfd] = (file_t)1; /* temp */
 
 	if ((wfd = task_newfd(t)) == -1) {
-		t->file[rfd] = NULL;
+		t->t_ofile[rfd] = NULL;
 		return EMFILE;
 	}
-	sprintf(path, "/fifo/%x-%d", (u_int)t->task, rfd);
+	sprintf(path, "/mnt/fifo/pipe-%x-%d", (u_int)t->t_taskid, rfd);
 
-	if ((err = sys_mknod(path, S_IFIFO)) != 0)
+	if ((error = sys_mknod(path, S_IFIFO)) != 0)
 		goto out;
-	if ((err = sys_open(path, O_RDONLY | O_NONBLOCK, 0, &rfp)) != 0) {
-		goto out;
-	}
-	if ((err = sys_open(path, O_WRONLY | O_NONBLOCK, 0, &wfp)) != 0) {
+	if ((error = sys_open(path, O_RDONLY | O_NONBLOCK, 0, &rfp)) != 0) {
 		goto out;
 	}
-	t->file[rfd] = rfp;
-	t->file[wfd] = wfp;
-	t->nopens += 2;
+	if ((error = sys_open(path, O_WRONLY | O_NONBLOCK, 0, &wfp)) != 0) {
+		goto out;
+	}
+	t->t_ofile[rfd] = rfp;
+	t->t_ofile[wfd] = wfp;
+	t->t_nopens += 2;
 	msg->data[0] = rfd;
 	msg->data[1] = wfd;
 	return 0;
  out:
-	t->file[rfd] = NULL;
-	t->file[wfd] = NULL;
-	return err;
+	t->t_ofile[rfd] = NULL;
+	t->t_ofile[wfd] = NULL;
+	return error;
 #else
 	return ENOSYS;
 #endif
+}
+
+/*
+ * Return if specified file is a tty
+ */
+static int
+fs_isatty(struct task *t, struct msg *msg)
+{
+	file_t fp;
+	int istty = 0;
+
+	if ((fp = task_getfp(t, msg->data[0])) == NULL)
+		return EBADF;
+
+	if (fp->f_vnode->v_flags & VISTTY)
+		istty = 1;
+	msg->data[0] = istty;
+	return 0;
+}
+
+static int
+fs_truncate(struct task *t, struct path_msg *msg)
+{
+	char path[PATH_MAX];
+	int error;
+
+	if (msg->path == NULL)
+		return ENOENT;
+	if ((error = task_conv(t, msg->path, VWRITE, path)) != 0)
+		return error;
+
+	return sys_truncate(path, msg->data[0]);
+}
+
+static int
+fs_ftruncate(struct task *t, struct msg *msg)
+{
+	file_t fp;
+
+	if ((fp = task_getfp(t, msg->data[0])) == NULL)
+		return EBADF;
+
+	return sys_ftruncate(fp, msg->data[1]);
+}
+
+/*
+ * Prepare for boot
+ */
+static int
+fs_boot(struct task *t, struct msg *msg)
+{
+	object_t execobj, procobj;
+	struct bind_msg bm;
+	struct msg m;
+
+	/* Check client's capability. */
+	if (task_chkcap(msg->hdr.task, CAP_PROTSERV) != 0)
+		return EPERM;
+
+	/*
+	 * Request exec server to bind an appropriate
+	 * capability for us.
+	 */
+	if (object_lookup("!exec", &execobj) != 0)
+		sys_panic("fs: no exec found");
+	bm.hdr.code = EXEC_BINDCAP;
+	strlcpy(bm.path, "/boot/fs", sizeof(bm.path));
+	msg_send(execobj, &bm, sizeof(bm));
+
+	/*
+	 * Notify to process server.
+	 */
+	if (object_lookup("!proc", &procobj) != 0)
+		sys_panic("fs: no proc found");
+	m.hdr.code = PS_REGISTER;
+	msg_send(procobj, &m, sizeof(m));
+
+	return 0;
 }
 
 /*
@@ -770,10 +883,17 @@ static int
 fs_shutdown(struct task *t, struct msg *msg)
 {
 
-	sys_sync();
+	DPRINTF(VFSDB_CORE, ("fs_shutdown\n"));
 	return 0;
 }
 
+int
+fs_noop(void)
+{
+	return 0;
+}
+
+#ifdef DEBUG_VFS
 /*
  * Dump internal data.
  */
@@ -781,54 +901,19 @@ static int
 fs_debug(struct task *t, struct msg *msg)
 {
 
-#ifdef DEBUG
 	dprintf("<File System Server>\n");
 	task_dump();
 	vnode_dump();
 	mount_dump();
-#endif
 	return 0;
 }
-
-/*
- * Register to process server if it is loaded.
- */
-static void
-process_init(void)
-{
-	int i, err = 0;
-	object_t obj = 0;
-	struct msg m;
-
-	/*
-	 * Wait for server loading. timeout is 1 sec.
-	 */
-	for (i = 0; i < 100; i++) {
-		err = object_lookup(OBJNAME_PROC, &obj);
-		if (err == 0)
-			break;
-
-		/* Wait 10msec */
-		timer_sleep(10, 0);
-		thread_yield();
-	}
-	if (obj == 0)
-		return;
-
-	/*
-	 * Notify to process server.
-	 */
-	m.hdr.code = PS_REGISTER;
-	msg_send(obj, &m, sizeof(m));
-}
+#endif
 
 static void
-fs_init(void)
+vfs_init(void)
 {
 	const struct vfssw *fs;
 	struct msg msg;
-
-	process_init();
 
 	/*
 	 * Initialize VFS core.
@@ -840,8 +925,8 @@ fs_init(void)
 	/*
 	 * Initialize each file system.
 	 */
-	for (fs = vfssw_table; fs->vs_name; fs++) {
-		DPRINTF(VFSDB_CORE, ("VFS: Initializing %s\n",
+	for (fs = vfssw; fs->vs_name; fs++) {
+		DPRINTF(VFSDB_CORE, ("VFS: initializing %s\n",
 				     fs->vs_name));
 		fs->vs_init();
 	}
@@ -857,34 +942,37 @@ fs_init(void)
  * Run specified routine as a thread.
  */
 static int
-thread_run(void (*entry)(void))
+run_thread(void (*entry)(void))
 {
 	task_t self;
-	thread_t th;
+	thread_t t;
 	void *stack, *sp;
-	int err;
+	int error;
 
 	self = task_self();
-	if ((err = thread_create(self, &th)) != 0)
-		return err;
-	if ((err = vm_allocate(self, &stack, USTACK_SIZE, 1)) != 0)
-		return err;
+	if ((error = thread_create(self, &t)) != 0)
+		return error;
+	if ((error = vm_allocate(self, &stack, DFLSTKSZ, 1)) != 0)
+		return error;
 
-	sp = (void *)((u_long)stack + USTACK_SIZE - sizeof(u_long) * 3);
-	if ((err = thread_load(th, entry, sp)) != 0)
-		return err;
-	if ((err = thread_setprio(th, PRIO_FS)) != 0)
-		return err;
+	sp = (void *)((u_long)stack + DFLSTKSZ - sizeof(u_long) * 3);
+	if ((error = thread_load(t, entry, sp)) != 0)
+		return error;
 
-	return thread_resume(th);
+	return thread_resume(t);
+}
+
+static void
+exception_handler(int sig)
+{
+
+	exception_return();
 }
 
 /*
  * Message mapping
  */
 static const struct msg_map fsmsg_map[] = {
-	MSGMAP( STD_DEBUG,	fs_debug ),
-	MSGMAP( STD_SHUTDOWN,	fs_shutdown ),
 	MSGMAP( FS_MOUNT,	fs_mount ),
 	MSGMAP( FS_UMOUNT,	fs_umount ),
 	MSGMAP( FS_SYNC,	fs_sync ),
@@ -920,6 +1008,15 @@ static const struct msg_map fsmsg_map[] = {
 	MSGMAP( FS_EXIT,	fs_exit ),
 	MSGMAP( FS_REGISTER,	fs_register ),
 	MSGMAP( FS_PIPE,	fs_pipe ),
+	MSGMAP( FS_ISATTY,	fs_isatty ),
+	MSGMAP( FS_TRUNCATE,	fs_truncate ),
+	MSGMAP( FS_FTRUNCATE,	fs_ftruncate ),
+	MSGMAP( FS_FCHDIR,	fs_fchdir ),
+	MSGMAP( STD_BOOT,	fs_boot ),
+	MSGMAP( STD_SHUTDOWN,	fs_shutdown ),
+#ifdef DEBUG_VFS
+	MSGMAP( STD_DEBUG,	fs_debug ),
+#endif
 	MSGMAP( 0,		NULL ),
 };
 
@@ -932,9 +1029,9 @@ fs_thread(void)
 	struct msg *msg;
 	const struct msg_map *map;
 	struct task *t;
-	int err;
+	int error;
 
-	msg = (struct msg *)malloc(MAX_FSMSG);
+	msg = malloc(MAX_FSMSG);
 
 	/*
 	 * Message loop
@@ -943,28 +1040,32 @@ fs_thread(void)
 		/*
 		 * Wait for an incoming request.
 		 */
-		if ((err = msg_receive(fs_obj, msg, MAX_FSMSG)) != 0)
+		if ((error = msg_receive(fsobj, msg, MAX_FSMSG)) != 0)
 			continue;
 
-		err = EINVAL;
+		error = EINVAL;
 		map = &fsmsg_map[0];
 		while (map->code != 0) {
 			if (map->code == msg->hdr.code) {
-				if (map->code == FS_REGISTER) {
-					err = fs_register(NULL, msg);
+				/*
+				 * Handle messages by non-registerd tasks
+				 */
+				if (map->code == STD_BOOT) {
+					error = fs_boot(NULL, msg);
 					break;
 				}
+				if (map->code == FS_REGISTER) {
+					error = fs_register(NULL, msg);
+					break;
+				}
+
 				/* Lookup and lock task */
 				t = task_lookup(msg->hdr.task);
 				if (t == NULL)
 					break;
 
-				/* Get the capability list of caller task. */
-				if (task_getcap(msg->hdr.task, &t->cap))
-					break;
-
 				/* Dispatch request */
-				err = (*map->func)(t, msg);
+				error = (*map->func)(t, msg);
 				if (map->code != FS_EXIT)
 					task_unlock(t);
 				break;
@@ -972,15 +1073,15 @@ fs_thread(void)
 			map++;
 		}
 #ifdef DEBUG_VFS
-		if (err)
+		if (error)
 			dprintf("VFS: task=%x code=%x error=%d\n",
-				msg->hdr.task, map->code, err);
+				msg->hdr.task, map->code, error);
 #endif
 		/*
 		 * Reply to the client.
 		 */
-		msg->hdr.status = err;
-		msg_reply(fs_obj, msg, MAX_FSMSG);
+		msg->hdr.status = error;
+		msg_reply(fsobj, msg, MAX_FSMSG);
 	}
 }
 
@@ -992,36 +1093,35 @@ main(int argc, char *argv[])
 {
 	int i;
 
-	sys_log("Starting File System Server\n");
+	sys_log("Starting file system server\n");
 
-	/*
-	 * Boost current priority.
-	 */
-	thread_setprio(thread_self(), PRIO_FS);
+	DPRINTF(VFSDB_CORE, ("VFS: number of fs threads: %d\n",
+			     CONFIG_FS_THREADS));
 
-	/*
-	 * Initialize file systems.
-	 */
-	fs_init();
+	/* Set thread priority. */
+	thread_setpri(thread_self(), PRI_FS);
 
-	/*
-	 * Create an object to expose our service.
-	 */
-	if (object_create(OBJNAME_FS, &fs_obj))
+	/* Setup exception handler */
+	exception_setup(exception_handler);
+
+	/* Initialize the file systems. */
+	vfs_init();
+
+	/* Create an object to expose our service. */
+	if (object_create("!fs", &fsobj))
 		sys_panic("VFS: fail to create object");
 
 	/*
 	 * Create new server threads.
 	 */
-#ifdef DEBUG_VFS
-	dprintf("VFS: Number of fs threads: %d\n", CONFIG_FS_THREADS);
-#endif
 	i = CONFIG_FS_THREADS;
 	while (--i > 0) {
-		if (thread_run(fs_thread))
+		if (run_thread(fs_thread))
 			goto err;
 	}
 	fs_thread();
+
+	sys_panic("VFS: exit!");
 	exit(0);
  err:
 	sys_panic("VFS: failed to create thread");

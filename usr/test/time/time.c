@@ -31,25 +31,25 @@
  * time.c - test time function
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 u_long
 get_time(void)
 {
 	device_t rtc_dev;
-	int err;
+	int error;
 	u_long sec;
 	size_t len;
 
-	err = device_open("rtc", 0, &rtc_dev);
-	if (err) {
+	error = device_open("rtc", 0, &rtc_dev);
+	if (error) {
 		printf("error to open rtc device!\n");
 		return 0;
 	}
 	len = sizeof(sec);
-	err = device_read(rtc_dev, &sec, &len, 0);
-	if (err) {
+	error = device_read(rtc_dev, &sec, &len, 0);
+	if (error) {
 		printf("error in reading from rtc device\n");
 		device_close(rtc_dev);
 		return 0;
@@ -62,7 +62,7 @@ int
 main(int argc, char *argv[])
 {
 	u_long sys_time;
-	unsigned int sec, min, hour;
+	u_long sec, min, hour;
 
 	printf("Time test program\n");
 
@@ -73,7 +73,7 @@ main(int argc, char *argv[])
 	sec = sys_time % 60;
 	min = (sys_time / 60) % 60;
 	hour = (sys_time / 60 / 60) % 24;
-	printf("Current time: %d:%d:%d\n", hour, min, sec);
+	printf("Current time: %lu:%lu:%lu\n", hour, min, sec);
 
 	return 0;
 }

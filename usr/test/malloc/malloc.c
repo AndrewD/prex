@@ -46,7 +46,7 @@ alloc(int buflen)
 
 	printf("Allocate %d bytes - ", buflen);
 
-	p = malloc(buflen);
+	p = malloc((size_t)buflen);
 	if (p == NULL) {
 		printf("Error: malloc() returns NULL!\n");
 		return NULL;

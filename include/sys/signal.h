@@ -71,6 +71,7 @@
 #define	SIGPROF	27	/* profiling time alarm */
 #define SIGWINCH 28	/* window size changes */
 #define SIGINFO	29	/* information request */
+#define SIGPWR	SIGINFO
 #define SIGUSR1 30	/* user defined signal 1 */
 #define SIGUSR2 31	/* user defined signal 2 */
 
@@ -80,20 +81,20 @@
  * Language spec sez we must list exactly one parameter, even though we
  * actually supply three.  Ugh!
  */
-#define	SIG_DFL		(void (*)(int))0
-#define	SIG_IGN		(void (*)(int))1
-#define	SIG_ERR		(void (*)(int))-1
+#define	SIG_DFL		((void (*)(int))  0)
+#define	SIG_IGN		((void (*)(int))  1)
+#define	SIG_ERR		((void (*)(int)) -1)
 
 typedef unsigned int sigset_t;
 
 union sigval {
-	int sival_int;
-	void *sival_ptr;
+	int	sival_int;
+	void	*sival_ptr;
 };
 
 struct siginfo {
-	int si_signo;		/* redundant signal number */
-	int si_code;		/* facility that raised this signal */
+	int	si_signo;	/* redundant signal number */
+	int	si_code;	/* facility that raised this signal */
 	union sigval si_value;	/* value that was queued with signal */
 };
 
@@ -174,12 +175,26 @@ struct	sigstack {
 
 #define	BADSIG		SIG_ERR
 
+#ifdef _REENTRANT
+extern mutex_t __sig_lock;
+#define SIGNAL_LOCK()	mutex_lock(&__sig_lock)
+#define SIGNAL_UNLOCK()	mutex_unlock(&__sig_lock)
+#else
+#define SIGNAL_LOCK()
+#define SIGNAL_UNLOCK()
+#endif
+
+extern struct sigaction __sig_act[NSIG];
+extern sigset_t __sig_mask;
+extern sigset_t __sig_pending;
+
 /*
  * For historical reasons; programs expect signal's return value to be
  * defined by <sys/signal.h>.
  */
 __BEGIN_DECLS
 void	(*signal(int, void (*)(int)))(int);
+int	__sig_flush(void);
 __END_DECLS
 
 #endif /* !KERNEL */

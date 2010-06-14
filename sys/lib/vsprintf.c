@@ -32,7 +32,6 @@
  */
 
 #include <kernel.h>
-#include <sys/types.h>
 
 #define isdigit(c)  ((u_int)((c) - '0') < 10)
 
@@ -42,7 +41,7 @@ divide(long *n, int base)
 	u_long res;
 
 	res = ((u_long)*n) % base;
-	*n = ((u_long)*n) / base;
+	*n = (long)(((u_long)*n) / base);
 	return res;
 }
 
@@ -94,6 +93,9 @@ vsprintf(char *buf, const char *fmt, va_list args)
 		if (isdigit(*fmt)) {
 			width = atoi(&fmt);
 		}
+		/* ignore long */
+		if (*fmt == 'l')
+			fmt++;
 		base = 10;
 		sign = 0;
 		switch (*fmt) {

@@ -72,7 +72,7 @@ arfs_mount(mount_t mp, char *dev, int flags, void *data)
 {
 	size_t size;
 	char *buf;
-	int err = 0;
+	int error = 0;
 
 	DPRINTF(("arfs_mount: dev=%s\n", dev));
 
@@ -81,16 +81,16 @@ arfs_mount(mount_t mp, char *dev, int flags, void *data)
 
 	/* Read first block */
 	size = BSIZE;
-	err = device_read((device_t)mp->m_dev, buf, &size, 0);
-	if (err) {
-		DPRINTF(("arfs_mount: read error=%d\n", err));
+	error = device_read((device_t)mp->m_dev, buf, &size, 0);
+	if (error) {
+		DPRINTF(("arfs_mount: read error=%d\n", error));
 		goto out;
 	}
 
 	/* Check if the device includes valid archive image. */
 	if (strncmp(buf, ARMAG, SARMAG)) {
 		DPRINTF(("arfs_mount: invalid archive image!\n"));
-		err = EINVAL;
+		error = EINVAL;
 		goto out;
 	}
 
@@ -98,7 +98,7 @@ arfs_mount(mount_t mp, char *dev, int flags, void *data)
 	mp->m_flags |= MNT_RDONLY;
  out:
 	free(buf);
-	return err;
+	return error;
 }
 
 static int

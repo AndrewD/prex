@@ -30,35 +30,56 @@
 #ifndef _TASK_H
 #define _TASK_H
 
+#include <types.h>
 #include <sys/cdefs.h>
-#include <prex/capability.h>	/* for cap_t */
+#include <sys/list.h>
+#include <sys/capability.h>	/* for cap_t */
+#include <sys/sysinfo.h>
+#include <thread.h>
 #include <timer.h>
 
 /*
  * Task struct
  */
 struct task {
-	int		magic;		/* magic number */
+	struct list	link;		/* linkage on task list in system */
 	char		name[MAXTASKNAME]; /* task name */
-	struct list	link;		/* link for all tasks in system */
-	struct list	objects;	/* objects owned by this task */
-	struct list	threads;	/* threads in this task */
-	vm_map_t	map;		/* address space description */
-	int		suscnt;		/* suspend counter */
-	cap_t		capability;	/* security permission flag */
-	struct timer	alarm;		/* alarm timer */
-	void (*handler)(int);		/* pointer to exception handler */
 	task_t		parent;		/* parent task */
+	vm_map_t	map;		/* address space description */
+	int		suscnt;		/* suspend count */
+	int		flags;		/* flags defined below */
+	cap_t		capability;	/* security permission flag */
+	struct timer	alarm;		/* timer for alarm exception */
+	void		(*handler)(int); /* pointer to exception handler */
+	struct list	threads;	/* list of threads */
+	struct list	objects;	/* IPC objects owned by this task */
+	struct list	mutexes;	/* mutexes owned by this task */
+	struct list	conds;		/* cv owned by this task */
+	struct list	sems;		/* semaphores owned by this task */
+	int		nthreads;	/* number of threads */
+	int		nobjects;	/* number of IPC objects */
+	int		nsyncs;		/* number of syncronizer objects */
 };
 
-#define cur_task()	  (cur_thread->task)
-#define task_valid(tsk)	  (kern_area(tsk) && ((tsk)->magic == TASK_MAGIC))
+#define curtask		(curthread->task)
+
+/* flags */
+#define TF_SYSTEM	0x00000001 /* kernel task (kern_task) */
+#define	TF_TRACE	0x00000002 /* process system call tracing active */
+#define	TF_PROFIL	0x00000004 /* has started profiling */
+#define	TF_AUDIT	0x00000008 /* audit mode */
+
+/* default flags */
+#ifdef CONFIG_AUDIT
+#define TF_DEFAULT	TF_AUDIT
+#else
+#define TF_DEFAULT	0
+#endif
 
 /* vm option for task_create(). */
-#define VM_NEW		0	/* Create new memory map */
-#define VM_SHARE	1	/* Share parent's memory map */
-#define VM_COPY		2	/* Duplicate parent's memory map */
-
+#define VM_NEW		0	/* create new memory map */
+#define VM_SHARE	1	/* share parent's memory map */
+#define VM_COPY		2	/* duplicate parent's memory map */
 
 __BEGIN_DECLS
 int	 task_create(task_t, int, task_t *);
@@ -66,13 +87,14 @@ int	 task_terminate(task_t);
 task_t	 task_self(void);
 int	 task_suspend(task_t);
 int	 task_resume(task_t);
-int	 task_name(task_t, const char *);
-int	 task_getcap(task_t, cap_t *);
-int	 task_setcap(task_t, cap_t *);
+int	 task_setname(task_t, const char *);
+int	 task_setcap(task_t, cap_t);
+int	 task_chkcap(task_t, cap_t);
 int	 task_capable(cap_t);
+int	 task_valid(task_t);
 int	 task_access(task_t);
+int	 task_info(struct taskinfo *);
 void	 task_bootstrap(void);
-void	 task_dump(void);
 void	 task_init(void);
 __END_DECLS
 

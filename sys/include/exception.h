@@ -30,11 +30,14 @@
 #ifndef _EXCEPT_H
 #define _EXCEPT_H
 
+#include <types.h>
 #include <sys/cdefs.h>
-#include <sys/signal.h>
 
 /* Number of exceptions */
 #define	NEXC		32
+
+/* Default exception handler */
+#define EXC_DFL		((void (*)(int)) -1)
 
 __BEGIN_DECLS
 int	 exception_setup(void (*)(int));
@@ -43,7 +46,7 @@ int	 exception_post(task_t, int);
 int	 exception_wait(int *);
 void	 exception_mark(int);
 void	 exception_deliver(void);
-int	 exception_return(void);
+void	 exception_return(void);
 void	 exception_init(void);
 __BEGIN_DECLS
 

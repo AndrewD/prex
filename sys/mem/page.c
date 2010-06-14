@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,36 +32,37 @@
  */
 
 /*
- * This is a simple list-based page allocator.
+ * Simple list-based page allocator:
  *
  * When the remaining page is exhausted, what should we do ?
- * If the system can stop with panic() here, the error check of many
- * portions in kernel is not necessary, and kernel code can become
- * more simple. But, in general, even if a page is exhausted,
- * a kernel can not be stopped but it should return an error and
- * continue processing.
- * If the memory becomes short during boot time, kernel and drivers
- * can use panic() in that case.
+ * If the system can stop with panic() here, the error check of
+ * many portions in kernel is not necessary, and kernel code can
+ * become more simple. But, in general, even if a page is
+ * exhausted, a kernel can not be stopped but it should return an
+ * error and continue processing.  If the memory becomes short
+ * during boot time, kernel and drivers can use panic() in that
+ * case.
  */
 
 #include <kernel.h>
 #include <page.h>
-#include <syspage.h>
 #include <sched.h>
+#include <hal.h>
 
 /*
- * page_block is put on the head of the first page of
+ * The page structure is put on the head of the first page of
  * each free block.
  */
-struct page_block {
-	struct	page_block *next;
-	struct	page_block *prev;
-	size_t	size;		/* number of bytes of this block */
+struct page {
+	struct page	*next;
+	struct page	*prev;
+	vsize_t		size;		/* number of bytes of this block */
 };
 
-static struct page_block page_head;	/* first free block */
-static size_t total_size;
-static size_t bootdisk_size;
+static struct page	page_head;	/* first free block */
+static psize_t		total_size;	/* size of memory in the system */
+static psize_t		used_size;	/* current used size */
+static psize_t		bootdisk_size;	/* size of the boot disk */
 
 /*
  * page_alloc - allocate continuous pages of the specified size.
@@ -71,26 +72,27 @@ static size_t bootdisk_size;
  * automatically round up to the page boundary.  The allocated
  * memory is _not_ filled with 0.
  */
-void *
-page_alloc(size_t size)
+paddr_t
+page_alloc(psize_t psize)
 {
-	struct page_block *blk, *tmp;
+	struct page *blk, *tmp;
+	vsize_t size;
 
-	ASSERT(size != 0);
+	ASSERT(psize != 0);
 
 	sched_lock();
 
 	/*
 	 * Find the free block that has enough size.
 	 */
-	size = (size_t)PAGE_ALIGN(size);
+	size = round_page(psize);
 	blk = &page_head;
 	do {
 		blk = blk->next;
 		if (blk == &page_head) {
 			sched_unlock();
 			DPRINTF(("page_alloc: out of memory\n"));
-			return NULL;	/* Not found. */
+			return 0;	/* Not found. */
 		}
 	} while (blk->size < size);
 
@@ -104,15 +106,16 @@ page_alloc(size_t size)
 		blk->prev->next = blk->next;
 		blk->next->prev = blk->prev;
 	} else {
-		tmp = (struct page_block *)((char *)blk + size);
+		tmp = (struct page *)((vaddr_t)blk + size);
 		tmp->size = blk->size - size;
 		tmp->prev = blk->prev;
 		tmp->next = blk->next;
 		blk->prev->next = tmp;
 		blk->next->prev = tmp;
 	}
+	used_size += (psize_t)size;
 	sched_unlock();
-	return virt_to_phys(blk);
+	return kvtop(blk);
 }
 
 /*
@@ -123,16 +126,17 @@ page_alloc(size_t size)
  * block.
  */
 void
-page_free(void *addr, size_t size)
+page_free(paddr_t paddr, psize_t psize)
 {
-	struct page_block *blk, *prev;
+	struct page *blk, *prev;
+	vsize_t size;
 
-	ASSERT(size != 0);
+	ASSERT(psize != 0);
 
 	sched_lock();
 
-	size = (size_t)PAGE_ALIGN(size);
-	blk = (struct page_block *)phys_to_virt(addr);
+	size = round_page(psize);
+	blk = ptokv(paddr);
 
 	/*
 	 * Find the target position in list.
@@ -141,13 +145,6 @@ page_free(void *addr, size_t size)
 		if (prev->next == &page_head)
 			break;
 	}
-
-#ifdef DEBUG
-	if (prev != &page_head)
-		ASSERT((char *)prev + prev->size <= (char *)blk);
-	if (prev->next != &page_head)
-		ASSERT((char *)blk + size <= (char *)prev->next);
-#endif /* DEBUG */
 
 	/*
 	 * Insert new block into list.
@@ -163,37 +160,37 @@ page_free(void *addr, size_t size)
 	 * is made on block.
 	 */
 	if (blk->next != &page_head &&
-	    ((char *)blk + blk->size) == (char *)blk->next) {
+	    ((vaddr_t)blk + blk->size) == (vaddr_t)blk->next) {
 		blk->size += blk->next->size;
 		blk->next = blk->next->next;
 		blk->next->prev = blk;
 	}
 	if (blk->prev != &page_head &&
-	    (char *)blk->prev + blk->prev->size == (char *)blk) {
+	    (vaddr_t)blk->prev + blk->prev->size == (vaddr_t)blk) {
 		blk->prev->size += blk->size;
 		blk->prev->next = blk->next;
 		blk->next->prev = blk->prev;
 	}
+	used_size -= (psize_t)size;
 	sched_unlock();
 }
 
 /*
  * The function to reserve pages in specific address.
- * Return 0 on success, or -1 on failure
  */
 int
-page_reserve(void *addr, size_t size)
+page_reserve(paddr_t paddr, psize_t psize)
 {
-	struct page_block *blk, *tmp;
-	char *end;
+	struct page *blk, *tmp;
+	vaddr_t start, end;
+	vsize_t size;
 
-	if (size == 0)
+	if (psize == 0)
 		return 0;
 
-	addr = phys_to_virt(addr);
-	end = (char *)PAGE_ALIGN((char *)addr + size);
-	addr = (void *)PAGE_TRUNC(addr);
-	size = (size_t)(end - (char *)addr);
+	start = trunc_page((vaddr_t)ptokv(paddr));
+	end = round_page((vaddr_t)ptokv(paddr + psize));
+	size = end - start;
 
 	/*
 	 * Find the block which includes specified block.
@@ -201,13 +198,14 @@ page_reserve(void *addr, size_t size)
 	blk = page_head.next;
 	for (;;) {
 		if (blk == &page_head)
-			panic("page_reserve");
-		if ((char *)blk <= (char *)addr
-		    && end <= (char *)blk + blk->size)
+			return ENOMEM;
+
+		if ((vaddr_t)blk <= start
+		    && end <= (vaddr_t)blk + blk->size)
 			break;
 		blk = blk->next;
 	}
-	if ((char *)blk == (char *)addr && blk->size == size) {
+	if ((vaddr_t)blk == start && blk->size == size) {
 		/*
 		 * Unlink the block from free list.
 		 */
@@ -217,9 +215,9 @@ page_reserve(void *addr, size_t size)
 		/*
 		 * Split this block.
 		 */
-		if ((char *)blk + blk->size != end) {
-			tmp = (struct page_block *)end;
-			tmp->size = (size_t)((char *)blk + blk->size - end);
+		if ((vaddr_t)blk + blk->size != end) {
+			tmp = (struct page *)end;
+			tmp->size = (vaddr_t)blk + blk->size - end;
 			tmp->next = blk->next;
 			tmp->prev = blk;
 
@@ -227,57 +225,31 @@ page_reserve(void *addr, size_t size)
 			blk->next->prev = tmp;
 			blk->next = tmp;
 		}
-		if ((char *)blk == (char *)addr) {
+		if ((vaddr_t)blk == start) {
 			blk->prev->next = blk->next;
 			blk->next->prev = blk->prev;
 		} else
-			blk->size = (size_t)((char *)addr - (char *)blk);
+			blk->size = start - (vaddr_t)blk;
 	}
+	used_size += (psize_t)size;
 	return 0;
 }
 
 void
-page_info(struct info_memory *info)
+page_info(struct meminfo *info)
 {
-	struct page_block *blk;
-	size_t free = 0;
-
-	blk = page_head.next;
-	do {
-		free += blk->size;
-		blk = blk->next;
-	} while (blk != &page_head);
 
 	info->total = total_size;
-	info->free = free;
+	info->free = total_size - used_size;
 	info->bootdisk = bootdisk_size;
-}
 
-#ifdef DEBUG
-void
-page_dump(void)
-{
-	struct page_block *blk;
-	void *addr;
-	size_t free = 0;
-
-	printf("Free pages:\n");
-	printf(" start      end      size\n");
-	printf(" --------   -------- --------\n");
-
-	blk = page_head.next;
-	do {
-		free += blk->size;
-		addr = virt_to_phys(blk);
-		printf(" %08x - %08x %7dK\n", addr, (char *)addr + blk->size,
-		       blk->size / 1024);
-		blk = blk->next;
-	} while (blk != &page_head);
-
-	printf(" used=%dK free=%dK total=%dK\n",
-	       (total_size - free) / 1024, free / 1024, total_size / 1024);
-}
+#ifndef CONFIG_ROMBOOT
+	/*
+	 * The boot disk is placed at RAM.
+	 */
+	info->free -= bootdisk_size;
 #endif
+}
 
 /*
  * Initialize page allocator.
@@ -288,7 +260,10 @@ void
 page_init(void)
 {
 	struct physmem *ram;
+	struct bootinfo *bi;
 	int i;
+
+	machine_bootinfo(&bi);
 
 	total_size = 0;
 	bootdisk_size = 0;
@@ -297,31 +272,31 @@ page_init(void)
 	/*
 	 * First, create a free list from the boot information.
 	 */
-	for (i = 0; i < bootinfo->nr_rams; i++) {
-		ram = &bootinfo->ram[i];
+	for (i = 0; i < bi->nr_rams; i++) {
+		ram = &bi->ram[i];
 		if (ram->type == MT_USABLE) {
-			page_free((void *)ram->base, ram->size);
+			page_free(ram->base, ram->size);
 			total_size += ram->size;
 		}
 	}
 	/*
 	 * Then, reserve un-usable memory.
 	 */
-	for (i = 0; i < bootinfo->nr_rams; i++) {
-		ram = &bootinfo->ram[i];
+	for (i = 0; i < bi->nr_rams; i++) {
+		ram = &bi->ram[i];
 		switch (ram->type) {
 		case MT_BOOTDISK:
-			bootdisk_size = ram->size;
+			bootdisk_size += ram->size;
 			/* FALLTHROUGH */
 		case MT_MEMHOLE:
 			total_size -= ram->size;
 			/* FALLTHROUGH */
 		case MT_RESERVED:
-			page_reserve((void *)ram->base, ram->size);
+			if (page_reserve(ram->base, ram->size))
+				panic("page_init");
 			break;
 		}
 	}
-#ifdef DEBUG
-	page_dump();
-#endif
+	used_size = 0;
+	DPRINTF(("Memory size=%ld\n", total_size));
 }

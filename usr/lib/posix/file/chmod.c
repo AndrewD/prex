@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/fs.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/fs.h>
 
 #include <errno.h>
 

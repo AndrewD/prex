@@ -31,22 +31,33 @@
  * args.c - check arguments for main() routine.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+extern char **environ;
 
 int
 main(int argc, char *argv[])
 {
 	int i;
+	char **envp = environ;
 
-	sys_log("argument test");
+	printf("argument test\n");
 
+	/*
+	 * Print all arguments that were input by user.
+	 */
 	printf("argc=%d argv=%x\n", argc, (unsigned int)argv);
-
+	printf("Dump args:\n");
 	for (i = 0; i < argc; i++) {
-		printf("argv[%d]=%x\n", i, (unsigned int)argv[i]);
-		printf("argv[%d]=%s\n", i, argv[i]);
+		/* printf("argv[%d]: 0x%x\n", i, (unsigned int)argv[i]); */
+		printf("argv[%d]: %s\n", i, argv[i]);
+	}
+	printf("Dump envs:\n");
+	for (i = 0; envp[i] != NULL; i++) {
+		/* printf("envp[%d]: 0x%x\n", i, (unsigned int)envp[i]); */
+		printf("envp[%d]: %s\n", i, envp[i]);
 	}
 	exit(0);
 }

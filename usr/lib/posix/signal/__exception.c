@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +27,17 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/signal.h>
+#include <sys/prex.h>
+#include <sys/signal.h>
 
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
 
 void __exception_init(void);
-void __exception_exit(void);
+void __exception_exit(int *);
+
+static int __sig_exit;
 
 struct sigaction __sig_act[NSIG];
 sigset_t __sig_mask;
@@ -80,9 +82,15 @@ __sig_flush(void)
 				/* Default */
 				switch (sig) {
 				case SIGCHLD:
+				case SIGTSTP:
 					/* XXX: */
 					break;
 				default:
+					SIGNAL_LOCK();
+					__sig_pending &= ~sigmask(sig);
+					__sig_mask = org_mask;
+					__sig_exit = sig;
+					SIGNAL_UNLOCK();
 					exit(0);
 				}
 			} else if (action.sa_handler != SIG_IGN) {
@@ -150,10 +158,11 @@ __exception_init(void)
 #ifdef _REENTRANT
 	mutex_init(&__sig_lock);
 #endif
-	exception_setup(NULL);
+	exception_setup(EXC_DFL);
 
 	__sig_mask = 0;
 	__sig_pending = 0;
+	__sig_exit = 0;
 
 	for (i = 0; i < NSIG; i++) {
 		__sig_act[i].sa_flags = 0;
@@ -168,11 +177,15 @@ __exception_init(void)
  * Clean up
  */
 void
-__exception_exit(void)
+__exception_exit(int *signo)
 {
 
 #ifdef _REENTRANT
 	mutex_destroy(&__sig_lock);
 #endif
-	exception_setup(NULL);
+	exception_setup(EXC_DFL);
+
+	*signo = __sig_exit;
+	__sig_exit = 0;
+	__sig_pending = 0;
 }

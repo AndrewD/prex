@@ -31,7 +31,7 @@
  * ramdisk.c - ramdisk driver test program.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -43,13 +43,13 @@ test_read(int sector)
 {
 	device_t ramdev;
 	size_t size;
-	int err, i, j;
+	int error, i, j;
 	static unsigned char disk_buf[512];
 	unsigned char ch;
-	
+
 	printf("open ram0\n");
-	err = device_open("ram0", 0, &ramdev);
-	if (err) {
+	error = device_open("ram0", 0, &ramdev);
+	if (error) {
 		printf("open failed\n");
 		return 0;
 	}
@@ -57,14 +57,14 @@ test_read(int sector)
 
 	printf("ramdisk read: sector=%d buf=%x\n", sector, (u_int)disk_buf);
 	size = 512;
-	err = device_read(ramdev, disk_buf, &size, sector);
-	if (err) {
+	error = device_read(ramdev, disk_buf, &size, sector);
+	if (error) {
 		printf("read failed\n");
 		device_close(ramdev);
 		return 0;
 	}
 	printf("read comp: sector=%d buf=%x\n", sector, (u_int)disk_buf);
-	
+
 	for (i = 0; i < (512 / 16); i++) {
 		for (j = 0; j < 16; j++)
 			printf("%02x ", disk_buf[i * 16 + j]);
@@ -80,10 +80,10 @@ test_read(int sector)
 		printf("\n");
 	}
 	printf("\n");
-	err = device_close(ramdev);
-	if (err)
+	error = device_close(ramdev);
+	if (error)
 		printf("close failed\n");
-	
+
 	return 0;
 }
 
@@ -92,20 +92,20 @@ test_write(int sector)
 {
 	device_t ramdev;
 	size_t size;
-	int err;
+	int error;
 	static unsigned char disk_buf[512];
 
 	printf("open ram0\n");
-	err = device_open("ram0", 0, &ramdev);
-	if (err) {
+	error = device_open("ram0", 0, &ramdev);
+	if (error) {
 		printf("open failed\n");
 		return 0;
 	}
 	printf("opened\n");
 
 	size = 512;
-	err = device_read(ramdev, disk_buf, &size, sector);
-	if (err) {
+	error = device_read(ramdev, disk_buf, &size, sector);
+	if (error) {
 		printf("read failed\n");
 		device_close(ramdev);
 		return 0;
@@ -115,16 +115,16 @@ test_write(int sector)
 	strcpy((char *)disk_buf, test_msg);
 
 	size = 512;
-	err = device_write(ramdev, disk_buf, &size, sector);
-	if (err) {
+	error = device_write(ramdev, disk_buf, &size, sector);
+	if (error) {
 		printf("write failed\n");
 		device_close(ramdev);
 		return 0;
 	}
 	printf("write comp sector=%d\n", sector);
 
-	err = device_close(ramdev);
-	if (err)
+	error = device_close(ramdev);
+	if (error)
 		printf("close failed\n");
 	return 0;
 }

@@ -28,7 +28,7 @@
  */
 
 /*
- * bio.c - buffered I/O operations
+ * vfs_bio.c - buffered I/O operations
  */
 
 /*
@@ -36,7 +36,7 @@
  *	Bach: The Design of the UNIX Operating System (Prentice Hall, 1986)
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/list.h>
 #include <sys/param.h>
 #include <sys/buf.h>
@@ -165,6 +165,9 @@ getblk(dev_t dev, int blkno)
 	if (bp != NULL) {
 		/* Block found in cache. */
 		if (ISSET(bp->b_flags, B_BUSY)) {
+			/*
+			 * Wait buffer ready.
+			 */
 			BIO_UNLOCK();
 			mutex_lock(&bp->b_lock);
 			mutex_unlock(&bp->b_lock);
@@ -224,18 +227,18 @@ bread(dev_t dev, int blkno, struct buf **bpp)
 {
 	struct buf *bp;
 	size_t size;
-	int err;
+	int error;
 
 	DPRINTF(VFSDB_BIO, ("bread: dev=%x blkno=%d\n", dev, blkno));
 	bp = getblk(dev, blkno);
 
 	if (!ISSET(bp->b_flags, (B_DONE | B_DELWRI))) {
 		size = BSIZE;
-		err = device_read((device_t)dev, bp->b_data, &size, blkno);
-		if (err) {
+		error = device_read((device_t)dev, bp->b_data, &size, blkno);
+		if (error) {
 			DPRINTF(VFSDB_BIO, ("bread: i/o error\n"));
 			brelse(bp);
-			return err;
+			return error;
 		}
 	}
 	CLR(bp->b_flags, B_INVAL);
@@ -256,7 +259,7 @@ int
 bwrite(struct buf *bp)
 {
 	size_t size;
-	int err;
+	int error;
 
 	ASSERT(ISSET(bp->b_flags, B_BUSY));
 	DPRINTF(VFSDB_BIO, ("bwrite: dev=%x blkno=%d\n", bp->b_dev,
@@ -267,10 +270,10 @@ bwrite(struct buf *bp)
 	BIO_UNLOCK();
 
 	size = BSIZE;
-	err = device_write((device_t)bp->b_dev, bp->b_data, &size,
+	error = device_write((device_t)bp->b_dev, bp->b_data, &size,
 			   bp->b_blkno);
-	if (err)
-		return err;
+	if (error)
+		return error;
 	BIO_LOCK();
 	SET(bp->b_flags, B_DONE);
 	BIO_UNLOCK();
@@ -376,6 +379,7 @@ bio_init(void)
 		list_insert(&free_list, &bp->b_link);
 	}
 	sem_init(&free_sem, NBUFS);
+
 	DPRINTF(VFSDB_BIO, ("bio: Buffer cache size %dK bytes\n",
 			    BSIZE * NBUFS / 1024));
 }

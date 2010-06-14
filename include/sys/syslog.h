@@ -29,8 +29,6 @@
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
  */
 
-#define	_PATH_LOG	"/dev/log"
-
 /*
  * priorities/facilities are encoded into a single 32-bit quantity, where the
  * bottom 3 bits are the priority (0-7) and the top 28 bits are the facility
@@ -54,31 +52,6 @@
 #define	LOG_PRI(p)	((p) & LOG_PRIMASK)
 #define	LOG_MAKEPRI(fac, pri)	(((fac) << 3) | (pri))
 
-#ifdef SYSLOG_NAMES
-#define	INTERNAL_NOPRI	0x10	/* the "no priority" priority */
-				/* mark "facility" */
-#define	INTERNAL_MARK	LOG_MAKEPRI(LOG_NFACILITIES, 0)
-typedef struct _code {
-	char	*c_name;
-	int	c_val;
-} CODE;
-
-CODE prioritynames[] = {
-	"alert",	LOG_ALERT,
-	"crit",		LOG_CRIT,
-	"debug",	LOG_DEBUG,
-	"emerg",	LOG_EMERG,
-	"err",		LOG_ERR,
-	"error",	LOG_ERR,		/* DEPRECATED */
-	"info",		LOG_INFO,
-	"none",		INTERNAL_NOPRI,		/* INTERNAL */
-	"notice",	LOG_NOTICE,
-	"panic", 	LOG_EMERG,		/* DEPRECATED */
-	"warn",		LOG_WARNING,		/* DEPRECATED */
-	"warning",	LOG_WARNING,
-	NULL,		-1,
-};
-#endif
 
 /* facility codes */
 #define	LOG_KERN	(0<<3)	/* kernel messages */
@@ -94,7 +67,7 @@ CODE prioritynames[] = {
 #define	LOG_AUTHPRIV	(10<<3)	/* security/authorization messages (private) */
 #define	LOG_FTP		(11<<3)	/* ftp daemon */
 
-	/* other codes through 15 reserved for system use */
+/* other codes through 15 reserved for system use */
 #define	LOG_LOCAL0	(16<<3)	/* reserved for local use */
 #define	LOG_LOCAL1	(17<<3)	/* reserved for local use */
 #define	LOG_LOCAL2	(18<<3)	/* reserved for local use */
@@ -108,38 +81,6 @@ CODE prioritynames[] = {
 #define	LOG_FACMASK	0x03f8	/* mask to extract facility part */
 				/* facility of pri */
 #define	LOG_FAC(p)	(((p) & LOG_FACMASK) >> 3)
-
-#ifdef SYSLOG_NAMES
-CODE facilitynames[] = {
-	"auth",		LOG_AUTH,
-	"authpriv",	LOG_AUTHPRIV,
-	"cron", 	LOG_CRON,
-	"daemon",	LOG_DAEMON,
-	"ftp",		LOG_FTP,
-	"kern",		LOG_KERN,
-	"lpr",		LOG_LPR,
-	"mail",		LOG_MAIL,
-	"mark", 	INTERNAL_MARK,		/* INTERNAL */
-	"news",		LOG_NEWS,
-	"security",	LOG_AUTH,		/* DEPRECATED */
-	"syslog",	LOG_SYSLOG,
-	"user",		LOG_USER,
-	"uucp",		LOG_UUCP,
-	"local0",	LOG_LOCAL0,
-	"local1",	LOG_LOCAL1,
-	"local2",	LOG_LOCAL2,
-	"local3",	LOG_LOCAL3,
-	"local4",	LOG_LOCAL4,
-	"local5",	LOG_LOCAL5,
-	"local6",	LOG_LOCAL6,
-	"local7",	LOG_LOCAL7,
-	NULL,		-1,
-};
-#endif
-
-#ifdef KERNEL
-#define	LOG_PRINTF	-1	/* pseudo-priority to indicate use of printf */
-#endif
 
 /*
  * arguments to setlogmask.

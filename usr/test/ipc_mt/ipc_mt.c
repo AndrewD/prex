@@ -31,8 +31,8 @@
  * ipc_mt.c - IPC test for multi threaded servers.
  */
 
-#include <prex/prex.h>
-#include <server/stdmsg.h>
+#include <sys/prex.h>
+#include <ipc/ipc.h>
 #include <stdio.h>
 
 #define NR_THREADS	5
@@ -45,20 +45,20 @@ static char stack[NR_THREADS][1024];
 static int
 thread_run(void (*start)(void), void *stack)
 {
-	thread_t th;
-	int err;
+	thread_t t;
+	int error;
 
-	err = thread_create(task_self(), &th);
-	if (err)
-		return err;
+	error = thread_create(task_self(), &t);
+	if (error)
+		return error;
 
-	err = thread_load(th, start, stack);
-	if (err)
-		return err;
+	error = thread_load(t, start, stack);
+	if (error)
+		return error;
 
-	err = thread_resume(th);
-	if (err)
-		return err;
+	error = thread_resume(t);
+	if (error)
+		return error;
 
 
 	return 0;
@@ -72,16 +72,16 @@ receive_thread(void)
 {
 	struct msg msg;
 	object_t obj;
-	int err;
+	int error;
 
 	printf("Receiver thread is starting...\n");
 
-	thread_setprio(thread_self(), 240);
+	thread_setpri(thread_self(), 240);
 
 	/*
 	 * Find objects.
 	 */
-	err = object_lookup("/test/A", &obj);
+	error = object_lookup("test-A", &obj);
 
 	for (;;) {
 		/*
@@ -107,27 +107,28 @@ int
 main(int argc, char *argv[])
 {
 	object_t obj;
-	int err, i;
+	int error, i;
 
 	printf("IPC test for multi threads\n");
 
 	/*
 	 * Create an object.
 	 */
-	err = object_create("/test/A", &obj);
-	if (err)
+	error = object_create("test-A", &obj);
+	if (error)
 		panic("failed to create object");
 
 	/*
 	 * Start receiver thread.
 	 */
 	for (i = 0; i < NR_THREADS; i++) {
-		err = thread_run(receive_thread, stack[i] + 1024);
-		if (err)
+		error = thread_run(receive_thread, stack[i] + 1024);
+		if (error)
 			panic("failed to run thread");
 	}
 	printf("ok?\n");
-	thread_setprio(thread_self(), 241);
-	for (;;) ;
+	thread_setpri(thread_self(), 241);
+	for (;;)
+		thread_yield();
 	return 0;
 }

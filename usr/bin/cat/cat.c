@@ -30,6 +30,8 @@
  * SUCH DAMAGE.
  */
 
+/* modified by Kohsuke Ohtani for Prex. */
+
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 
@@ -44,9 +46,9 @@
 #define main(argc, argv)	cat_main(argc, argv)
 #endif
 
-static void raw_cat(int rfd);
+static void do_cat(int rfd);
 
-static char stdbuf[BUFSIZ];
+static char *stdbuf;
 static char *filename;
 static int rval;
 
@@ -55,18 +57,18 @@ main(int argc, char *argv[])
 {
 	int ch, fd;
 
-	while ((ch = getopt(argc, argv, "u")) != -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
-		case 'u':
-			setbuf(stdout, NULL);
-			break;
 		case '?':
 		default:
-			fprintf(stderr, "usage: cat [-u] [-] [file ...]\n");
+			fprintf(stderr, "usage: cat [-] [file ...]\n");
 			exit(1);
 			/* NOTREACHED */
 		}
 	argv += optind;
+
+	if ((stdbuf = malloc(BUFSIZ)) == NULL)
+		err(1, NULL);
 
 	fd = fileno(stdin);
 	filename = "stdin";
@@ -82,15 +84,16 @@ main(int argc, char *argv[])
 			}
 			filename = *argv++;
 		}
-		raw_cat(fd);
+		do_cat(fd);
 		if (fd != fileno(stdin))
 			(void)close(fd);
 	} while (*argv);
+	free(stdbuf);
 	exit(rval);
 }
 
 static void
-raw_cat(int rfd)
+do_cat(int rfd)
 {
 	int nr, nw, off, wfd;
 	struct stat sbuf;
@@ -103,7 +106,7 @@ raw_cat(int rfd)
 			if ((nw = write(wfd, stdbuf + off, (size_t)nr)) < 0)
 				err(1, "stdout");
 	if (nr < 0) {
-		warn("%s", filename);
+		warn("%s @%d", filename, errno);
 		rval = 1;
 	}
 }

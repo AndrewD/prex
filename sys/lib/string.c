@@ -31,7 +31,6 @@
  * string.c - Minimum string library for kernel
  */
 
-#include <sys/types.h>
 #include <kernel.h>
 
 /*
@@ -92,6 +91,8 @@ memcpy(void *dest, const void *src, size_t count)
 {
 	char *tmp = (char *)dest, *s = (char *)src;
 
+	ASSERT(count != 0);
+
 	while (count--)
 		*tmp++ = *s++;
 
@@ -102,6 +103,8 @@ void *
 memset(void *dest, int ch, size_t count)
 {
 	char *p = (char *)dest;
+
+	ASSERT(count != 0);
 
 	while (count--)
 		*p++ = (char)ch;

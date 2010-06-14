@@ -28,10 +28,10 @@
  */
 
 /*
- * vnode.c - vnode service
+ * vfs_vnode.c - vnode service
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/list.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -161,7 +161,8 @@ vnode_t
 vget(mount_t mp, char *path)
 {
 	vnode_t vp;
-	int err;
+	int error;
+	size_t len;
 
 	DPRINTF(VFSDB_VNODE, ("vget: %s\n", path));
 
@@ -169,21 +170,22 @@ vget(mount_t mp, char *path)
 		return NULL;
 	memset(vp, 0, sizeof(struct vnode));
 
-	if (!(vp->v_path = malloc(strlen(path) + 1))) {
+	len = strlen(path) + 1;
+	if (!(vp->v_path = malloc(len))) {
 		free(vp);
 		return NULL;
 	}
 	vp->v_mount = mp;
 	vp->v_refcnt = 1;
 	vp->v_op = mp->m_op->vfs_vnops;
-	strcpy(vp->v_path, path);
+	strlcpy(vp->v_path, path, len);
 	mutex_init(&vp->v_lock);
 	vp->v_nrlocks = 0;
 
 	/*
 	 * Request to allocate fs specific data for vnode.
 	 */
-	if ((err = VFS_VGET(mp, vp)) != 0) {
+	if ((error = VFS_VGET(mp, vp)) != 0) {
 		mutex_destroy(&vp->v_lock);
 		free(vp->v_path);
 		free(vp);
@@ -250,7 +252,7 @@ vref(vnode_t vp)
 }
 
 /*
- * Decrement the reference count of unlocked vnode.
+ * Decrement the reference count of the vnode.
  * Any code in the system which is using vnode should call vrele()
  * when it is finished with the vnode.
  * If count drops to zero, call inactive routine and return to freelist.
@@ -259,7 +261,6 @@ void
 vrele(vnode_t vp)
 {
 	ASSERT(vp);
-	ASSERT(vp->v_nrlocks == 0);
 	ASSERT(vp->v_refcnt > 0);
 
 	VNODE_LOCK();
@@ -384,7 +385,37 @@ vn_stat(vnode_t vp, struct stat *st)
 	return 0;
 }
 
-#ifdef DEBUG
+/*
+ * Chceck permission on vnode pointer.
+ */
+int
+vn_access(vnode_t vp, int flags)
+{
+	int error = 0;
+
+	if ((flags & VEXEC) && (vp->v_mode & 0111) == 0) {
+		error = EACCES;
+		goto out;
+	}
+	if ((flags & VREAD) && (vp->v_mode & 0444) == 0) {
+		error = EACCES;
+		goto out;
+	}
+	if (flags & VWRITE) {
+		if (vp->v_mount->m_flags & MNT_RDONLY) {
+			error = EROFS;
+			goto out;
+		}
+		if ((vp->v_mode & 0222) == 0) {
+			error = EACCES;
+			goto out;
+		}
+	}
+ out:
+	return error;
+}
+
+#ifdef DEBUG_VFS
 /*
  * Dump all all vnode.
  */
@@ -435,6 +466,10 @@ vop_einval(void)
 	return EINVAL;
 }
 
+/*
+ * vnode_init() is called once (from vfs_init)
+ * in initialization.
+ */
 void
 vnode_init(void)
 {

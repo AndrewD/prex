@@ -154,6 +154,8 @@ void	 unsetenv(const char *);
 void	*malloc_r(size_t);
 void	 free_r(void *);
 
+const char *getprogname(void);
+
 __END_DECLS
 
 #endif /* _STDLIB_H_ */

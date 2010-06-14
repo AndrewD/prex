@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <unistd.h>
 
 void

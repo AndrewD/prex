@@ -31,7 +31,7 @@
  * pipe.c - test unix pipe
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
@@ -41,7 +41,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#if 0
 static void
 test1(void)
 {
@@ -59,7 +58,6 @@ test1(void)
 	read(fd[0], buf, sizeof(buf));
 	printf("str=%s\n", buf);
 }
-#endif
 
 static void
 test2(void)
@@ -99,9 +97,7 @@ test2(void)
 int
 main(int argc, char *argv[])
 {
-#if 0
 	test1();
-#endif
 	test2();
 	return 0;
 }

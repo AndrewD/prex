@@ -30,6 +30,7 @@
 #ifndef _KMEM_H
 #define _KMEM_H
 
+#include <types.h>
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS

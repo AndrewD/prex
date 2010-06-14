@@ -61,13 +61,13 @@ int	 execvp(const char *, char * const *);
 void	_exit(int) __noreturn;
 /* pid_t	 fork(void); */
 pid_t	 vfork(void);
-long	 fpathconf(int, int);
+/* long	 fpathconf(int, int); */
 char	*getcwd(char *, size_t);
 gid_t	 getegid(void);
 uid_t	 geteuid(void);
 gid_t	 getgid(void);
-int	 getgroups(int, gid_t []);
-char	*getlogin(void);
+/* int	 getgroups(int, gid_t []); */
+/* char	*getlogin(void); */
 pid_t	 getpgrp(void);
 pid_t	 getpid(void);
 pid_t	 getppid(void);
@@ -75,7 +75,7 @@ uid_t	 getuid(void);
 int	 isatty(int);
 int	 link(const char *, const char *);
 off_t	 lseek(int, off_t, int);
-long	 pathconf(const char *, int);
+/* long	 pathconf(const char *, int); */
 int	 pause(void);
 int	 pipe(int *);
 ssize_t	 read(int, void *, size_t);
@@ -85,10 +85,10 @@ int	 setpgid(pid_t, pid_t);
 pid_t	 setsid(void);
 int	 setuid(uid_t);
 unsigned int	 sleep(unsigned int);
-long	 sysconf(int);
+/* long	 sysconf(int); */
 pid_t	 tcgetpgrp(int);
 int	 tcsetpgrp(int, pid_t);
-char	*ttyname(int);
+/* char	*ttyname(int); */
 int	 unlink(const char *);
 ssize_t	 write(int, const void *, size_t);
 
@@ -103,53 +103,54 @@ extern	 int optopt;
 #ifdef	__STDC__
 struct timeval;				/* select(2) */
 #endif
-char	*brk(const char *);
-int	 chroot(const char *);
+/* char	*brk(const char *); */
+/* int	 chroot(const char *); */
 int	 fchdir(int);
-int	 fchown(int, int, int);
+/* int	 fchown(int, int, int); */
 int	 fsync(int);
 int	 ftruncate(int, off_t);
-int	 getdtablesize(void);
-long	 gethostid(void);
+/* int	 getdtablesize(void); */
+/* long	 gethostid(void); */
 int	 gethostname(char *, size_t);
-mode_t	 getmode(const void *, mode_t);
+/* mode_t	 getmode(const void *, mode_t); */
 int	 getpagesize(void);
 char	*getpass(const char *);
 pid_t	 getpgid(pid_t);
-char	*getusershell(void);
+/* char	*getusershell(void); */
 char	*getwd(char *);			/* obsoleted by getcwd() */
-int	 initgroups(const char *, int);
-int	 iruserok(unsigned long, int, const char *, const char *);
+/* int	 initgroups(const char *, int); */
+/* int	 iruserok(unsigned long, int, const char *, const char *); */
 int	 mknod(const char *, mode_t, dev_t);
 int	 mkstemp(char *);
 char	*mktemp(char *);
-int	 nfssvc(int, void *);
+/* int	 nfssvc(int, void *); */
 int	 nice(int);
 void	 psignal(unsigned int, const char *);
 extern const char *const sys_siglist[];
-int	 readlink(const char *, char *, int);
-int	 reboot(int);
-int	 rresvport(int *);
-int	 ruserok(const char *, int, const char *, const char *);
-char	*sbrk(int);
-int	 select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+/* int	 readlink(const char *, char *, int); */
+/* int	 reboot(int); */
+/* int	 rresvport(int *); */
+/* int	 ruserok(const char *, int, const char *, const char *); */
+/* char	*sbrk(int); */
+/* int	 select(int, fd_set *, fd_set *, fd_set *, struct timeval *); */
 int	 setegid(gid_t);
 int	 seteuid(uid_t);
-int	 setgroups(int, const gid_t *);
-void	 sethostid(long);
+/* int	 setgroups(int, const gid_t *); */
+/* void	 sethostid(long); */
 int	 sethostname(const char *, size_t);
 int	 setpgrp(pid_t, pid_t);	/* obsoleted by setpgid() */
-int	 setregid(gid_t, gid_t);
-int	 setreuid(uid_t, uid_t);
-int	 setrgid(gid_t);
-int	 setruid(uid_t);
-void	 setusershell(void);
-int	 symlink(const char *, const char *);
+/* int	 setregid(gid_t, gid_t); */
+/* int	 setreuid(uid_t, uid_t); */
+/* int	 setrgid(gid_t); */
+/* int	 setruid(uid_t); */
+/* void	 setusershell(void); */
+/* int	 symlink(const char *, const char *); */
 void	 sync(void);
 int	 truncate(const char *, off_t);
-unsigned int	 ualarm(unsigned int, unsigned int);
+/* unsigned int	 ualarm(unsigned int, unsigned int); */
 void	 usleep(unsigned int);
 pid_t	 getsid(pid_t);
+void	 strmode(mode_t, char *);
 
 extern char *suboptarg;			/* getsubopt(3) external variable */
 int	 getsubopt(char **, char * const *, char **);

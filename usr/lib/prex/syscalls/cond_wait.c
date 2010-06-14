@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <errno.h>
 
 extern int _cond_wait(cond_t *cond, mutex_t *mu);
@@ -38,10 +38,10 @@ extern int _cond_wait(cond_t *cond, mutex_t *mu);
 int
 cond_wait(cond_t *cond, mutex_t *mu)
 {
-	int err;
+	int error;
 
 	do
-		err = _cond_wait(cond, mu);
-	while (err == EINTR);
-	return err;
+		error = _cond_wait(cond, mu);
+	while (error == EINTR);
+	return error;
 }

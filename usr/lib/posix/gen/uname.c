@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/utsname.h>
 
 #include <string.h>
@@ -36,13 +36,9 @@
 int
 uname(struct utsname *uts)
 {
-	struct info_kernel info;
+	struct kerninfo info;
 
 	sys_info(INFO_KERNEL, &info);
-	strcpy(uts->sysname, info.sysname);
-	strcpy(uts->release, info.version);
-	strcpy(uts->version, info.blddate);
-	strcpy(uts->machine, info.machine);
-	strcpy(uts->nodename, info.hostname);
+	memcpy(uts, &info, sizeof(*uts));
 	return 0;
 }

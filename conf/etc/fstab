@@ -1,0 +1,14 @@
+# File system table
+
+# Device	Mountpoint	VFSType
+
+none		/		ramfs
+/dev/ram0	/boot		arfs
+none		/dev		devfs
+none		/mnt/fifo	fifofs
+/dev/fd0	/mnt/floppy	fatfs
+
+#/dev/mtd0	/bin		ffs
+#/dev/mtd1	/etc		ffs
+#/dev/cdrom0	/mnt/cdrom	isofs
+#none		/private	cryptfs

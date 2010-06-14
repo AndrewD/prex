@@ -30,9 +30,10 @@
 #ifndef _SCHED_H
 #define _SCHED_H
 
+#include <types.h>
 #include <sys/cdefs.h>
+#include <sys/queue.h>
 #include <event.h>
-#include <thread.h>
 
 /*
  * Scheduling policies defined by IEEE Std 1003.1-2001
@@ -50,15 +51,15 @@
  * DPC (Deferred Procedure Call) object
  */
 struct dpc {
-	struct queue	link;		/* Linkage on DPC queue */
+	struct queue	link;		/* linkage on DPC queue */
 	int		state;
-	void		(*func)(void *); /* Callback routine */
-	void		*arg;		/* Argument to pass */
+	void		(*func)(void *); /* callback routine */
+	void		*arg;		/* argument to pass */
 };
 
 /* state for DPC */
-#define DPC_FREE	0x4470463f	/* 'DpF?' */
-#define DPC_PENDING	0x4470503f	/* 'DpP?' */
+#define DPC_FREE	0x4470463f	/* magic# 'DpF?' */
+#define DPC_PENDING	0x4470503f	/* magic# 'DpP?' */
 
 #define sched_sleep(evt)	sched_tsleep((evt), 0)
 
@@ -71,12 +72,12 @@ void	 sched_yield(void);
 void	 sched_suspend(thread_t);
 void	 sched_resume(thread_t);
 void	 sched_tick(void);
-void	 sched_start(thread_t);
+void	 sched_start(thread_t, int, int);
 void	 sched_stop(thread_t);
 void	 sched_lock(void);
 void	 sched_unlock(void);
-int	 sched_getprio(thread_t);
-void	 sched_setprio(thread_t, int, int);
+int	 sched_getpri(thread_t);
+void	 sched_setpri(thread_t, int, int);
 int	 sched_getpolicy(thread_t);
 int	 sched_setpolicy(thread_t, int);
 void	 sched_dpc(struct dpc *, void (*)(void *), void *);

@@ -82,9 +82,16 @@
 #elif defined(__PCC__)
 #define	__packed	_Pragma("packed")
 #define	__noreturn	/* delete */
+#elif defined(__SUNPRO_C)
+#define	__packed	/* delete */
+#define	__noreturn	/* delete */
 #else
 #define	__packed	error: no __packed for this compiler
 #define	__noreturn	/* delete */
 #endif
+
+#define	__P(protos)	()
+#define	__RCSID(_s)
+#define	__COPYRIGHT(_s)
 
 #endif /* !_SYS_CDEFS_H_ */

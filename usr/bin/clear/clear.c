@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #include <stdio.h>
 
 #ifdef CMDBOX
@@ -35,6 +36,7 @@
 int
 main(int argc, char *argv[])
 {
+
 	printf("\33[2J");
 	return 0;
 }

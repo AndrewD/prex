@@ -105,7 +105,7 @@ retry:		(void)execve(bp, argv, environ);
 		case ENOEXEC:
 			for (cnt = 0; argv[cnt] != NULL; ++cnt)
 				continue;
-			if ((memp = alloca((cnt + 2) * sizeof(*memp))) == NULL)
+			if ((memp = (const char **)(alloca((cnt + 2) * sizeof(*memp)))) == NULL)
 				goto done;
 			memp[0] = _PATH_BSHELL;
 			memp[1] = bp;

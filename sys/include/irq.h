@@ -30,13 +30,19 @@
 #ifndef _IRQ_H
 #define _IRQ_H
 
+#include <types.h>
 #include <sys/cdefs.h>
+#include <sys/sysinfo.h>
+#include <sys/ipl.h>
 #include <event.h>
 
 struct irq {
 	int		vector;		/* vector number */
-	int		(*isr)(int);	/* pointer to isr */
-	void		(*ist)(int);	/* pointer to ist */
+	int		(*isr)(void *);	/* pointer to isr */
+	void		(*ist)(void *);	/* pointer to ist */
+	void		*data;		/* data to be passed for isr/ist */
+	int		priority;	/* interrupt priority */
+	u_int		count;		/* interrupt count */
 	int		istreq;		/* number of ist request */
 	thread_t	thread;		/* thread id of ist */
 	struct event	istevt;		/* event for ist */
@@ -50,34 +56,18 @@ struct irq {
 #define INT_CONTINUE	2	/* continue processing (Request IST) */
 
 /*
- * Interrupt priority levels
- */
-#define IPL_NONE	0	/* nothing */
-#define IPL_COMM	1	/* serial, parallel */
-#define IPL_BLOCK	2	/* FDD, IDE */
-#define IPL_NET		3	/* network */
-#define IPL_DISPLAY	4	/* screen */
-#define IPL_INPUT	5	/* keyboard, mouse */
-#define IPL_AUDIO	6	/* audio */
-#define IPL_BUS		7	/* USB, PCCARD */
-#define IPL_RTC		8	/* RTC alarm */
-#define IPL_PROFILE	9	/* profiling timer */
-#define IPL_CLOCK	10	/* system clock timer */
-#define IPL_HIGH	11	/* everything */
-
-#define NIPLS		12	/* number of IPLs */
-
-/*
  * Macro to map an interrupt priority level to IST priority.
  */
-#define ISTPRIO(prio)	(PRIO_IST + (IPL_HIGH - prio))
+#define ISTPRI(pri)	(PRI_IST + (IPL_HIGH - pri))
+
+/* No IST for irq_attach() */
+#define IST_NONE	((void (*)(void *)) -1)
 
 __BEGIN_DECLS
-irq_t	 irq_attach(int, int, int, int (*)(int), void (*)(int));
+irq_t	 irq_attach(int, int, int, int (*)(void *), void (*)(void *), void *);
 void	 irq_detach(irq_t);
-void	 irq_lock(void);
-void	 irq_unlock(void);
 void	 irq_handler(int);
+int	 irq_info(struct irqinfo *);
 void	 irq_init(void);
 __BEGIN_DECLS
 

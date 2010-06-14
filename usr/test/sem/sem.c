@@ -31,14 +31,14 @@
  * sem.c - test program for semaphore.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 int
 main(int argc, char *argv[])
 {
 	sem_t sem;
-	int err;
+	int error;
 	u_int val;
 
 	printf("Semaphore test program\n");
@@ -51,31 +51,31 @@ main(int argc, char *argv[])
 	/*
 	 * Test wait
 	 */
-	err = sem_getvalue(&sem, &val);
+	error = sem_getvalue(&sem, &val);
 	printf("Semaphore value=%d\n", val);
 
 	printf("1) Wait semahore\n");
-	err = sem_wait(&sem, 0);
-	if (err)
-		panic("wait err");
+	error = sem_wait(&sem, 0);
+	if (error)
+		panic("wait error");
 
-	err = sem_getvalue(&sem, &val);
+	error = sem_getvalue(&sem, &val);
 	printf("Semaphore value=%d\n", val);
 
 	printf("2) Wait semahore\n");
-	err = sem_wait(&sem, 0);
-	if (err)
-		panic("wait err");
+	error = sem_wait(&sem, 0);
+	if (error)
+		panic("wait error");
 
-	err = sem_getvalue(&sem, &val);
+	error = sem_getvalue(&sem, &val);
 	printf("Semaphore value=%d\n", val);
 
 	printf("3) Wait semahore\n");
-	err = sem_wait(&sem, 0);
-	if (err)
-		panic("wait err");
+	error = sem_wait(&sem, 0);
+	if (error)
+		panic("wait error");
 
-	err = sem_getvalue(&sem, &val);
+	error = sem_getvalue(&sem, &val);
 	printf("Semaphore value=%d\n", val);
 
 #if 0
@@ -83,25 +83,25 @@ main(int argc, char *argv[])
 	 * Sleep by wait
 	 */
 	printf("4) Wait semahore\n");
-	err = sem_wait(&sem, 0);
-	if (err)
-		panic("wait err");
+	error = sem_wait(&sem, 0);
+	if (error)
+		panic("wait error");
 #endif
 	/*
 	 * trywait must be error.
 	 */
 	printf("4e) Try to wait semahore\n");
-	err = sem_trywait(&sem);
-	printf("Try wait err=%d\n", err);
+	error = sem_trywait(&sem);
+	printf("Try wait error=%d\n", error);
 
 	/*
 	 * Test post
 	 */
 	printf("5) Post semahore\n");
-	err = sem_post(&sem);
-	if (err)
-		panic("post err");
-	err = sem_getvalue(&sem, &val);
+	error = sem_post(&sem);
+	if (error)
+		panic("post error");
+	error = sem_getvalue(&sem, &val);
 	printf("Semaphore value=%d\n", val);
 
 	printf("Test complete\n");

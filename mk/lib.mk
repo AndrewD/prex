@@ -1,20 +1,16 @@
+# Rules to compile library
+
 include $(SRCDIR)/mk/own.mk
 
-INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/usr/include -I$(SRCDIR)/include
+_RELOC_OBJ_:=	1
 
-ASFLAGS+=	$(INCLUDE)
-CFLAGS+=	$(INCLUDE) -nostdinc
-CPPFLAGS+=	$(INCLUDE) -nostdinc
-LDFLAGS+=	-static $(USR_LDFLAGS)
-
-TYPE=		LIBRARY
-
-ifdef LIB
-TARGET ?= $(LIB)
+ifndef _KERNEL_
+INCSDIR+=	$(SRCDIR)/usr/include
 endif
 
-ifdef SRCS
-OBJS+= $(SRCS:.c=.o)
-endif
+include $(SRCDIR)/mk/common.mk
 
-include $(SRCDIR)/mk/Makefile.inc
+$(TARGET): $(OBJS)
+	$(call echo-file,AR     ,$(TARGET))
+	$(AR) rucs $(TARGET) $?
+	$(STRIP) -x -R .comment -R .note $(TARGET)

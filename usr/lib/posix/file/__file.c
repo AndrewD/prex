@@ -27,11 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/object.h>
-#include <server/stdmsg.h>
-#include <server/fs.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/ipc.h>
+#include <ipc/fs.h>
 
 #include <stddef.h>
 
@@ -43,13 +42,13 @@ object_t __fs_obj;
 void
 __file_init(void)
 {
-	int err;
+	int error;
 
 	/*
 	 * Look up file system server
 	 */
-	err = object_lookup(OBJNAME_FS, &__fs_obj);
-	if (err)
+	error = object_lookup("!fs", &__fs_obj);
+	if (error)
 		__fs_obj = 0;
 }
 

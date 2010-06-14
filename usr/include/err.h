@@ -36,14 +36,14 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-void	err (int, const char *, ...) __noreturn;
-void	verr (int, const char *, va_list) __noreturn;
-void	errx (int, const char *, ...) __noreturn;
-void	verrx (int, const char *, va_list) __noreturn;
-void	warn (const char *, ...);
-void	vwarn (const char *, va_list);
-void	warnx (const char *, ...);
-void	vwarnx (const char *, va_list);
+void	err(int, const char *, ...) __noreturn;
+void	verr(int, const char *, va_list) __noreturn;
+void	errx(int, const char *, ...) __noreturn;
+void	verrx(int, const char *, va_list) __noreturn;
+void	warn(const char *, ...);
+void	vwarn(const char *, va_list);
+void	warnx(const char *, ...);
+void	vwarnx(const char *, va_list);
 __END_DECLS
 
 #endif /* !_ERR_H_ */

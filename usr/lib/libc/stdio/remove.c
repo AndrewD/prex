@@ -30,12 +30,28 @@
  * SUCH DAMAGE.
  */
 
-#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 
 int
 remove(file)
 	const char *file;
 {
-	return (unlink(file));
+	struct stat sb;
+
+	if (lstat(file, &sb) < 0)
+		return (-1);
+
+	/*
+	 * The file system may prohibit using unlink(2) on directories,
+	 * so always use rmdir(2) in that case.
+	 */
+	if (S_ISDIR(sb.st_mode))
+		return (rmdir(file));
+	else
+		return (unlink(file));
 }

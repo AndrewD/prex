@@ -1,3 +1,3 @@
-TASK=	mutex
+TASK=	mutex.rt
 
 include $(SRCDIR)/mk/task.mk

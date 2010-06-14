@@ -27,12 +27,12 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <prex/signal.h>
-#include <server/proc.h>
-#include <server/fs.h>
-#include <server/stdmsg.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <sys/signal.h>
+#include <ipc/proc.h>
+#include <ipc/fs.h>
+#include <ipc/ipc.h>
 
 #include <stddef.h>
 #include <setjmp.h>
@@ -43,7 +43,7 @@ static void __child_entry(void);
 
 static jmp_buf __fork_env;
 static pid_t __child_pid;
-static thread_t __parent_th;
+static thread_t __parent_thread;
 
 /*
  * vfork() - vfork for No-MMU system.
@@ -78,16 +78,16 @@ static thread_t __parent_th;
  * - Pending signals are cleared.
  *
  * - File lock is not inherited.
- * - File descriptor is same
- * - Directory stream is same
+ * - File descriptor is shared.
+ * - Directory stream is shared.
  */
 pid_t
 vfork(void)
 {
 	struct msg m;
 	task_t tsk;
-	thread_t th;
-	int err, sts, prio;
+	thread_t t;
+	int error, sts, pri;
 
 	/* Save current stack pointer */
 	sts = setjmp(__fork_env);
@@ -95,13 +95,13 @@ vfork(void)
 		/*
 		 * Create new task
 		 */
-		if ((err = task_create(task_self(), VM_SHARE, &tsk)) != 0) {
-			errno = err;
+		if ((error = task_create(task_self(), VM_SHARE, &tsk)) != 0) {
+			errno = error;
 			return -1;
 		}
-		if ((err = thread_create(tsk, &th)) != 0) {
+		if ((error = thread_create(tsk, &t)) != 0) {
 			task_terminate(tsk);
-			errno = err;
+			errno = error;
 			return -1;
 		}
 		/*
@@ -130,31 +130,31 @@ vfork(void)
 		 * the child's priority to lower value. This ugly hack
 		 * will be replaced by some other methods...
 		 */
-		thread_load(th, __child_entry, NULL);
-		thread_getprio(th, &prio);
-		thread_setprio(th, prio + 1);
-		thread_resume(th);
+		thread_load(t, __child_entry, NULL);
+		thread_getpri(t, &pri);
+		thread_setpri(t, pri + 1);
+		thread_resume(t);
 
 		/*
 		 * Suspend until child process calls exec() or exit()
 		 */
-		__parent_th = thread_self();
+		__parent_thread = thread_self();
 		task_suspend(task_self());
 
 	} else if (sts == 1) {
 		/*
 		 * Child task
 		 */
-		thread_load(__parent_th, __parent_entry, NULL);
-
-		th = thread_self();
-		thread_getprio(th, &prio);
-		thread_setprio(th, prio - 1);
+		thread_load(__parent_thread, __parent_entry, NULL);
+		t = thread_self();
+		thread_getpri(t, &pri);
+		thread_setpri(t, pri - 1);
 
 #ifdef _REENTRANT
-		err = mutex_init(&__sig_lock);
+		error = mutex_init(&__sig_lock);
 #endif
 		__sig_pending = 0;
+		thread_yield();
 		return 0;
 	}
 	return __child_pid;

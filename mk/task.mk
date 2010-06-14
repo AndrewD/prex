@@ -1,33 +1,34 @@
+# Rules to compile a real-time task
+
 include $(SRCDIR)/mk/own.mk
 
-INCLUDE=	-I$(SRCDIR) -I$(SRCDIR)/include -I$(SRCDIR)/usr/include
+DEFS+=		_STANDALONE
+INCSDIR+=	$(SRCDIR)/usr/include
+LIBSDIR+=	$(SRCDIR)/usr/lib
+CRT0:=		$(SRCDIR)/usr/lib/crt0.o
+LIBC:=		$(SRCDIR)/usr/lib/libsa.a
 
-ASFLAGS+=	$(INCLUDE)
-CFLAGS+=	$(INCLUDE) -nostdinc -D_STANDALONE
-CPPFLAGS+=	$(INCLUDE) -nostdinc -D_STANDALONE
-LDFLAGS+=	-static $(USR_LDFLAGS)
-
-LIBC=		$(SRCDIR)/usr/lib/libsa.a
-CRT0=		$(SRCDIR)/usr/lib/crt0.o
-TYPE=		EXEC
-
-ifeq ($(CONFIG_MMU), y)
-LD_SCRIPT=	$(SRCDIR)/usr/arch/$(ARCH)/user.ld
+ifeq ($(CONFIG_MMU),y)
+LDSCRIPT:=	$(SRCDIR)/usr/arch/$(ARCH)/user.ld
+STRIPFLAG:=	-s
 else
-LD_SCRIPT=	$(SRCDIR)/usr/arch/$(ARCH)/user-nommu.ld
-LDFLAGS+=	--relocatable -d
+LDSCRIPT:=	$(SRCDIR)/usr/arch/$(ARCH)/user-nommu.ld
+STRIPFLAG:=	--strip-debug --strip-unneeded
+_RELOC_OBJ_:=	1
 endif
 
 ifdef TASK
-TARGET ?= $(TASK)
-endif
-
-ifndef OBJS
-ifdef SRCS
-OBJS= $(SRCS:.c=.o)
-else
-OBJS= $(TARGET).o
+TARGET?=	$(TASK)
+ifndef SRCS
+SRCS:=		$(basename $(TASK)).c
 endif
 endif
 
-include $(SRCDIR)/mk/Makefile.inc
+include $(SRCDIR)/mk/common.mk
+
+$(TARGET): $(LIBS) $(OBJS)
+	$(call echo-file,LD     ,$@)
+	$(LD) $(LDFLAGS) $(OUTPUT_OPTION) $(CRT0) $(OBJS) $(LIBS) $(LIBC) $(PLATFORM_LIBS)
+	$(ASMGEN)
+	$(SYMGEN)
+	$(STRIP) $(STRIPFLAG) $@

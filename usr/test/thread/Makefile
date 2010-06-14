@@ -1,3 +1,3 @@
-TASK= thread
+TASK= thread.rt
 
 include $(SRCDIR)/mk/task.mk

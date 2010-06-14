@@ -29,9 +29,10 @@
  * formerly known as "elf_abi.h".
  */
 
-#ifndef _SYS_ELF_H
-#define _SYS_ELF_H
+#ifndef _SYS_ELF_H_
+#define _SYS_ELF_H_
 
+#include <sys/cdefs.h>
 #include <machine/types.h>
 
 #include <machine/elf.h>
@@ -363,7 +364,7 @@ typedef struct {
 #define DT_NUM		25		/* Number used. */
 #define DT_LOPROC	0x70000000	/* reserved range for processor */
 #define DT_HIPROC	0x7fffffff	/*  specific dynamic array tags */
-	
+
 /* Standard ELF hashing function */
 unsigned int elf_hash(const unsigned char *name);
 
@@ -456,4 +457,10 @@ struct elf_args {
 
 #define ELF_TARG_VER	1	/* The ver for which this code is intended */
 
-#endif /* _SYS_ELF_H */
+
+__BEGIN_DECLS
+int relocate_rel(Elf32_Rel *, Elf32_Addr, char *);
+int relocate_rela(Elf32_Rela *, Elf32_Addr, char *);
+__END_DECLS
+
+#endif /* _SYS_ELF_H_ */

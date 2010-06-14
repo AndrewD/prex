@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <errno.h>
 
 extern int _mutex_lock(mutex_t *mu);
@@ -38,10 +38,10 @@ extern int _mutex_lock(mutex_t *mu);
 int
 mutex_lock(mutex_t *mu)
 {
-	int err;
+	int error;
 
 	do
-		err = _mutex_lock(mu);
-	while (err == EINTR);
-	return err;
+		error = _mutex_lock(mu);
+	while (error == EINTR);
+	return error;
 }

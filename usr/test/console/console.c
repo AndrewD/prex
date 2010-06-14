@@ -31,7 +31,7 @@
  * console.c - test program for console driver
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <string.h>
 
 int
@@ -39,13 +39,13 @@ main(int argc, char *argv[])
 {
 	device_t console_dev;
 	char buf[] = "ABCDEFGHIJKLMN";
-	int i, err;
+	int i, error;
 	size_t len;
 
 	sys_log("console test program\n");
-	err = device_open("console", 0, &console_dev);
-	if (err)
-		sys_log("device open err!\n");
+	error = device_open("console", 0, &console_dev);
+	if (error)
+		sys_log("device open error!\n");
 
 	/*
 	 * Display 'ABCDE'
@@ -66,15 +66,15 @@ main(int argc, char *argv[])
 	 */
 	sys_log("\ntest an invalid pointer.\n");
 	len = 100;
-	err = device_write(console_dev, 0, &len, 0);
-	if (err)
+	error = device_write(console_dev, 0, &len, 0);
+	if (error)
 		sys_log("OK!\n");
 	else
 		sys_log("Bad!\n");
 
-	err = device_close(console_dev);
-	if (err)
-		sys_log("device close err!\n");
+	error = device_close(console_dev);
+	if (error)
+		sys_log("device close error!\n");
 
        	sys_log("Completed\n");
 	return 0;

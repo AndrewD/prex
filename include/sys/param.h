@@ -34,6 +34,9 @@
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
  */
 
+#ifndef _SYS_PARAM_H_
+#define _SYS_PARAM_H_
+
 #include <conf/config.h>
 
 #ifndef LOCORE
@@ -43,38 +46,51 @@
 /*
  * Machine-independent constants (some used in following include files).
  * Redefined constants are from POSIX 1003.1 limits file.
- *
- * MAXCOMLEN should be >= sizeof(ac_comm) (see <acct.h>)
- * MAXLOGNAME should be >= UT_NAMESIZE (see <utmp.h>)
  */
 #include <sys/syslimits.h>
 
-#define	MAXCOMLEN	16		/* max command name remembered */
-#define	MAXINTERP	32		/* max interpreter file name length */
-#define	MAXLOGNAME	12		/* max login name length */
-#define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */
 #define	NGROUPS		NGROUPS_MAX	/* max number groups */
 #define	NOFILE		OPEN_MAX	/* max open files per process */
 #define	NOGROUP		65535		/* marker for empty group set member */
 #define MAXHOSTNAMELEN	32		/* max hostname size */
 
-/* The following name length include a null-terminate charcter */
+#define	MAXTASKS	256		/* max number of tasks in system */
+#define	MAXTHREADS	128		/* max number of threads per task */
+#define	MAXOBJECTS	32		/* max number of objects per task */
+#define	MAXSYNCS	512		/* max number of synch objects per task */
+#define MAXMEM		(4*1024*1024)	/* max core per task - first # is Mb */
+
+/* The following name length include a null-terminate character */
 #define MAXTASKNAME	12		/* max task name */
 #define MAXDEVNAME	12		/* max device name */
 #define MAXOBJNAME	16		/* max object name */
 #define MAXEVTNAME	12		/* max event name */
 
 #define HZ		CONFIG_HZ	/* ticks per second */
-#define KSTACK_SIZE	768		/* kernel stack size */
-#define USTACK_SIZE	4096		/* user stack size */
-#ifdef CONFIG_MMU
-#define PAGE_SIZE	4096		/* bytes per page */
-#else /* !CONFIG_MMU */
-#define PAGE_SIZE	1024		/* bytes per page */
-#endif /* !CONFIG_MMU */
+#define MAXIRQS		32		/* max number of irq line */
+#define	PASSWORD_LEN	4		/* fixed length, not counting NULL */
 
-#define PRIO_DFLT	200		/* default user priority */
+/*
+ * Priorities.
+ * Probably should not be altered too much.
+ */
+#define PRI_TIMER	15	/* priority for timer thread */
+#define PRI_IST	 	16	/* top priority for interrupt threads */
+#define PRI_DPC	 	33	/* priority for Deferred Procedure Call */
+#define PRI_IDLE	255	/* priority for idle thread */
+#define PRI_REALTIME	127	/* default priority for real-time thread */
+#define PRI_DEFAULT	200	/* default user priority */
+
+#define MAXPRI		0
+#define MINPRI		255
+#define NPRI		(MINPRI + 1)	/* number of thread priority */
+
+/* Server priorities */
+#define PRI_PROC	124	/* process server */
+#define PRI_EXEC	125	/* exec server */
+#define PRI_FS		126	/* file system server */
+#define PRI_POW		100	/* power server */
 
 #ifndef	NULL
 #if !defined(__cplusplus)
@@ -95,22 +111,37 @@
 #endif
 
 #include <machine/limits.h>
+#include <machine/memory.h>
+
+#define KSTACKSZ	768		/* kernel stack size */
+
+#define USRSTACK	(0 + PAGE_SIZE)	/* base address of user stack */
+#define DFLSTKSZ	4096		/* default size of user stack */
+
+#ifdef CONFIG_MMU
+#define user_area(a)	((vaddr_t)(a) <  (vaddr_t)USERLIMIT)
+#else
+#define user_area(a)	1
+#endif
+
+/* Address translation between physical address and kernel viritul address */
+#define ptokv(pa)	(void *)((paddr_t)(pa) + KERNBASE)
+#define kvtop(va)	((paddr_t)(va) - KERNBASE)
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
  * data types (int, long, ...).   The result is u_long and must be cast to
  * any desired pointer type.
  */
-#define	ALIGNBYTES	3
-#define	ALIGN(p)	(((vaddr_t)(p) + ALIGNBYTES) &~ ALIGNBYTES)
+#define	_ALIGNBYTES	(sizeof(int) - 1)
+#define	ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
 /*
  * Memory page
  */
 #define PAGE_MASK	(PAGE_SIZE-1)
-
-#define PAGE_ALIGN(n)	((((vaddr_t)(n)) + PAGE_MASK) & (vaddr_t)~PAGE_MASK)
-#define PAGE_TRUNC(n)	(((vaddr_t)(n)) & (vaddr_t)~PAGE_MASK)
+#define trunc_page(x)	((x) & ~PAGE_MASK)
+#define round_page(x)	(((x) + PAGE_MASK) & ~PAGE_MASK)
 
 /*
  * MAXPATHLEN defines the longest permissable path length after expanding
@@ -135,12 +166,22 @@
 #define	howmany(x, y)	(((x)+((y)-1))/(y))
 #endif
 #define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))
+#define rounddown(x,y)  (((x)/(y))*(y))
 #define powerof2(x)	((((x)-1)&(x))==0)
 
 /* Macros for min/max. */
-#ifndef KERNEL
 #define	MIN(a,b) (((a)<(b))?(a):(b))
 #define	MAX(a,b) (((a)>(b))?(a):(b))
-#endif
 
 #define	BSIZE	512		/* size of secondary block (bytes) */
+
+/*
+ * Macro to convert milliseconds and tick.
+ */
+#define mstohz(ms)	(((ms) + 0UL) * HZ / 1000)
+
+#define hztoms(tick)	((tick) >= 0x20000 ? \
+			 (((tick) + 0u) / HZ) * 1000u : \
+			 (((tick) + 0u) * 1000u) / HZ)
+
+#endif /* !_SYS_PARAM_H_ */

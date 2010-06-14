@@ -60,7 +60,7 @@
 #define VMIN		16	/* !ICANON */
 #define VTIME		17	/* !ICANON */
 #define VSTATUS		18	/* ICANON */
-/*			19	   spare 2 */
+#define VDDB		19	/* Prex: debugger key */
 #define	NCCS		20
 
 #define _POSIX_VDISABLE	((unsigned char)'\377')
@@ -111,7 +111,6 @@
 #define CRTSCTS		CCTS_OFLOW	/* ??? */
 #define CRTS_IFLOW	0x00020000	/* RTS flow control of input */
 #define	MDMBUF		0x00100000	/* flow control output via Carrier */
-
 
 /*
  * "Local" flags - dumping ground for other state
@@ -240,20 +239,6 @@ struct winsize {
 	unsigned short	ws_ypixel;	/* vertical size, pixels */
 };
 
-#define	TIOCMODG	_IOR('t', 3, int)	/* get modem control state */
-#define	TIOCMODS	_IOW('t', 4, int)	/* set modem control state */
-#define		TIOCM_LE	0001		/* line enable */
-#define		TIOCM_DTR	0002		/* data terminal ready */
-#define		TIOCM_RTS	0004		/* request to send */
-#define		TIOCM_ST	0010		/* secondary transmit */
-#define		TIOCM_SR	0020		/* secondary receive */
-#define		TIOCM_CTS	0040		/* clear to send */
-#define		TIOCM_CAR	0100		/* carrier detect */
-#define		TIOCM_CD	TIOCM_CAR
-#define		TIOCM_RNG	0200		/* ring */
-#define		TIOCM_RI	TIOCM_RNG
-#define		TIOCM_DSR	0400		/* data set ready */
-						/* 8-10 compat */
 #define	TIOCEXCL	 _IO('t', 13)		/* set exclusive use of tty */
 #define	TIOCNXCL	 _IO('t', 14)		/* reset exclusive use of tty */
 						/* 15 unused */
@@ -276,36 +261,25 @@ struct winsize {
 #define	TIOCOUTQ	_IOR('t', 115, int)	/* output queue size */
 #define	TIOCSTI		_IOW('t', 114, char)	/* simulate terminal input */
 #define	TIOCNOTTY	 _IO('t', 113)		/* void tty association */
-#define	TIOCPKT		_IOW('t', 112, int)	/* pty: set/clear packet mode */
-#define		TIOCPKT_DATA		0x00	/* data packet */
-#define		TIOCPKT_FLUSHREAD	0x01	/* flush packet */
-#define		TIOCPKT_FLUSHWRITE	0x02	/* flush packet */
-#define		TIOCPKT_STOP		0x04	/* stop output */
-#define		TIOCPKT_START		0x08	/* start output */
-#define		TIOCPKT_NOSTOP		0x10	/* no more ^S, ^Q */
-#define		TIOCPKT_DOSTOP		0x20	/* now do ^S ^Q */
-#define		TIOCPKT_IOCTL		0x40	/* state change of pty driver */
+
 #define	TIOCSTOP	 _IO('t', 111)		/* stop output, like ^S */
 #define	TIOCSTART	 _IO('t', 110)		/* start output, like ^Q */
 #define	TIOCMSET	_IOW('t', 109, int)	/* set all modem bits */
 #define	TIOCMBIS	_IOW('t', 108, int)	/* bis modem bits */
 #define	TIOCMBIC	_IOW('t', 107, int)	/* bic modem bits */
 #define	TIOCMGET	_IOR('t', 106, int)	/* get all modem bits */
-#define	TIOCREMOTE	_IOW('t', 105, int)	/* remote input editing */
 #define	TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
 #define	TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
-#define	TIOCUCNTL	_IOW('t', 102, int)	/* pty: set/clr usr cntl mode */
 #define		UIOCCMD(n)	_IO('u', n)	/* usr cntl op "n" */
 #define	TIOCCONS	_IOW('t', 98, int)	/* become virtual console */
 #define	TIOCSCTTY	 _IO('t', 97)		/* become controlling tty */
-#define	TIOCEXT		_IOW('t', 96, int)	/* pty: external processing */
-#define	TIOCSIG		 _IO('t', 95)		/* pty: generate signal */
 #define	TIOCDRAIN	 _IO('t', 94)		/* wait till output drained */
 
 #define	TTYDISC		0		/* termios tty line discipline */
 #define	TABLDISC	3		/* tablet discipline */
 #define	SLIPDISC	4		/* serial IP discipline */
 
+/* Prex unique */
 #define	TIOCSETSIGT	_IOW('t', 200, int)	/* set signal task */
 #define TIOCINQ		_IOR('t', 201, int)	/* input queue size */
 
@@ -344,6 +318,7 @@ struct winsize {
 #define	CBRK		CEOL
 #define CRPRNT		CREPRINT
 #define	CFLUSH		CDISCARD
+#define	CKDB		CTRL('k')
 
 #ifdef KERNEL
 /*
@@ -353,7 +328,7 @@ struct winsize {
 { \
 	CEOF,	CEOL,	CEOL,	CERASE, CWERASE, CKILL, CREPRINT, \
 	_POSIX_VDISABLE, CINTR,	CQUIT,	CSUSP,	CDSUSP,	CSTART,	CSTOP,	CLNEXT, \
-	CDISCARD, CMIN,	CTIME,  CSTATUS, _POSIX_VDISABLE \
+	CDISCARD, CMIN,	CTIME,  CSTATUS, CKDB \
 }
 #endif /* KERNEL */
 

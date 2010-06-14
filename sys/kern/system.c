@@ -35,87 +35,71 @@
 #include <thread.h>
 #include <sched.h>
 #include <task.h>
+#include <vm.h>
 #include <irq.h>
 #include <page.h>
 #include <device.h>
 #include <system.h>
-#include <version.h>
+#include <hal.h>
+#include <sys/dbgctl.h>
 
-/*
- * kernel information.
- */
-static const struct info_kernel infokern = {
-	"Prex",	VERSION, __DATE__, MACHINE, "preky"
+static char	infobuf[MAXINFOSZ];	/* common information buffer */
+
+static const struct kerninfo kerninfo = {
+	"Prex",	HOSTNAME, VERSION, __DATE__, MACHINE
 };
 
 /*
- * Logging system call.
- *
- * Write a message to the logging device.  The log function is
- * available only when kernel is built with debug option.
+ * Get system information.
  */
 int
-sys_log(const char *str)
+sysinfo(int type, void *buf)
 {
-#ifdef DEBUG
-	char buf[DBGMSG_SIZE];
-	size_t len;
-
-	if (umem_strnlen(str, DBGMSG_SIZE, &len))
-		return EFAULT;
-	if (len >= DBGMSG_SIZE)
-		return EINVAL;
-	if (umem_copyin(str, buf, len + 1))
-		return EFAULT;
-	printf(buf);
-	return 0;
-#else
-	return ENOSYS;
-#endif
-}
-
-/*
- * Panic system call.
- *
- * If kernel is built with debug option, sys_panic() displays
- * a panic message and stops the enture system. Otherwise, it
- * terminates the task which called sys_panic().
- */
-int
-sys_panic(const char *str)
-{
-#ifdef DEBUG
-	task_t self = cur_task();
-
-	irq_lock();
-	printf("\nUser mode panic: task:%s thread:%x\n",
-	       self->name != NULL ? self->name : "no name", cur_thread);
-
-	sys_log(str);
-	printf("\n");
+	int error = 0;
 
 	sched_lock();
-	irq_unlock();
 
-	for (;;);
-#else
-	task_terminate(cur_task());
-#endif
-	/* NOTREACHED */
-	return 0;
+	switch (type) {
+	case INFO_KERNEL:
+		memcpy(buf, &kerninfo, sizeof(kerninfo));
+		break;
+	case INFO_MEMORY:
+		page_info(buf);
+		break;
+	case INFO_TIMER:
+		timer_info(buf);
+		break;
+	case INFO_THREAD:
+		error = thread_info(buf);
+		break;
+	case INFO_DEVICE:
+		error = device_info(buf);
+		break;
+	case INFO_TASK:
+		error = task_info(buf);
+		break;
+	case INFO_VM:
+		error = vm_info(buf);
+		break;
+	case INFO_IRQ:
+		error = irq_info(buf);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	sched_unlock();
+	return error;
 }
 
 /*
- * Get system information
+ * System call to get system information.
  */
 int
 sys_info(int type, void *buf)
 {
-	struct info_memory infomem;
-	struct info_timer infotmr;
-	struct info_thread infothr;
-	struct info_device infodev;
-	int err = 0;
+	int error;
+	size_t bufsz = 0;
 
 	if (buf == NULL || !user_area(buf))
 		return EFAULT;
@@ -124,47 +108,119 @@ sys_info(int type, void *buf)
 
 	switch (type) {
 	case INFO_KERNEL:
-		err = umem_copyout(&infokern, buf, sizeof(infokern));
+		bufsz = sizeof(struct kerninfo);
 		break;
-
 	case INFO_MEMORY:
-		page_info(&infomem);
-		err = umem_copyout(&infomem, buf, sizeof(infomem));
+		bufsz = sizeof(struct meminfo);
 		break;
-
-	case INFO_THREAD:
-		if (umem_copyin(buf, &infothr, sizeof(infothr))) {
-			err = EFAULT;
-			break;
-		}
-		if ((err = thread_info(&infothr)))
-			break;
-		infothr.cookie++;
-		err = umem_copyout(&infothr, buf, sizeof(infothr));
-		break;
-
-	case INFO_DEVICE:
-		if (umem_copyin(buf, &infodev, sizeof(infodev))) {
-			err = EFAULT;
-			break;
-		}
-		if ((err = device_info(&infodev)))
-			break;
-		infodev.cookie++;
-		err = umem_copyout(&infodev, buf, sizeof(infodev));
-		break;
-
 	case INFO_TIMER:
-		timer_info(&infotmr);
-		err = umem_copyout(&infotmr, buf, sizeof(infotmr));
+		bufsz = sizeof(struct timerinfo);
 		break;
-
+	case INFO_THREAD:
+		bufsz = sizeof(struct threadinfo);
+		break;
+	case INFO_DEVICE:
+		bufsz = sizeof(struct devinfo);
+		break;
+	case INFO_TASK:
+		bufsz = sizeof(struct taskinfo);
+		break;
+	case INFO_VM:
+		bufsz = sizeof(struct vminfo);
+		break;
+	case INFO_IRQ:
+		bufsz = sizeof(struct irqinfo);
+		break;
 	default:
-		err = EINVAL;
-		break;
+		sched_unlock();
+		return EINVAL;
+	}
+
+	error = copyin(buf, &infobuf, bufsz);
+	if (!error) {
+		error = sysinfo(type, &infobuf);
+		if (!error) {
+			error = copyout(&infobuf, buf, bufsz);
+		}
 	}
 	sched_unlock();
-	return err;
+	return error;
+}
+
+/*
+ * Logging system call.
+ *
+ * Write a message to the logging device.  The log
+ * function is available only when kernel is built
+ * with debug option.
+ */
+int
+sys_log(const char *str)
+{
+#ifdef DEBUG
+	char buf[DBGMSGSZ];
+
+	if (copyinstr(str, buf, DBGMSGSZ))
+		return EINVAL;
+
+	printf("%s", buf);
+	return 0;
+#else
+	return ENOSYS;
+#endif
+}
+
+/*
+ * Kernel debug service.
+ */
+int
+sys_debug(int cmd, void *data)
+{
+#ifdef DEBUG
+	int error = EINVAL;
+	task_t task = 0;
+
+	switch (cmd) {
+	case DBGC_LOGSIZE:
+	case DBGC_GETLOG:
+		error = dbgctl(cmd, data);
+		break;
+	case DBGC_TRACE:
+		task = (task_t)data;
+		if (!task_valid(task)) {
+			error = ESRCH;
+			break;
+		}
+		dbgctl(cmd, (void *)task);
+		error = 0;
+		break;
+	}
+	return error;
+#else
+	return ENOSYS;
+#endif
+}
+
+/*
+ * Panic system call.
+ */
+int
+sys_panic(const char *str)
+{
+#ifdef DEBUG
+	char buf[DBGMSGSZ];
+
+	sched_lock();
+	copyinstr(str, buf, DBGMSGSZ - 20);
+	printf("User panic: %s\n", str);
+	printf(" task=%s thread=%lx\n", curtask->name, (long)curthread);
+
+	machine_abort();
+	/* NOTREACHED */
+#else
+	task_terminate(curtask);
+#endif
+	return 0;
 }
 
 /*
@@ -175,41 +231,15 @@ sys_time(u_long *ticks)
 {
 	u_long t;
 
-	t = timer_count();
-	return umem_copyout(&t, ticks, sizeof(t));
+	t = timer_ticks();
+	return copyout(&t, ticks, sizeof(t));
 }
 
 /*
- * Kernel debug service.
+ * nonexistent system call.
  */
 int
-sys_debug(int cmd, void *data)
+sys_nosys(void)
 {
-#ifdef DEBUG
-	int err = EINVAL;
-	size_t size;
-	int item;
-
-	switch (cmd) {
-	case DCMD_DUMP:
-		if (umem_copyin(data, &item, sizeof(item)))
-			err = EFAULT;
-		else
-			err = debug_dump(item);
-		break;
-	case DCMD_LOGSIZE:
-		size = LOGBUF_SIZE;
-		err = umem_copyout(&size, data, sizeof(size));
-		break;
-	case DCMD_GETLOG:
-		err = debug_getlog(data);
-		break;
-	default:
-		/* DO NOTHING */
-		break;
-	}
-	return err;
-#else
-	return ENOSYS;
-#endif
+	return EINVAL;
 }

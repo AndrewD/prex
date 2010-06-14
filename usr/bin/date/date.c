@@ -29,6 +29,8 @@
 
 #include <errno.h>
 #include <time.h>
+#include <err.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 #ifdef CMDBOX
@@ -42,7 +44,10 @@ main(int argc, char *argv[])
 	char buf[201];
 	char format[] = "%a %b %e %H:%M:%S %Y";
 
-	time(&tval);
+	if (time(&tval) == -1) {
+		warn("time");
+		exit(1);
+	}
 	strftime(buf, sizeof(buf), format, localtime(&tval));
 	printf("%s\n", buf);
 	return 0;

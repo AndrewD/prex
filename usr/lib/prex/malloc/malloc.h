@@ -27,11 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/param.h>
 
-/* #define CONFIG_MSTAT		1 */
-/* #define CONFIG_MCHECK	1 */
+/* #define DEBUG_MALLOC	1 */
 
 #define MALLOC_MAGIC	(int)0xBAADF00D	/* "bad food" from LocalAlloc :) */
 
@@ -51,7 +50,7 @@ struct header {
 	struct header *next;
 	size_t size;
 	size_t vm_size;
-#ifdef CONFIG_MCHECK
+#ifdef DEBUG_MALLOC
 	int magic;
 #endif
 };

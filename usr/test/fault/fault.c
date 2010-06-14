@@ -30,13 +30,13 @@
 /*
  * fault.c - page fault test
  */
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 int
 main(int argc, char *argv[])
 {
-	u_char c;
+	int c;
 	volatile int data;	/* prevent optimization from gcc */
 	char *ptr;
 

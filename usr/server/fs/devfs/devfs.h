@@ -30,7 +30,7 @@
 #ifndef _DEVFS_H
 #define _DEVFS_H
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/types.h>
 
 #include <assert.h>
@@ -39,7 +39,7 @@
 
 #ifdef DEBUG_DEVFS
 #define DPRINTF(a)	dprintf a
-#define ASSERT(e)	assert(e)
+#define ASSERT(e)	dassert(e)
 #else
 #define DPRINTF(a)	do {} while (0)
 #define ASSERT(e)

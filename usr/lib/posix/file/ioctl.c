@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/fs.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/fs.h>
 #include <sys/ioctl.h>
 
 #include <errno.h>
@@ -37,57 +37,61 @@
 #include <string.h>
 
 int
-ioctl(int fd, unsigned long request, ...)
+ioctl(int fd, unsigned long cmd, ...)
 {
 	struct ioctl_msg m;
 	char *argp;
 	va_list args;
 	size_t size;
-	struct stat st;
-	int err;
+	int retval = 0;
 
-	va_start(args, request);
+	va_start(args, cmd);
 	argp = va_arg(args, char *);
 	va_end(args);
 
-	size = IOCPARM_LEN(request);
+	/*
+	 * Check the parameter size
+	 */
+	size = IOCPARM_LEN(cmd);
 	if (size > IOCPARM_MAX) {
-		errno = ENOTTY;
+		errno = EINVAL;
 		return -1;
 	}
 
-	if (fstat(fd, &st) == -1)
-		return -1;
-	if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
-		/*
-		 * Note: The file system server can not handle the
-		 * poniter type arguent for ioctl(). So, we have to
-		 * invoke the ioctl here if the target file is a device.
-		 */
-		err = device_ioctl(st.st_rdev, request, argp);
-		if (err != 0) {
-			errno = err;
-			return -1;
-		}
-		return 0;
-	}
 	/*
-	 * Note:
-	 *  We can not know if the argument is pointer or int value.
-	 *  So, if it is an input request and its length is sizeof(int),
-	 *  we handle it as direct value.
+	 * Check fault
 	 */
-	if (((request & IOC_DIRMASK) == IOC_IN) && (size == sizeof(int)))
-		*((int *)m.buf) = (int)argp;
-	else if ((request & IOC_IN) && size && argp)
-		memcpy(&m.buf, argp, size);
+	if ((cmd & IOC_IN && (cmd & IOC_IVAL) == 0 && argp == NULL) ||
+	    (cmd & IOC_OUT && (cmd & IOC_OVAL) == 0 && argp == NULL)) {
+		errno = EFAULT;
+		return -1;
+	}
+
+	/*
+	 * Copy in
+	 */
+	if (cmd & IOC_IN) {
+		if (cmd & IOC_IVAL)
+			*((int *)m.buf) = (int)argp;
+		else
+			memcpy(&m.buf, argp, size);
+	}
 
 	m.hdr.code = FS_IOCTL;
 	m.fd = fd;
-	m.request = request;
+	m.request = cmd;
 	if (__posix_call(__fs_obj, &m, sizeof(m), 0) != 0)
 		return -1;
-	if ((request & IOC_OUT) && size && argp)
-		memcpy(argp, &m.buf, size);
-	return 0;
+
+	/*
+	 * Copy out
+	 */
+	if (cmd & IOC_OUT) {
+		if (cmd & IOC_OVAL)
+			retval = *((int *)m.buf);
+		else
+			memcpy(argp, &m.buf, size);
+	}
+
+	return retval;
 }

@@ -41,7 +41,7 @@
  * archive file image. All files are placed in one single directory.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
@@ -118,18 +118,18 @@ static int
 arfs_readblk(mount_t mp, int blkno)
 {
 	struct buf *bp;
-	int err;
+	int error;
 
 	/*
 	 * Read two blocks for archive header
 	 */
-	if ((err = bread(mp->m_dev, blkno, &bp)) != 0)
-		return err;
+	if ((error = bread(mp->m_dev, blkno, &bp)) != 0)
+		return error;
 	memcpy(iobuf, bp->b_data, BSIZE);
 	brelse(bp);
 
-	if ((err = bread(mp->m_dev, blkno + 1, &bp)) != 0)
-		return err;
+	if ((error = bread(mp->m_dev, blkno + 1, &bp)) != 0)
+		return error;
 	memcpy(iobuf + BSIZE, bp->b_data, BSIZE);
 	brelse(bp);
 
@@ -144,7 +144,7 @@ static int
 arfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 {
 	struct ar_hdr *hdr;
-	int blkno, err;
+	int blkno, error;
 	off_t off;
 	size_t size;
 	mount_t mp;
@@ -156,7 +156,7 @@ arfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 
 	mutex_lock(&arfs_lock);
 
-	err = ENOENT;
+	error = ENOENT;
 	mp = vp->v_mount;
 	blkno = 0;
 	off = SARMAG;	/* offset in archive image */
@@ -191,22 +191,22 @@ arfs_lookup(vnode_t dvp, char *name, vnode_t vp)
 	vp->v_type = VREG;
 
 	/* No write access */
-	vp->v_mode = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+	vp->v_mode = (mode_t)(S_IRUSR | S_IXUSR);
 	vp->v_size = size;
 	vp->v_blkno = blkno;
 	vp->v_data = (void *)(off + sizeof(struct ar_hdr));
-	err = 0;
+	error = 0;
  out:
 	mutex_unlock(&arfs_lock);
-	DPRINTF(("arfs_lookup: err=%d\n\n", err));
-	return err;
+	DPRINTF(("arfs_lookup: error=%d\n\n", error));
+	return error;
 }
 
 static int
 arfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 {
 	off_t off, file_pos, buf_pos;
-	int blkno, err;
+	int blkno, error;
 	size_t nr_read, nr_copy;
 	mount_t mp;
 	struct buf *bp;
@@ -220,7 +220,7 @@ arfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	/* Check if current file position is already end of file. */
 	file_pos = fp->f_offset;
 	if (file_pos >= (off_t)vp->v_size) {
-		err = 0;
+		error = 0;
 		goto out;
 	}
 	/* Get the actual read size. */
@@ -236,7 +236,7 @@ arfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 
 		blkno = (off + file_pos) / BSIZE;
 		buf_pos = (off + file_pos) % BSIZE;
-		if ((err = bread(mp->m_dev, blkno, &bp)) != 0)
+		if ((error = bread(mp->m_dev, blkno, &bp)) != 0)
 			goto out;
 		nr_copy = BSIZE;
 		if (buf_pos > 0)
@@ -260,11 +260,11 @@ arfs_read(vnode_t vp, file_t fp, void *buf, size_t size, size_t *result)
 	}
 	fp->f_offset = file_pos;
 	*result = nr_read;
-	err = 0;
+	error = 0;
  out:
 	mutex_unlock(&arfs_lock);
-	DPRINTF(("arfs_read: err=%d\n\n", err));
-	return err;
+	DPRINTF(("arfs_read: error=%d\n\n", error));
+	return error;
 }
 
 /*
@@ -284,7 +284,7 @@ static int
 arfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 {
 	struct ar_hdr *hdr;
-	int blkno, i, err;
+	int blkno, i, error;
 	off_t off;
 	size_t size;
 	mount_t mp;
@@ -299,7 +299,7 @@ arfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 	off = SARMAG;	/* offset in archive image */
 	for (;;) {
 		/* Read two blocks for archive header */
-		if ((err = arfs_readblk(mp, blkno)) != 0)
+		if ((error = arfs_readblk(mp, blkno)) != 0)
 			goto out;
 
 		hdr = (struct ar_hdr *)(iobuf + (off % BSIZE));
@@ -307,7 +307,7 @@ arfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 		/* Get file size */
 		size = (size_t)atol((char *)&hdr->ar_size);
 		if (size == 0) {
-			err = ENOENT;
+			error = ENOENT;
 			goto out;
 		}
 		if (i == fp->f_offset)
@@ -325,16 +325,17 @@ arfs_readdir(vnode_t vp, file_t fp, struct dirent *dir)
 	if ((p = memchr(&hdr->ar_name, '/', 16)) != NULL)
 		*p = '\0';
 
-	strcpy((char *)&dir->d_name, (char *)&hdr->ar_name);
-	dir->d_namlen = strlen(dir->d_name);
-	dir->d_fileno = fp->f_offset;
+	strlcpy((char *)&dir->d_name, (char *)&hdr->ar_name,
+		sizeof(dir->d_name));
+	dir->d_namlen = (uint16_t)strlen(dir->d_name);
+	dir->d_fileno = (uint32_t)fp->f_offset;
 	dir->d_type = DT_REG;
 
 	fp->f_offset++;
-	err = 0;
+	error = 0;
  out:
 	mutex_unlock(&arfs_lock);
-	return err;
+	return error;
 }
 
 

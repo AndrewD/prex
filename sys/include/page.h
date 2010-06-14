@@ -30,13 +30,15 @@
 #ifndef _PAGE_H
 #define _PAGE_H
 
+#include <types.h>
 #include <sys/cdefs.h>
+#include <sys/sysinfo.h>
 
 __BEGIN_DECLS
-void	*page_alloc(size_t);
-void	 page_free(void *, size_t);
-int	 page_reserve(void *, size_t);
-void	 page_info(struct info_memory *);
+paddr_t	 page_alloc(psize_t);
+void	 page_free(paddr_t, psize_t);
+int	 page_reserve(paddr_t, psize_t);
+void	 page_info(struct meminfo *);
 void	 page_init(void);
 __END_DECLS
 

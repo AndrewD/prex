@@ -31,7 +31,7 @@
  * sem.c - sample program for semaphore.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 static sem_t sem;
@@ -39,15 +39,15 @@ static sem_t sem;
 void
 thread_run(void (*start)(void), void *stack)
 {
-	thread_t th;
+	thread_t t;
 
-	if (thread_create(task_self(), &th) != 0)
+	if (thread_create(task_self(), &t) != 0)
 		panic("thread_create is failed");
 
-	if (thread_load(th, start, stack) != 0)
+	if (thread_load(t, start, stack) != 0)
 		panic("thread_load is failed");
 
-	if (thread_resume(th) != 0)
+	if (thread_resume(t) != 0)
 		panic("thread_resume failed");
 
 	return;
@@ -60,10 +60,10 @@ thread_run(void (*start)(void), void *stack)
 static void
 new_thread(void)
 {
-	thread_t th;
+	thread_t t;
 
-	th = thread_self();
-	printf("Start thread=%x\n", (u_int)th);
+	t = thread_self();
+	printf("Start thread=%x\n", (u_int)t);
 	thread_yield();
 
 	/*
@@ -74,7 +74,7 @@ new_thread(void)
 	/*
 	 * Sleep 2000 ms
 	 */
-	printf("Running thread=%x\n", (u_int)th);
+	printf("Running thread=%x\n", (u_int)t);
 	timer_sleep(2000, 0);
 
 	/*
@@ -82,8 +82,8 @@ new_thread(void)
 	 */
 	sem_post(&sem);	
 
-	printf("End thread=%x\n", (u_int)th);
-	thread_terminate(th);
+	printf("End thread=%x\n", (u_int)t);
+	thread_terminate(t);
 }
 
 int
@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 	/*
 	 * Boost the priority of this thread
 	 */
-	thread_setprio(thread_self(), 100);
+	thread_setpri(thread_self(), 100);
 
 	/*
 	 * Create 10 threads

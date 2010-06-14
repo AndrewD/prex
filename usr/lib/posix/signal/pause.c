@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/signal.h>
+#include <sys/prex.h>
+#include <sys/signal.h>
 
 #include <stddef.h>
 #include <signal.h>

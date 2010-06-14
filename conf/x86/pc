@@ -1,0 +1,141 @@
+#
+# Prex system configuration file
+#
+
+#
+# Make options
+#
+makeoptions	GCCFLAGS+= -march=i386
+makeoptions	GCCFLAGS+= -mpreferred-stack-boundary=2
+
+#
+# Memory address
+#
+memory		LOADER_TEXT	0x00004000	# Start of boot loader
+memory		KERNEL_TEXT	0x80010000	# Start of kernel
+memory		BOOTIMG_BASE	0x80100000	# Location of boot image
+memory		SYSPAGE_BASE	0x80000000	# Location of system page
+
+#
+# Tunable paramters
+#
+options 	HZ=1000		# Ticks/second of the clock
+options 	TIME_SLICE=50	# Context switch ratio (msec)
+options 	OPEN_MAX=16	# Max open files per process
+options 	BUF_CACHE=32	# Blocks for buffer cache
+options 	FS_THREADS=4	# Number of file system threads
+
+#
+# Platform settings
+#
+options		I386		# Processor type
+options 	MMU		# Memory management unit
+options 	CACHE		# Cache memory
+#options 	FPU		# Floating point unit
+#options 	ROMBOOT		# Boot from ROM
+options 	BOOTDISK	# Disk for /boot directory
+
+#
+# General setup
+#
+options 	POSIX		# POSIX support
+options 	CMDBOX		# Core utilities
+#options 	TINY		# Optimize for size
+
+#
+# Kernel hacking
+#
+options 	KD		# Kernel debugger
+#options 	AUDIT		# Security auditing
+
+#
+# Diagnostic options
+#
+#options 	DIAG_SCREEN	# Diagnostic via screen
+#options 	DIAG_SERIAL	# Diagnostic via serial port
+options 	DIAG_BOCHS	# Diagnostic via Bochs emulater
+
+#
+# File systems
+#
+options 	FIFOFS		# FIFO & Pipe
+options 	DEVFS		# Device file system
+options 	RAMFS		# RAM file system
+options 	ARFS		# Archive file system
+options 	FATFS		# FAT file system
+
+#
+# Power management
+#
+options 	PM		# Power management
+#options 	PM_POWERSAVE	# Power policy: Battery optimized
+options 	PM_PERFORMANCE	# Power policy: Parformance optimized
+options 	DVS_EMULATION	# Dynamic voltage scaling emulation
+
+#
+# Device drivers (initialization order)
+#
+device		pm		# Power management
+device		i8237		# I8237 DMA controller
+device		cons		# System console
+device		wscons		# Workstation console
+device		pckbd	    	# PC/AT Keyboard (P:wscons)
+device		vga	    	# VGA video (P:wscons)
+#device		serial		# Logical serial
+#device		ns16550	    	# NS16550 serial port (P:serial)
+#device		psaux		# PS/2 Mouse
+device		cpufreq		# CPU frequency controll
+device		est	    	# Intel enhanced speedstep (P:cpufreq)
+device		rtc		# Logical RTC
+device		mc146818	# MC146818 Real time clock (P:rtc)
+device		null		# NULL device
+device		zero		# Zero device
+device		ramdisk		# RAM disk
+device		fdd		# Floppy disk drive
+
+#
+# Hardware configuations
+#
+options		NS16550_BASE=0x3f8
+options		NS16550_IRQ=4
+options		MC146818_BASE=0x70
+
+#
+# Command box
+#
+command 	cat
+command 	clear
+command 	cp
+command 	date
+command 	dmesg
+command 	echo
+command 	free
+command 	head
+command 	hostname
+command 	kill
+command 	ls
+command 	mkdir
+command 	more
+command 	mv
+command 	nice
+command 	printenv
+command 	ps
+command 	pwd
+command 	rm
+command 	rmdir
+command 	sh
+command 	sleep
+command 	sync
+#command 	test
+command 	touch
+command 	uname
+
+#
+# Adminisrative tools
+#
+command 	diskutil
+command 	install
+command 	pmctrl
+command 	ktrace
+command 	lock
+command 	debug

@@ -78,47 +78,13 @@
 /* non-blocking and interrupt i/o */
 #define	EAGAIN		35		/* Resource temporarily unavailable */
 #define	EWOULDBLOCK	EAGAIN		/* Operation would block */
-#define	EINPROGRESS	36		/* Operation now in progress */
-#define	EALREADY	37		/* Operation already in progress */
 
-/* ipc/network software -- argument errors */
-#define	ENOTSOCK	38		/* Socket operation on non-socket */
-#define	EDESTADDRREQ	39		/* Destination address required */
-#define	EMSGSIZE	40		/* Message too long */
-#define	EPROTOTYPE	41		/* Protocol wrong type for socket */
-#define	ENOPROTOOPT	42		/* Protocol not available */
-#define	EPROTONOSUPPORT	43		/* Protocol not supported */
-#define	ESOCKTNOSUPPORT	44		/* Socket type not supported */
-#define	EOPNOTSUPP	45		/* Operation not supported */
-#define	EPFNOSUPPORT	46		/* Protocol family not supported */
-#define	EAFNOSUPPORT	47		/* Address family not supported by protocol family */
-#define	EADDRINUSE	48		/* Address already in use */
-#define	EADDRNOTAVAIL	49		/* Can't assign requested address */
-
-/* ipc/network software -- operational errors */
-#define	ENETDOWN	50		/* Network is down */
-#define	ENETUNREACH	51		/* Network is unreachable */
-#define	ENETRESET	52		/* Network dropped connection on reset */
-#define	ECONNABORTED	53		/* Software caused connection abort */
-#define	ECONNRESET	54		/* Connection reset by peer */
-#define	ENOBUFS		55		/* No buffer space available */
-#define	EISCONN		56		/* Socket is already connected */
-#define	ENOTCONN	57		/* Socket is not connected */
-#define	ESHUTDOWN	58		/* Can't send after socket shutdown */
-#define	ETOOMANYREFS	59		/* Too many references: can't splice */
-#define	ETIMEDOUT	60		/* Operation timed out */
-#define	ECONNREFUSED	61		/* Connection refused */
-
-#define	ELOOP		62		/* Too many levels of symbolic links */
-#define	ENAMETOOLONG	63		/* File name too long */
-
-/* should be rearranged */
-#define	EHOSTDOWN	64		/* Host is down */
-#define	EHOSTUNREACH	65		/* No route to host */
-#define	ENOTEMPTY	66		/* Directory not empty */
+#define	ETIMEDOUT	36		/* Operation timed out */
+#define	ENAMETOOLONG	37		/* File name too long */
+#define	ENOTEMPTY	38		/* Directory not empty */
 
 /* quotas & mush */
-#define	EPROCLIM	67		/* Too many processes */
-#define	ENOSYS		68		/* Function not implemented */
+#define	EPROCLIM	39		/* Too many processes */
+#define	ENOSYS		40		/* Function not implemented */
 
 #endif /* !_SYS_ERRNO_H_ */

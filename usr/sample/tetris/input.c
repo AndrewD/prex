@@ -41,7 +41,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/termios.h>
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 #include <errno.h>
 #include <unistd.h>

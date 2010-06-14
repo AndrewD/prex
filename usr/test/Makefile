@@ -1,24 +1,17 @@
-#
-# Test for kernel
-#
 include $(SRCDIR)/mk/own.mk
 
-SUBDIR=		task thread ipc timer exception fault deadlock sem mutex \
-		cap dvs ipc_mt kmon
+# Test for kernel
+SUBDIR:=	task thread ipc timer exception fault deadlock sem mutex \
+		cpufreq ipc_mt kmon attack stack memleak object
 
-#
 # Test for driver
-#
 SUBDIR+=	console kbd fdd ramdisk reset time zero
 
-#
 # Test for library
-#
-SUBDIR+=	errno malloc stderr
+SUBDIR+=	errno malloc stderr environ
 
-#
 # Test for servers
-#
-SUBDIR+=	fileio vfork args debug signal fifo pipe
+SUBDIR+=	fileio fork forkbomb args signal fifo pipe dup creat conf \
+		mount umount shutdown
 
 include $(SRCDIR)/mk/subdir.mk

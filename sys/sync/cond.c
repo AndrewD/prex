@@ -33,9 +33,14 @@
 
 #include <kernel.h>
 #include <sched.h>
+#include <event.h>
 #include <kmem.h>
-#include <thread.h>
+#include <task.h>
 #include <sync.h>
+
+/* forward declarations */
+static int	cond_valid(cond_t);
+static int	cond_copyin(cond_t *, cond_t *);
 
 /*
  * Create and initialize a condition variable (CV).
@@ -44,67 +49,78 @@
  * undefined behavior results.
  */
 int
-cond_init(cond_t *cond)
+cond_init(cond_t *cp)
 {
+	task_t self = curtask;
 	cond_t c;
+
+	if (self->nsyncs >= MAXSYNCS)
+		return EAGAIN;
 
 	if ((c = kmem_alloc(sizeof(struct cond))) == NULL)
 		return ENOMEM;
 
-	event_init(&c->event, "condition");
-	c->task = cur_task();
-	c->magic = COND_MAGIC;
+	event_init(&c->event, "condvar");
+	c->owner = self;
 
-	if (umem_copyout(&c, cond, sizeof(c))) {
+	if (copyout(&c, cp, sizeof(c))) {
 		kmem_free(c);
 		return EFAULT;
 	}
+	sched_lock();
+	list_insert(&self->conds, &c->task_link);
+	self->nsyncs++;
+	sched_unlock();
 	return 0;
 }
 
-/*
- * cond_copyin - copy a condition variable from user space.
- *
- * It also checks if the passed CV is valid.
- */
-static int
-cond_copyin(cond_t *ucond, cond_t *kcond)
+static void
+cond_deallocate(cond_t c)
 {
-	cond_t c;
 
-	if (umem_copyin(ucond, &c, sizeof(ucond)))
-		return EFAULT;
-	if (!cond_valid(c))
-		return EINVAL;
-	*kcond = c;
-	return 0;
+	c->owner->nsyncs--;
+	list_remove(&c->task_link);
+	kmem_free(c);
 }
 
 /*
- * Destroy a condition variable.
+ * Tear down a condition variable.
  *
  * If there are any blocked thread waiting for the specified
  * CV, it returns EBUSY.
  */
 int
-cond_destroy(cond_t *cond)
+cond_destroy(cond_t *cp)
 {
 	cond_t c;
-	int err;
 
 	sched_lock();
-	if ((err = cond_copyin(cond, &c))) {
+	if (cond_copyin(cp, &c)) {
 		sched_unlock();
-		return err;
+		return EINVAL;
 	}
 	if (event_waiting(&c->event)) {
 		sched_unlock();
 		return EBUSY;
 	}
-	c->magic = 0;
-	kmem_free(c);
+	cond_deallocate(c);
 	sched_unlock();
 	return 0;
+}
+
+/*
+ * Clean up for task termination.
+ */
+void
+cond_cleanup(task_t task)
+{
+	cond_t c;
+
+	while (!list_empty(&task->conds)) {
+		c = list_entry(list_first(&task->conds),
+			       struct cond, task_link);
+		cond_deallocate(c);
+	}
 }
 
 /*
@@ -118,40 +134,44 @@ cond_destroy(cond_t *cond)
  * EINTR as error.
  */
 int
-cond_wait(cond_t *cond, mutex_t *mtx)
+cond_wait(cond_t *cp, mutex_t *mp)
 {
 	cond_t c;
-	int err, rc;
+	int error, rc;
 
-	if (umem_copyin(cond, &c, sizeof(cond)))
-		return EFAULT;
+	if (copyin(cp, &c, sizeof(cp)))
+		return EINVAL;
 
 	sched_lock();
 	if (c == COND_INITIALIZER) {
-		if ((err = cond_init(cond))) {
+		if ((error = cond_init(cp)) != 0) {
 			sched_unlock();
-			return err;
+			return error;
 		}
-		umem_copyin(cond, &c, sizeof(cond));
+		copyin(cp, &c, sizeof(cp));
 	} else {
 		if (!cond_valid(c)) {
 			sched_unlock();
 			return EINVAL;
 		}
 	}
-	if ((err = mutex_unlock(mtx))) {
+        /* unlock mutex */
+	if ((error = mutex_unlock(mp)) != 0) {
 		sched_unlock();
-		return err;
+		return error;
 	}
 
+	/* and block */
 	rc = sched_sleep(&c->event);
 	if (rc == SLP_INTR)
-		err = EINTR;
+		error = EINTR;
 	sched_unlock();
 
-	if (err == 0)
-		err = mutex_lock(mtx);
-	return err;
+        /* grab mutex before returning */
+	if (error == 0)
+		error = mutex_lock(mp);
+
+	return error;
 }
 
 /*
@@ -159,30 +179,67 @@ cond_wait(cond_t *cond, mutex_t *mtx)
  * The thread which has highest priority will be unblocked.
  */
 int
-cond_signal(cond_t *cond)
+cond_signal(cond_t *cp)
 {
 	cond_t c;
-	int err;
 
 	sched_lock();
-	if ((err = cond_copyin(cond, &c)) == 0)
-		sched_wakeone(&c->event);
+	if (cond_copyin(cp, &c)) {
+		sched_unlock();
+		return EINVAL;
+	}
+	sched_wakeone(&c->event);
 	sched_unlock();
-	return err;
+	return 0;
 }
 
 /*
  * Unblock all threads that are blocked on the specified CV.
  */
 int
-cond_broadcast(cond_t *cond)
+cond_broadcast(cond_t *cp)
 {
 	cond_t c;
-	int err;
 
 	sched_lock();
-	if ((err = cond_copyin(cond, &c)) == 0)
-		sched_wakeup(&c->event);
+	if (cond_copyin(cp, &c)) {
+		sched_unlock();
+		return EINVAL;
+	}
+	sched_wakeup(&c->event);
 	sched_unlock();
-	return err;
+	return 0;
+}
+
+/*
+ * Check if the specified cv is valid.
+ */
+static int
+cond_valid(cond_t c)
+{
+	cond_t tmp;
+	list_t head, n;
+
+	head = &curtask->conds;
+	for (n = list_first(head); n != head; n = list_next(n)) {
+		tmp = list_entry(n, struct cond, task_link);
+		if (tmp == c)
+			return 1;
+	}
+	return 0;
+}
+
+/*
+ * cond_copyin - copy a condition variable from user space.
+ * It also checks if the passed CV is valid.
+ */
+static int
+cond_copyin(cond_t *ucp, cond_t *kcp)
+{
+	cond_t c;
+
+	if (copyin(ucp, &c, sizeof(ucp)) || !cond_valid(c))
+		return EINVAL;
+	*kcp = c;
+	return 0;
 }

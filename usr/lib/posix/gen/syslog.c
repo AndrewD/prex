@@ -29,7 +29,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 #define BUF_LEN	128		/* Local buffer size */
 

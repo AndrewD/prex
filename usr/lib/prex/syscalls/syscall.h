@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,43 +30,44 @@
 /*
  * syscall.h - system call number
  */
+
 #ifndef _SYSCALL_H
 #define _SYSCALL_H
 
-#define SYS_object_create	 0
-#define SYS_object_destroy	 1
-#define SYS_object_lookup	 2
-#define SYS_msg_send		 3
-#define SYS_msg_receive		 4
-#define SYS_msg_reply		 5
-#define SYS_vm_allocate		 6
-#define SYS_vm_free		 7
-#define SYS_vm_attribute	 8
-#define SYS_vm_map		 9
-#define SYS_task_create		10
-#define SYS_task_terminate	11
-#define SYS_task_self		12
-#define SYS_task_suspend	13
-#define SYS_task_resume		14
-#define SYS_task_name		15
-#define SYS_task_getcap		16
-#define SYS_task_setcap		17
-#define SYS_thread_create	18
-#define SYS_thread_terminate	19
-#define SYS_thread_load		20
-#define SYS_thread_self		21
-#define SYS_thread_yield	22
-#define SYS_thread_suspend	23
-#define SYS_thread_resume	24
-#define SYS_thread_schedparam	25
-#define SYS_timer_sleep		26
-#define SYS_timer_alarm		27
-#define SYS_timer_periodic	28
-#define SYS_timer_waitperiod	29
-#define SYS_exception_setup	30
-#define SYS_exception_return	31
-#define SYS_exception_raise	32
-#define SYS_exception_wait	33
+#define SYS_exception_return	 0
+#define SYS_exception_setup	 1
+#define SYS_exception_raise	 2
+#define SYS_exception_wait	 3
+#define SYS_task_create		 4
+#define SYS_task_terminate	 5
+#define SYS_task_self		 6
+#define SYS_task_suspend	 7
+#define SYS_task_resume		 8
+#define SYS_task_setname	 9
+#define SYS_task_setcap		10
+#define SYS_task_chkcap		11
+#define SYS_thread_create	12
+#define SYS_thread_terminate	13
+#define SYS_thread_load		14
+#define SYS_thread_self		15
+#define SYS_thread_yield	16
+#define SYS_thread_suspend	17
+#define SYS_thread_resume	18
+#define SYS_thread_schedparam	19
+#define SYS_vm_allocate		20
+#define SYS_vm_free		21
+#define SYS_vm_attribute	22
+#define SYS_vm_map		23
+#define SYS_object_create	24
+#define SYS_object_destroy	25
+#define SYS_object_lookup	26
+#define SYS_msg_send		27
+#define SYS_msg_receive		28
+#define SYS_msg_reply		29
+#define SYS_timer_sleep		30
+#define SYS_timer_alarm		31
+#define SYS_timer_periodic	32
+#define SYS_timer_waitperiod	33
 #define SYS_device_open		34
 #define SYS_device_close	35
 #define SYS_device_read		36

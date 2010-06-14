@@ -1,4 +1,5 @@
-include ./conf/config.mk
+SUBDIR:=	bsp sys usr
+SRCDIR:=	$(CURDIR)
 export SRCDIR
-SUBDIR=	boot dev sys usr mk
-include $(SRCDIR)/mk/subdir.mk
+
+include $(SRCDIR)/mk/image.mk

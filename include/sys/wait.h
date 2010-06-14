@@ -29,6 +29,9 @@
  *	@(#)wait.h	8.2 (Berkeley) 7/10/94
  */
 
+#ifndef _SYS_WAIT_H_
+#define _SYS_WAIT_H_
+
 /*
  * This file holds definitions relevent to the wait4 system call
  * and the alternate interfaces that use it (wait, wait3, waitpid).
@@ -140,10 +143,9 @@ union wait {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-struct rusage;	/* forward declaration */
-
 pid_t	wait(int *);
 pid_t	waitpid(pid_t, int *, int);
-
 __END_DECLS
 #endif
+
+#endif /* !_SYS_WAIT_H_ */

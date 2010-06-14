@@ -31,25 +31,38 @@
 #define _EXEC_H
 
 #include <sys/cdefs.h>
-#include <prex/prex.h>
-#include <prex/elf.h>
+#include <sys/prex.h>
+#include <sys/elf.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <server/exec.h>
+#include <ipc/exec.h>
 
 #include <unistd.h>
+#include <assert.h>
 
 /* #define DEBUG_EXEC 1 */
 
 #ifdef DEBUG_EXEC
-#define DPRINTF(a) dprintf a
+#define DPRINTF(a)	dprintf a
+#define ASSERT(e)	dassert(e)
 #else
 #define DPRINTF(a)
+#define ASSERT(e)
 #endif
 
-#define PRIO_EXEC       127
-
 #define HEADER_SIZE	512
+
+/*
+ * Exec descriptor
+ */
+struct exec {
+	char	*path;			/* path name */
+	void	*header;		/* buffer for header */
+	char	*xarg1;			/* extra arguments */
+	char	*xarg2;			/* extra arguments */
+	task_t	task;			/* task id */
+	vaddr_t	entry;			/* entry address */
+};
 
 /*
  * Definition for exec loader
@@ -57,24 +70,37 @@
 struct exec_loader {
 	const char *el_name;		/* name of loader */
 	void	(*el_init)(void);	/* initialize routine */
-	int	(*el_probe)(void *);	/* probe routine */
-	int	(*el_load)(void *, task_t, int, void **entry);	/* load routine */
+	int	(*el_probe)(struct exec *);	/* probe routine */
+	int	(*el_load)(struct exec *);	/* load routine */
+};
+
+/*
+ * Probe result
+ */
+#define PROBE_ERROR		0
+#define PROBE_MATCH		1
+#define PROBE_INDIRECT		2
+
+
+/*
+ * Capability mapping
+ */
+struct cap_map {
+	char	*c_path;		/* application name */
+	cap_t	c_capset;		/* capability set */
 };
 
 /*
  * Global variables
  */
-extern object_t proc_obj;
-extern object_t fs_obj;
 extern struct exec_loader loader_table[];
+extern const struct cap_map cap_table[];
+extern const int nloader;
 
 __BEGIN_DECLS
-int	 build_args(task_t, void *, struct exec_msg *, void **);
-int	 file_open(char *path, int flags);
-int	 file_close(int fd);
-int	 file_read(int fd, void *buf, size_t len);
-int	 file_lseek(int fd, off_t offset, int whence);
-int	 file_fstat(int fd, struct stat *st);
+void	 bind_cap(char *, task_t);
+int	 exec_bindcap(struct bind_msg *);
+int	 exec_execve(struct exec_msg *);
 __END_DECLS
 
 #endif /* !_EXEC_H */

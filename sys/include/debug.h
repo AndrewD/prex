@@ -31,43 +31,33 @@
 #define _DEBUG_H
 
 #include <sys/cdefs.h>
+#include <hal.h>
 
-#define LOGBUF_SIZE	2048	/* size of log buffer */ 
-#define DBGMSG_SIZE	128	/* Size of one kernel message */
+#ifdef CONFIG_TINY
+#define LOGBUFSZ	512	/* size of log buffer */
+#else
+#define LOGBUFSZ	2048	/* size of log buffer */
+#endif
+
+#define DBGMSGSZ	128	/* Size of one message */
 
 #ifdef DEBUG
 #define DPRINTF(a)	printf a
 #define ASSERT(exp)	do { if (!(exp)) \
 			     assert(__FILE__, __LINE__, #exp); } while (0)
 #else
-#define DPRINTF(a)	do {} while (0)
-#define ASSERT(exp)	do {} while (0)
-#define panic(x)	machine_reset()
+#define DPRINTF(a)	((void)0)
+#define ASSERT(exp)	((void)0)
+#define panic(x)	machine_abort()
 #endif
 
-/*
- * Command for sys_debug()
- */
-#define DCMD_DUMP	0
-#define DCMD_LOGSIZE	1
-#define DCMD_GETLOG	2
-
-/*
- * Items for debug_dump()
- */
-#define DUMP_THREAD	1
-#define DUMP_TASK	2
-#define DUMP_VM		3
-
-#ifdef DEBUG
 __BEGIN_DECLS
+#ifdef DEBUG
 void	printf(const char *, ...);
-void	panic(const char *);
-int	debug_dump(int);
-void	debug_attach(void (*)(char *));
 void	assert(const char *, int, const char *);
-int	debug_getlog(char *);
-__END_DECLS
+void	panic(const char *);
+int	dbgctl(int, void *);
 #endif
+__END_DECLS
 
 #endif /* !_DEBUG_H */

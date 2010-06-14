@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/buf.h>
 
 #include <ctype.h>
@@ -45,10 +45,10 @@ static int
 fat_read_dirent(struct fatfsmount *fmp, u_long sec)
 {
 	struct buf *bp;
-	int err;
+	int error;
 
-	if ((err = bread(fmp->dev, sec, &bp)) != 0)
-		return err;
+	if ((error = bread(fmp->dev, sec, &bp)) != 0)
+		return error;
 	memcpy(fmp->dir_buf, bp->b_data, SEC_SIZE);
 	brelse(bp);
 	return 0;
@@ -81,11 +81,11 @@ fat_lookup_dirent(struct fatfsmount *fmp, u_long sec, char *name,
 		  struct fatfs_node *np)
 {
 	struct fat_dirent *de;
-	int err, i;
+	int error, i;
 
-	err = fat_read_dirent(fmp, sec);
-	if (err)
-		return err;
+	error = fat_read_dirent(fmp, sec);
+	if (error)
+		return error;
 
 	de = (struct fat_dirent *)fmp->dir_buf;
 
@@ -123,7 +123,7 @@ fatfs_lookup_node(vnode_t dvp, char *name, struct fatfs_node *np)
 	struct fatfsmount *fmp;
 	char fat_name[12];
 	u_long cl, sec;
-	int i, err;
+	int i, error;
 
 	if (name == NULL)
 		return ENOENT;
@@ -138,24 +138,24 @@ fatfs_lookup_node(vnode_t dvp, char *name, struct fatfs_node *np)
 	if (cl == CL_ROOT) {
 		/* Search entry in root directory */
 		for (sec = fmp->root_start; sec < fmp->data_start; sec++) {
-			err = fat_lookup_dirent(fmp, sec, fat_name, np);
-			if (err != EAGAIN)
-				return err;
+			error = fat_lookup_dirent(fmp, sec, fat_name, np);
+			if (error != EAGAIN)
+				return error;
 		}
 	} else {
 		/* Search entry in sub directory */
 		while (!IS_EOFCL(fmp, cl)) {
 			sec = cl_to_sec(fmp, cl);
 			for (i = 0; i < fmp->sec_per_cl; i++) {
-				err = fat_lookup_dirent(fmp, sec, fat_name,
+				error = fat_lookup_dirent(fmp, sec, fat_name,
 						   np);
-				if (err != EAGAIN)
-					return err;
+				if (error != EAGAIN)
+					return error;
 				sec++;
 			}
-			err = fat_next_cluster(fmp, cl, &cl);
-			if (err)
-				return err;
+			error = fat_next_cluster(fmp, cl, &cl);
+			if (error)
+				return error;
 		}
 	}
 	return ENOENT;
@@ -176,11 +176,11 @@ fat_get_dirent(struct fatfsmount *fmp, u_long sec, int target, int *index,
 	       struct fatfs_node *np)
 {
 	struct fat_dirent *de;
-	int err, i;
+	int error, i;
 
-	err = fat_read_dirent(fmp, sec);
-	if (err)
-		return err;
+	error = fat_read_dirent(fmp, sec);
+	if (error)
+		return error;
 
 	de = (struct fat_dirent *)fmp->dir_buf;
 	for (i = 0; i < DIR_PER_SEC; i++) {
@@ -215,7 +215,7 @@ fatfs_get_node(vnode_t dvp, int index, struct fatfs_node *np)
 {
 	struct fatfsmount *fmp;
 	u_long cl, sec;
-	int i, cur_index, err;
+	int i, cur_index, error;
 
 	fmp = (struct fatfsmount *)dvp->v_mount->m_data;
 	cl = dvp->v_blkno;
@@ -226,24 +226,24 @@ fatfs_get_node(vnode_t dvp, int index, struct fatfs_node *np)
 	if (cl == CL_ROOT) {
 		/* Get entry from the root directory */
 		for (sec = fmp->root_start; sec < fmp->data_start; sec++) {
-			err = fat_get_dirent(fmp, sec, index, &cur_index, np);
-			if (err != EAGAIN)
-				return err;
+			error = fat_get_dirent(fmp, sec, index, &cur_index, np);
+			if (error != EAGAIN)
+				return error;
 		}
 	} else {
 		/* Get entry from the sub directory */
 		while (!IS_EOFCL(fmp, cl)) {
 			sec = cl_to_sec(fmp, cl);
 			for (i = 0; i < fmp->sec_per_cl; i++) {
-				err = fat_get_dirent(fmp, sec, index,
+				error = fat_get_dirent(fmp, sec, index,
 						     &cur_index, np);
-				if (err != EAGAIN)
-					return err;
+				if (error != EAGAIN)
+					return error;
 				sec++;
 			}
-			err = fat_next_cluster(fmp, cl, &cl);
-			if (err)
-				return err;
+			error = fat_next_cluster(fmp, cl, &cl);
+			if (error)
+				return error;
 		}
 	}
 	return ENOENT;
@@ -260,11 +260,11 @@ static int
 fat_add_dirent(struct fatfsmount *fmp, u_long sec, struct fatfs_node *np)
 {
 	struct fat_dirent *de;
-	int err, i;
+	int error, i;
 
-	err = fat_read_dirent(fmp, sec);
-	if (err)
-		return err;
+	error = fat_read_dirent(fmp, sec);
+	if (error)
+		return error;
 
 	de = (struct fat_dirent *)fmp->dir_buf;
 	for (i = 0; i < DIR_PER_SEC; i++) {
@@ -278,8 +278,8 @@ fat_add_dirent(struct fatfsmount *fmp, u_long sec, struct fatfs_node *np)
  found:
 	DPRINTF(("fat_add_dirent: found. sec=%d\n", sec));
 	memcpy(de, &np->dirent, sizeof(struct fat_dirent));
-	err = fat_write_dirent(fmp, sec);
-	return err;
+	error = fat_write_dirent(fmp, sec);
+	return error;
 }
 
 /*
@@ -293,7 +293,7 @@ fatfs_add_node(vnode_t dvp, struct fatfs_node *np)
 {
 	struct fatfsmount *fmp;
 	u_long cl, sec;
-	int i, err;
+	int i, error;
 	u_long next;
 
 	fmp = (struct fatfsmount *)dvp->v_mount->m_data;
@@ -304,44 +304,44 @@ fatfs_add_node(vnode_t dvp, struct fatfs_node *np)
 	if (cl == CL_ROOT) {
 		/* Add entry in root directory */
 		for (sec = fmp->root_start; sec < fmp->data_start; sec++) {
-			err = fat_add_dirent(fmp, sec, np);
-			if (err != ENOENT)
-				return err;
+			error = fat_add_dirent(fmp, sec, np);
+			if (error != ENOENT)
+				return error;
 		}
 	} else {
 		/* Search entry in sub directory */
 		while (!IS_EOFCL(fmp, cl)) {
 			sec = cl_to_sec(fmp, cl);
 			for (i = 0; i < fmp->sec_per_cl; i++) {
-				err = fat_add_dirent(fmp, sec, np);
-				if (err != ENOENT)
-					return err;
+				error = fat_add_dirent(fmp, sec, np);
+				if (error != ENOENT)
+					return error;
 				sec++;
 			}
-			err = fat_next_cluster(fmp, cl, &next);
-			if (err)
-				return err;
+			error = fat_next_cluster(fmp, cl, &next);
+			if (error)
+				return error;
 			cl = next;
 		}
 		/* No entry found, add one more free cluster for directory */
 		DPRINTF(("fatfs_add_node: expand dir\n"));
-		err = fat_expand_dir(fmp, cl, &next);
-		if (err)
-			return err;
+		error = fat_expand_dir(fmp, cl, &next);
+		if (error)
+			return error;
 
 		/* Initialize free cluster. */
 		memset(fmp->dir_buf, 0, SEC_SIZE);
 		sec = cl_to_sec(fmp, next);
 		for (i = 0; i < fmp->sec_per_cl; i++) {
-			err = fat_write_dirent(fmp, sec);
-			if (err)
-				return err;
+			error = fat_write_dirent(fmp, sec);
+			if (error)
+				return error;
 			sec++;
 		}
 		/* Try again */
 		sec = cl_to_sec(fmp, next);
-		err = fat_add_dirent(fmp, sec, np);
-		return err;
+		error = fat_add_dirent(fmp, sec, np);
+		return error;
 	}
 	return ENOENT;
 }
@@ -354,16 +354,16 @@ fatfs_add_node(vnode_t dvp, struct fatfs_node *np)
 int
 fatfs_put_node(struct fatfsmount *fmp, struct fatfs_node *np)
 {
-	int err;
+	int error;
 
-	err = fat_read_dirent(fmp, np->sector);
-	if (err)
-		return err;
+	error = fat_read_dirent(fmp, np->sector);
+	if (error)
+		return error;
 
 	memcpy(fmp->dir_buf + np->offset, &np->dirent,
 	       sizeof(struct fat_dirent));
 
-	err = fat_write_dirent(fmp, np->sector);
-	return err;
+	error = fat_write_dirent(fmp, np->sector);
+	return error;
 }
 

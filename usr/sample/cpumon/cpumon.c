@@ -31,35 +31,32 @@
  * cpumon.c - CPU voltage monitoring program
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
 
-static struct cpu_info cpu_info;
-static struct cpu_stat cpu_stat;
+static struct cpufreqinfo cf_info;
 
 int
 main(int argc, char *argv[])
 {
-	device_t cpu_dev;
+	device_t dev;
 	int last_mhz = 0;
 	int i, j;
 	static char bar[21];
 
 	/* Boost current prioriy */
-	thread_setprio(thread_self(), 50);
+	thread_setpri(thread_self(), 50);
 
-	if (device_open("cpu", 0, &cpu_dev))
-		panic("open error: cpu");
+	if (device_open("cpufreq", 0, &dev))
+		panic("open error: cpufreq");
 
 	/* Clear screen */
 	printf("\33[2J");
 
 	printf("CPU voltage monitor\n");
-	device_ioctl(cpu_dev, CPUIOC_GET_INFO, &cpu_info);
-	if (cpu_info.clock_ctrl == 0)
-		panic("DVS not supported by cpu");
-	if (cpu_info.speed == 0 || cpu_info.power == 0)
+	device_ioctl(dev, CFIOC_GET_INFO, &cf_info);
+	if (cf_info.freq == 0 || cf_info.volts == 0)
 		panic("Invalid cpu power/speed");
 
 	/*
@@ -71,34 +68,32 @@ main(int argc, char *argv[])
 		 * Wait next period
 		 */
 		timer_waitperiod();
-		device_ioctl(cpu_dev, CPUIOC_GET_STAT, &cpu_stat);
-		if (cpu_stat.speed != last_mhz) {
+		device_ioctl(dev, CFIOC_GET_INFO, &cf_info);
+		if (cf_info.freq != last_mhz) {
 			printf("\33[s"); /* save cursor */
 
 			/*
 			 * Display speed
 			 */
-			printf("\nSpeed: %4dMHz  0|", cpu_stat.speed);
-			j = cpu_stat.speed * 100 / cpu_info.speed;
+			printf("\nSpeed: %4dMHz  0|", cf_info.freq);
+			j = cf_info.freq * 100 / cf_info.maxfreq;
 			for (i = 0; i < 20; i++)
 				bar[i] = (i <= j / 5) ? '*' : '-';
 			bar[i] = '\0';
-			printf(bar);
-			printf("|100");
+			printf("%s|100", bar);
 
 			/*
 			 * Display power
 			 */
-			printf("\nPower: %4dmV   0|", cpu_stat.power);
-			j = cpu_stat.power * 100 / cpu_info.power;
+			printf("\nPower: %4dmV   0|", cf_info.volts);
+			j = cf_info.volts * 100 / cf_info.maxvolts;
 			for (i = 0; i < 20; i++)
 				bar[i] = (i <= j / 5) ? '*' : '-';
 			bar[i] = '\0';
-			printf(bar);
-			printf("|100");
+			printf("%s|100", bar);
 
 			printf("\33[u"); /* restore cursor */
-			last_mhz = cpu_stat.speed;
+			last_mhz = cf_info.freq;
 		}
 	}
 	return 0;

@@ -27,14 +27,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SYS_LIST_H
-#define _SYS_LIST_H
+#ifndef _SYS_LIST_H_
+#define _SYS_LIST_H_
 
 #include <sys/cdefs.h>
 
 struct list {
-	struct list *next;
-	struct list *prev;
+	struct list	*next;
+	struct list	*prev;
 };
 
 typedef struct list *list_t;
@@ -54,6 +54,7 @@ typedef struct list *list_t;
     ((type *)((char *)(p) - (unsigned long)(&((type *)0)->member)))
 
 #define LIST_INIT(head) { &(head), &(head) }
+
 
 /*
  * Insert new node after specified node
@@ -77,4 +78,4 @@ list_remove(list_t node)
 	node->next->prev = node->prev;
 }
 
-#endif /* !_SYS_LIST_H */
+#endif /* !_SYS_LIST_H_ */

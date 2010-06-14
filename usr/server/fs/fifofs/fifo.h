@@ -30,7 +30,7 @@
 #ifndef _FIFO_H
 #define _FIFO_H
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/types.h>
 
 #include <assert.h>
@@ -39,7 +39,7 @@
 
 #ifdef DEBUG_FIFO
 #define DPRINTF(a)	dprintf a
-#define ASSERT(e)	assert(e)
+#define ASSERT(e)	dassert(e)
 #else
 #define DPRINTF(a)	do {} while (0)
 #define ASSERT(e)

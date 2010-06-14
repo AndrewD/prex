@@ -31,8 +31,9 @@
  * task.c - a sample program to run tasks.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define NR_TASKS 10
 
@@ -40,21 +41,23 @@
  * Create new task
  */
 static task_t
-task_run(void (*func)(void), char *stack)
+task_run(void (*func)(void))
 {
+	char *stack;
 	task_t task;
-	thread_t th;
+	thread_t t;
 
-	if (task_create(task_self(), VM_COPY, &task) != 0)
+	stack = malloc(1024);
+	if (task_create(task_self(), VM_SHARE, &task) != 0)
 		return 0;
 
-	if (thread_create(task, &th) != 0)
+	if (thread_create(task, &t) != 0)
 		return 0;
 
-	if (thread_load(th, func, stack) != 0)
+	if (thread_load(t, func, stack + 1024) != 0)
 		return 0;
 
-	if (thread_resume(th) != 0)
+	if (thread_resume(t) != 0)
 		return 0;
 
 	return task;
@@ -89,14 +92,13 @@ hey_yo(void)
 int
 main(int argc, char *argv[])
 {
-	static char stack[1024];
 	int i;
 
 	printf("Task sample program\n");
 
 	/*  Create new tasks */
 	for (i = 0; i < NR_TASKS; i++) {
-		if (task_run(hey_yo, stack + 1024) == 0)
+		if (task_run(hey_yo) == 0)
 			panic("failed to create task");
 	}
 

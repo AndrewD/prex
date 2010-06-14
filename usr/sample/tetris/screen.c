@@ -38,7 +38,7 @@
  * Tetris screen control.
  */
 
-#include <sys/tty.h>
+#include <sys/termios.h>
 #include <sys/ioctl.h>
 
 #include <setjmp.h>
@@ -83,8 +83,8 @@ scr_set(void)
 
 	Rows = 0, Cols = 0;
 	if (ioctl(0, TIOCGWINSZ, &ws) == 0) {
-		Rows = ws.ws_row;
-		Cols = ws.ws_col;
+		Rows = (int)ws.ws_row;
+		Cols = (int)ws.ws_col;
 	}
 	if (Rows == 0)
 		Rows = 25;
@@ -215,7 +215,7 @@ void
 scr_msg(char *s, int set)
 {
 
-	int l = strlen(s);
+	int l = (int)strlen(s);
 
 	moveto(Rows - 2, ((Cols - l) >> 1) - 1);
 	if (set)

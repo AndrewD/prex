@@ -1,6 +1,6 @@
-LIB=	$(SRCDIR)/usr/lib/libc.a
-
 include $(SRCDIR)/mk/own.mk
+
+TARGET:=	$(SRCDIR)/usr/lib/libc.a
 
 include $(SRCDIR)/usr/lib/prex/Makefile.inc
 include $(SRCDIR)/usr/lib/posix/Makefile.inc

@@ -34,10 +34,10 @@
 /*
  * Note: The system must have enough memory to run this program.
  * At least, 512M bytes of RAM is required to create 100000 threads
- * with i386-pc.
+ * with x86-pc.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 /*
@@ -45,7 +45,7 @@
  */
 #define NR_THREADS 10000
 
-static thread_t *th;
+static thread_t *thread;
 
 void
 null_thread(void)
@@ -56,11 +56,11 @@ null_thread(void)
 int
 main(int argc, char *argv[])
 {
-	struct info_timer info;
+	struct timerinfo info;
 	task_t task;
 	char stack[16];
 	u_long start, end;
-	int i, prio, err;
+	int i, pri, error;
 
 	printf("Benchmark to create/terminate %d threads\n", NR_THREADS);
 
@@ -68,12 +68,13 @@ main(int argc, char *argv[])
 	if (info.hz == 0)
 		panic("can not get timer tick rate");
 
-	thread_getprio(thread_self(), &prio);
-	thread_setprio(thread_self(), prio - 1);
+	thread_getpri(thread_self(), &pri);
+	thread_setpri(thread_self(), pri - 1);
 
 	task = task_self();
-	err = vm_allocate(task, (void **)&th, sizeof(thread_t) * NR_THREADS, 1);
-	if (err)
+	error = vm_allocate(task, (void **)&thread,
+			    sizeof(thread_t) * NR_THREADS, 1);
+	if (error)
 		panic("vm_allocate is failed");
 
 	sys_time(&start);
@@ -82,13 +83,13 @@ main(int argc, char *argv[])
 	 * Create threads
 	 */
 	for (i = 0; i < NR_THREADS; i++) {
-		if (thread_create(task, &th[i]) != 0)
+		if (thread_create(task, &thread[i]) != 0)
 			panic("thread_create is failed");
 
-		if (thread_load(th[i], null_thread, &stack) != 0)
+		if (thread_load(thread[i], null_thread, &stack) != 0)
 			panic("thread_load is failed");
 
-		if (thread_resume(th[i]) != 0)
+		if (thread_resume(thread[i]) != 0)
 			panic("thread_resume is failed");
 	}
 
@@ -96,11 +97,11 @@ main(int argc, char *argv[])
 	 * Teminate threads
 	 */
 	for (i = 0; i < NR_THREADS; i++)
-		thread_terminate(th[i]);
+		thread_terminate(thread[i]);
 
 	sys_time(&end);
 
-	vm_free(task, th);
+	vm_free(task, thread);
 
 	printf("Complete. The score is %d msec (%d ticks).\n",
 	       (int)((end - start) * 1000 / info.hz),

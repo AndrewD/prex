@@ -30,9 +30,10 @@
 /*
  * Command description
  */
-struct cmd_entry {
+struct cmdentry {
 	char *cmd;
 	int (*func) (int, char **);
 };
 
-extern const struct cmd_entry builtin_cmds[];
+extern const struct cmdentry builtin_cmds[];
+extern const struct cmdentry shell_cmds[];

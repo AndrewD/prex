@@ -1,0 +1,42 @@
+#
+# Security configuration
+#
+
+capability	/boot/boot	CAP_DISKADMIN \
+				CAP_PROTSERV \
+			        CAP_SYSFILES
+
+capability	/boot/proc	CAP_RAWIO \
+				CAP_KILL \
+				CAP_TASKCTRL \
+				CAP_EXTMEM \
+				CAP_PROTSERV
+
+capability	/boot/fs	CAP_NICE \
+				CAP_RAWIO \
+				CAP_EXTMEM \
+				CAP_SYSFILES \
+				CAP_PROTSERV
+
+capability	/boot/exec	CAP_NICE \
+				CAP_SETPCAP \
+				CAP_TASKCTRL \
+				CAP_EXTMEM \
+				CAP_PROTSERV \
+				CAP_SYSFILES
+
+capability	/boot/pow	CAP_RAWIO \
+				CAP_KILL \
+				CAP_POWERMGMT \
+				CAP_PROTSERV
+
+capability	/boot/init	CAP_KILL
+
+capability	/boot/cmdbox	CAP_NICE \
+				CAP_KILL
+
+capability	/boot/install	CAP_SYSFILES
+
+capability	/boot/pmctrl	CAP_POWERMGMT
+
+capability	/boot/lock	CAP_USERFILES

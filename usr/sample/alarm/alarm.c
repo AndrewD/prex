@@ -50,12 +50,12 @@
  *
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/signal.h>
 #include <stdio.h>
 
 static int hz;
-static int count;
+static volatile u_long count;
 static u_long start_tick;
 
 /*
@@ -74,7 +74,7 @@ alarm_handler(int code)
 		}
 		timer_alarm(count * 200, 0);
 		sys_time(&tick);
-		printf("Ring! count=%d time=%d msec\n", count,
+		printf("Ring! count=%ld time=%d msec\n", count,
 		       (u_int)((tick - start_tick) * 1000 / hz));
 	}
 	exception_return();
@@ -83,7 +83,8 @@ alarm_handler(int code)
 int
 main(int argc, char *argv[])
 {
-	struct info_timer info;
+	struct timerinfo info;
+	int code;
 
 	printf("Alarm sample program\n");
 
@@ -96,7 +97,6 @@ main(int argc, char *argv[])
 	 * Install alarm handler
 	 */
 	exception_setup(alarm_handler);
-	exception_raise(task_self(), 0xfff);
 	timer_sleep(2000, 0);
 
 	/*
@@ -108,7 +108,9 @@ main(int argc, char *argv[])
 	timer_alarm(1000, 0);
 
 	/* Wait alarm */
-	for (;;);
-
+	while (count < 10) {
+		exception_wait(&code);
+	}
+	printf("Test completed...\n");
 	return 0;
 }

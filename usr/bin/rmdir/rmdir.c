@@ -28,6 +28,7 @@
  */
 
 #include <unistd.h>
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,5 +67,8 @@ main(int argc, char *argv[])
 			break;
 		++argv;
 	} while (*argv);
+
+	if (rc < 0)
+		err(1, "%s", *argv);
 	exit(rc);
 }

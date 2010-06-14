@@ -31,20 +31,20 @@
  * kbd.c - test keyboard function
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 int
 main(int argc, char *argv[])
 {
 	device_t tty_dev;
-	int i, err;
+	int i, error;
 	char buf[] = "?\n";
 	size_t len;
 
  	sys_log("Keyboard test program\n");
-	err = device_open("tty", 0, &tty_dev);
-	if (err)
-		sys_log("device open err!\n");
+	error = device_open("tty", 0, &tty_dev);
+	if (error)
+		sys_log("device open error!\n");
 
  	sys_log("Press any key 10 times\n");
 	for (i = 0; i < 10; i++) {
@@ -53,9 +53,9 @@ main(int argc, char *argv[])
 		sys_log(buf);
 	}
 
-	err = device_close(tty_dev);
-	if (err)
-		sys_log("device close err!\n");
+	error = device_close(tty_dev);
+	if (error)
+		sys_log("device close error!\n");
 
 	sys_log("Test completed.\n");
 

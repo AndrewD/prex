@@ -1,0 +1,7 @@
+PATH=/boot:/bin
+HOME=/
+export HOME PATH
+uname -msr
+mem
+date
+exec sh

@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/proc.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/proc.h>
 #include <sys/resource.h>
 
 #include <stddef.h>
@@ -42,9 +42,9 @@
  * Note: support only for current process.
  */
 int
-setpriority(int which, int who, int prio)
+setpriority(int which, int who, int pri)
 {
-	int err, val;
+	int error, val;
 
 	switch (which) {
 	case PRIO_PROCESS:
@@ -65,15 +65,17 @@ setpriority(int which, int who, int prio)
 		return -1;
 	}
 
-	if (prio < PRIO_MIN)
-		prio = PRIO_MIN;
-	if (prio > PRIO_MAX)
-		prio = PRIO_MAX;
+	if (pri < MINPRI)
+		pri = MINPRI;
+	if (pri > MAXPRI)
+		pri = MAXPRI;
 
-	val = PRIO_DFLT + prio;
+	val = PRI_DEFAULT + pri;
 
-	err = thread_setprio(thread_self(), val);
-	if (err)
-		errno = err;
-	return -1;
+	error = thread_setpri(thread_self(), val);
+	if (error) {
+		errno = error;
+		return -1;
+	}
+	return 0;
 }

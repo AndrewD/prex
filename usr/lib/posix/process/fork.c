@@ -27,12 +27,12 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <prex/signal.h>
-#include <server/proc.h>
-#include <server/fs.h>
-#include <server/stdmsg.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <sys/signal.h>
+#include <ipc/proc.h>
+#include <ipc/fs.h>
+#include <ipc/ipc.h>
 
 #include <stddef.h>
 #include <setjmp.h>
@@ -76,16 +76,16 @@ static jmp_buf __fork_env;
  * - Pending signals are cleared.
  *
  * - File lock is not inherited.
- * - File descriptor is same
- * - Directory stream is same
+ * - File descriptor is shared.
+ * - Directory stream is shared.
  */
 static pid_t
 fork(void)
 {
 	struct msg m;
 	task_t tsk;
-	thread_t th;
-	int err;
+	thread_t t;
+	int error;
 	pid_t pid;
 
 	/* Save current stack pointer */
@@ -93,14 +93,14 @@ fork(void)
 		/*
 		 * Create new task
 		 */
-		err = task_create(task_self(), VM_COPY, &tsk);
-		if (err) {
-			errno = err;
+		error = task_create(task_self(), VM_COPY, &tsk);
+		if (error) {
+			errno = error;
 			return -1;
 		}
-		if ((err = thread_create(tsk, &th)) != 0) {
+		if ((error = thread_create(tsk, &t)) != 0) {
 			task_terminate(tsk);
-			errno = err;
+			errno = error;
 			return -1;
 		}
 		/*
@@ -124,14 +124,14 @@ fork(void)
 		/*
 		 * Start child task
 		 */
-		thread_load(th, __child_entry, NULL);
-		thread_resume(th);
+		thread_load(t, __child_entry, NULL);
+		thread_resume(t);
 	} else {
 		/*
 		 * Child task
 		 */
 #ifdef _REENTRANT
-		err = mutex_init(&__sig_lock);
+		error = mutex_init(&__sig_lock);
 #endif
 		__sig_pending = 0;
 		return 0;

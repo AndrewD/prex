@@ -31,7 +31,7 @@
  * zero.c - test zero device driver.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -51,7 +51,7 @@ int
 main(int argc, char *argv[])
 {
 	device_t zero_dev;
-	int i, err;
+	int i, error;
 	size_t len;
 
 	printf("zero test\n");
@@ -61,14 +61,14 @@ main(int argc, char *argv[])
 		buf[i] = '0' + i / 10;
 	dump_buf();
 
-	err = device_open("zero", 0, &zero_dev);
-	if (err)
+	error = device_open("zero", 0, &zero_dev);
+	if (error)
 		printf("device open error!\n");
 
 	/* zero fill 50 character */
 	len = 50;
-	err = device_read(zero_dev, buf, &len, 0);
-	if (err)
+	error = device_read(zero_dev, buf, &len, 0);
+	if (error)
 		printf("device read error!\n");	
 
 	/* 5555555555666666666777... */

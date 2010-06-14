@@ -92,7 +92,7 @@ fits_in(const struct shape *shape, int pos)
  * if `onoff' is 1, and off if `onoff' is 0.
  */
 void
-place(const struct shape *shape, int pos, int onoff)
+place(const struct shape *shape, int pos, cell onoff)
 {
 	const int *o = shape->off;
 

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 #include <sys/stat.h>
 #include <sys/vnode.h>
@@ -71,7 +71,7 @@ fat_read_bpb(struct fatfsmount *fmp)
 {
 	struct fat_bpb *bpb;
 	size_t size;
-	int err;
+	int error;
 
 	bpb = malloc(SEC_SIZE);
 	if (bpb == NULL)
@@ -79,10 +79,10 @@ fat_read_bpb(struct fatfsmount *fmp)
 
 	/* Read boot sector (block:0) */
 	size = SEC_SIZE;
-	err = device_read(fmp->dev, bpb, &size, 0);
-	if (err) {
+	error = device_read(fmp->dev, bpb, &size, 0);
+	if (error) {
 		free(bpb);
-		return err;
+		return error;
 	}
 	if (bpb->bytes_per_sector != SEC_SIZE) {
 		DPRINTF(("fatfs: invalid sector size\n"));
@@ -137,7 +137,7 @@ fatfs_mount(mount_t mp, char *dev, int flags, void *data)
 {
 	struct fatfsmount *fmp;
 	vnode_t vp;
-	int err = 0;
+	int error = 0;
 
 	DPRINTF(("fatfs_mount device=%s\n", dev));
 
@@ -149,7 +149,7 @@ fatfs_mount(mount_t mp, char *dev, int flags, void *data)
 	if (fat_read_bpb(fmp) != 0)
 		goto err1;
 
-	err = ENOMEM;
+	error = ENOMEM;
 	fmp->io_buf = malloc(fmp->sec_per_cl * SEC_SIZE);
 	if (fmp->io_buf == NULL)
 		goto err1;
@@ -173,7 +173,7 @@ fatfs_mount(mount_t mp, char *dev, int flags, void *data)
 	free(fmp->io_buf);
  err1:
 	free(fmp);
-	return err;
+	return error;
 }
 
 /*

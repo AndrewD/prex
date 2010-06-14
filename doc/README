@@ -3,12 +3,13 @@
 
 
 What is Prex?
--------------
+=============
 
 The Prex project is an open source initiative to provide a portable
 real-time operating system for embedded systems. Prex is designed
 specifically for small footprint platforms. It is written in C language
 from scratch based on a traditional micro kernel architecture.
+
 The Prex kernel provides only fundamental features for task, thread, memory,
 ipc, exception, and synchronization. The other basic OS functions such
 like process, file system, application loading, and networking are provided
@@ -20,30 +21,31 @@ tasks for their target requirements.
 
 
 Licensing
----------
+=========
 
 Prex is royalty-free software released under BSD License.
 
 
 Current Port
-------------
+============
 
 Available port (arch-platform):
 
-  - i386-pc
+  - x86-pc
   - arm-gba
   - arm-integrator
+  - ppc-prep
 
 
 How to Build?
--------------
+=============
 
 Step 1: Prepare Toolchain
 
   The following packages are required for compiling Prex.
   - GCC 2.95.3 or later
   - GNU Binutils 2.15 or later
-  - GNU Make
+  - GNU Make 3.81 or later
 
   The toolchain should be built appropriately for your target
   architecture to cross-compile Prex.
@@ -59,9 +61,9 @@ Step 2: Prepare Sources
 Step 3: Configure
 
   Setup target architecture and platform.
-  The following sample shows for i386-pc target.
+  The following sample shows for x86-pc target.
 
-  $ ./configure --target=i386-pc
+  $ ./configure --target=x86-pc
 
   If you cross compile Prex from a different architecture and/or OS,
   you have to set --cross-compile option. Please check other options
@@ -81,62 +83,42 @@ Note) If you want to run 'make' at the subdirectory, you have to set the
 
 
 Directory Structure
--------------------
+===================
 
 Prex source code is divided into the following directories:
 
- conf			System configuration files
+ /conf			System configuration files
 
- mk			Common Makefiles
+ /mk			Common Makefiles
 
- include		Common include files
+ /include		Common include files
 
- sys			Prex microkernel
-	arch		Architecture/platform dependent code
-	include		Kernel headers
-	lib		Common kernel library
-	ipc		Inter process communication support
-	kern		Kernel main code
-	mem		Memory management code
-	sync		Synchronize related code
+ /sys			Prex microkernel
+	/include	Kernel headers
+	/lib		Common kernel library
+	/ipc		Inter process communication support
+	/kern		Kernel main code
+	/mem		Memory management code
+	/sync		Synchronize related code
 
- boot			Boot loader
-	arm		Architecture/platform dependent drivers
-	i386		Architecture/platform dependent drivers
-	include		Platform independent headers
-	lib		Common loader library
-	common		Common boot loader code
+ /bsp			Board support package
+	/boot		Boot loader
+	/drv		Device driver module
+	/hal		Hardware abstraction layer
 
- dev			Device driver module
-	arm		Architecture/platform dependent drivers
-	i386		Architecture/platform dependent drivers
-	include		Platform independent headers
-	lib		Common driver library
-	core		Driver core component
-	gen		Generic device drivers
-	power		Power management driver
-
- usr			User mode programs
-	arch		Architecture/platform dependent code
-	bin		User command binaries
-	include		Header files
-	lib		User libraries
-	server		System servers
-	bin		System utilities
-	test		Function test programs
-	sample		Sample programs
-
-
-Documentation
--------------
-
-Please open the following HTML file to view the documents.
-
-  /doc/html/doc/index.html
+ /usr			User mode programs
+	/arch		Architecture dependent code
+	/bin		User command binaries
+	/include	Header files
+	/lib		User libraries
+	/server		System servers
+	/sbin		System utilities
+	/test		Function test programs
+	/sample		Sample programs
 
 
 Project Website
----------------
+===============
 
 More information about Prex can be found at:
 
@@ -144,7 +126,7 @@ More information about Prex can be found at:
 
 
 Author
-------
+======
 
   Kohsuke Ohtani <kohtani@users.sourceforge.net>
 

@@ -1,2 +1,4 @@
+# Rules to process sub directories
+
 include $(SRCDIR)/mk/own.mk
-include $(SRCDIR)/mk/Makefile.inc
+include $(SRCDIR)/mk/common.mk

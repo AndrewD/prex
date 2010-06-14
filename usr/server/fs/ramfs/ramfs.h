@@ -31,14 +31,14 @@
 #define _RAMFS_H
 
 #include <sys/cdefs.h>
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/types.h>
 
 /* #define DEBUG_RAMFS 1 */
 
 #ifdef DEBUG_RAMFS
 #define DPRINTF(a)	dprintf a
-#define ASSERT(e)	assert(e)
+#define ASSERT(e)	dassert(e)
 #else
 #define DPRINTF(a)	do {} while (0)
 #define ASSERT(e)

@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SYS_BUF_H
-#define _SYS_BUF_H
+#ifndef _SYS_BUF_H_
+#define _SYS_BUF_H_
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
@@ -56,15 +56,15 @@ struct buf {
 #define	B_DONE		0x00000010	/* I/O completed. */
 
 __BEGIN_DECLS
-struct buf *getblk(dev_t dev, int blkno);
-int	bread(dev_t dev, int blkno, struct buf **bpp);
-int	bwrite(struct buf *bp);
-void	bdwrite(struct buf *bp);
-void	binval(dev_t dev);
+struct buf *getblk(dev_t, int);
+int	bread(dev_t, int, struct buf **);
+int	bwrite(struct buf *);
+void	bdwrite(struct buf *);
+void	binval(dev_t);
 void	brelse(struct buf *);
 void	bflush(struct buf *);
 void	bio_sync(void);
 void	bio_init(void);
 __END_DECLS
 
-#endif /* !_SYS_BUF_H */
+#endif /* !_SYS_BUF_H_ */

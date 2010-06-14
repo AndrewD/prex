@@ -44,15 +44,13 @@ typedef void *	DIR;
 
 #define	d_ino		d_fileno	/* backward compatibility */
 
-/* definitions for library routines operating on directories. */
-#define	DIRBLKSIZ	1024
-
 struct _dirdesc {
-	int	fd;		/* file descriptor associated with directory */
-
-	struct dirent ent;
+	int	dd_fd;		/* file descriptor associated with directory */
+	struct dirent dd_ent;
 };
 typedef struct _dirdesc DIR;
+
+#define	dirfd(dirp)	((dirp)->dd_fd)
 
 #ifndef NULL
 #define	NULL	0
@@ -67,14 +65,10 @@ DIR *opendir(const char *);
 struct dirent *readdir(DIR *);
 void rewinddir(DIR *);
 int closedir(DIR *);
+
 #ifndef _POSIX_SOURCE
-DIR *__opendir2(const char *, int);
 long telldir(const DIR *);
 void seekdir(DIR *, long);
-int scandir(const char *, struct dirent ***,
-    int (*)(struct dirent *), int (*)(const void *, const void *));
-int alphasort(const void *, const void *);
-int getdirentries(int, char *, int, long *);
 #endif /* not POSIX */
 __END_DECLS
 

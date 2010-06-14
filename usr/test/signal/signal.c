@@ -54,9 +54,15 @@ main(int argc, char *argv[])
 	pgrp = getpgrp();
 	printf("tcsetpgrp=%x\n", pgrp);
 	tcsetpgrp(ttyfd, pgrp);
-	for  (;;);
-
+	signal(SIGHUP, gotsig);
 	signal(SIGINT, gotsig);
+	signal(SIGQUIT, gotsig);
+	signal(SIGTERM, gotsig);
+	signal(SIGTSTP, gotsig);
+	signal(SIGCONT, gotsig);
+	while (1)
+		sleep (1);
+	return 0;
 }
 
 static void

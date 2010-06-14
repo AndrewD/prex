@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
-#include <prex/posix.h>
-#include <server/fs.h>
+#include <sys/prex.h>
+#include <sys/posix.h>
+#include <ipc/fs.h>
 
 #include <limits.h>
 #include <string.h>
@@ -50,6 +50,6 @@ opendir(const char *name)
 	strlcpy(m.path, (char *)name, PATH_MAX);
 	if (__posix_call(__fs_obj, &m, sizeof(m), 1) != 0)
 		return NULL;
-	dir->fd = m.fd;
+	dir->dd_fd = m.fd;
 	return dir;
 }

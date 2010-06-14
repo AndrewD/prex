@@ -37,6 +37,7 @@
 int
 main(int argc, char *argv[])
 {
+
 	sync();
 	exit(0);
 }

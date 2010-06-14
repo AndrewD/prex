@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 extern void	(*__cleanup)(void);	/* in exit() */
 
@@ -52,7 +52,7 @@ static void
 __stdio_init(void)
 {
 
-	device_open("console", 0, &__console_dev);
+	device_open("tty", 0, &__console_dev);
 	__cleanup = __stdio_exit;
 	init_done = 1;
 }
@@ -77,5 +77,5 @@ __console_read(void)
 		__stdio_init();
 
 	device_read(__console_dev, &ch, &len, 0);
-	return (int)ch;
+	return ch;
 }

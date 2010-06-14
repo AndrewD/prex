@@ -52,11 +52,11 @@ divide(long *n, int base)
 	 */
 
 	if (base == 10) {
-		res = ((unsigned long)*n) % 10U;
-		*n = ((unsigned long)*n) / 10U;
+		res = (int)(((unsigned long)*n) % 10U);
+		*n = (long)(((unsigned long)*n) / 10U);
 	} else {
-		res = ((unsigned long)*n) % 16U;
-		*n = ((unsigned long)*n) / 16U;
+		res = (int)(((unsigned long)*n) % 16U);
+		*n = (long)(((unsigned long)*n) / 16U);
 	}
 	return res;
 }
@@ -105,6 +105,8 @@ vsprintf(char *buf, const char *fmt, va_list args)
 			pad = '0';
 			fmt++;
 		}
+		if (*fmt == 'l')
+			fmt++;
 		/* get width */
 		width = -1;
 		if (isdigit((int)*fmt)) {

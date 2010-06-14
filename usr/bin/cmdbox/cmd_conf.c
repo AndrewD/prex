@@ -27,11 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/param.h>
 #include "cmdbox.h"
 
 extern int help_main(int argc, char *argv[]);
-extern int cal_main(int argc, char *argv[]);
 extern int cat_main(int argc, char *argv[]);
 extern int clear_main(int argc, char *argv[]);
 extern int cp_main(int argc, char *argv[]);
@@ -44,31 +43,25 @@ extern int hostname_main(int argc, char *argv[]);
 extern int kill_main(int argc, char *argv[]);
 extern int ls_main(int argc, char *argv[]);
 extern int mkdir_main(int argc, char *argv[]);
-extern int mount_main(int argc, char *argv[]);
+extern int more_main(int argc, char *argv[]);
 extern int mv_main(int argc, char *argv[]);
 extern int nice_main(int argc, char *argv[]);
+extern int printenv_main(int argc, char *argv[]);
 extern int ps_main(int argc, char *argv[]);
 extern int pwd_main(int argc, char *argv[]);
-extern int reboot_main(int argc, char *argv[]);
 extern int rm_main(int argc, char *argv[]);
 extern int rmdir_main(int argc, char *argv[]);
-extern int sh_main(int argc, char *argv[]);
-extern int shutdown_main(int argc, char *argv[]);
 extern int sleep_main(int argc, char *argv[]);
 extern int sync_main(int argc, char *argv[]);
 extern int test_main(int argc, char *argv[]);
 extern int touch_main(int argc, char *argv[]);
-extern int umount_main(int argc, char *argv[]);
 extern int uname_main(int argc, char *argv[]);
+extern int null_main(int argc, char *argv[]);
 
 /*
  * Bultin commands
  */
-const struct cmd_entry builtin_cmds[] = {
-	{ "help"     ,help_main       },
-#ifdef CONFIG_CMD_CAL
-	{ "cal"      ,cal_main        },
-#endif
+const struct cmdentry builtin_cmds[] = {
 #ifdef CONFIG_CMD_CAT
 	{ "cat"      ,cat_main        },
 #endif
@@ -93,6 +86,7 @@ const struct cmd_entry builtin_cmds[] = {
 #ifdef CONFIG_CMD_HEAD
 	{ "head"     ,head_main   },
 #endif
+	{ "help"     ,help_main       },
 #ifdef CONFIG_CMD_HOSTNAME
 	{ "hostname" ,hostname_main   },
 #endif
@@ -105,8 +99,8 @@ const struct cmd_entry builtin_cmds[] = {
 #ifdef CONFIG_CMD_MKDIR
 	{ "mkdir"    ,mkdir_main      },
 #endif
-#ifdef CONFIG_CMD_MOUNT
-	{ "mount"    ,mount_main      },
+#ifdef CONFIG_CMD_MORE
+	{ "more"     ,more_main       },
 #endif
 #ifdef CONFIG_CMD_MV
 	{ "mv"       ,mv_main         },
@@ -114,26 +108,20 @@ const struct cmd_entry builtin_cmds[] = {
 #ifdef CONFIG_CMD_NICE
 	{ "nice"     ,nice_main       },
 #endif
+#ifdef CONFIG_CMD_PRINTENV
+	{ "printenv" ,printenv_main   },
+#endif
 #ifdef CONFIG_CMD_PS
 	{ "ps"       ,ps_main         },
 #endif
 #ifdef CONFIG_CMD_PWD
 	{ "pwd"      ,pwd_main        },
 #endif
-#ifdef CONFIG_CMD_REBOOT
-	{ "reboot"   ,reboot_main     },
-#endif
 #ifdef CONFIG_CMD_RM
 	{ "rm"       ,rm_main         },
 #endif
 #ifdef CONFIG_CMD_RMDIR
 	{ "rmdir"    ,rmdir_main      },
-#endif
-#ifdef CONFIG_CMD_SH
-	{ "sh"       ,sh_main         },
-#endif
-#ifdef CONFIG_CMD_SHUTDOWN
-	{ "shutdown" ,shutdown_main   },
 #endif
 #ifdef CONFIG_CMD_SLEEP
 	{ "sleep"    ,sleep_main      },
@@ -147,11 +135,8 @@ const struct cmd_entry builtin_cmds[] = {
 #ifdef CONFIG_CMD_TOUCH
 	{ "touch"    ,touch_main      },
 #endif
-#ifdef CONFIG_CMD_UMOUNT
-	{ "umount"   ,umount_main     },
-#endif
 #ifdef CONFIG_CMD_UNAME
 	{ "uname"    ,uname_main      },
 #endif
-	{ NULL       ,0               },
+	{ NULL       ,null_main       },
 };

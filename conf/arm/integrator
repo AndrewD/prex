@@ -1,0 +1,132 @@
+#
+# Prex system configuration file
+#
+
+#
+# Make options
+#
+makeoptions	GCCFLAGS+= -mcpu=arm9tdmi -fno-dwarf2-cfi-asm
+makeoptions	ASFLAGS+= -mfpu=softfpa
+
+#
+# Memory address
+#
+memory		LOADER_TEXT	0x00010000	# Start of boot loader
+memory		KERNEL_TEXT	0x80080000	# Start of kernel
+memory		BOOTIMG_BASE	0x80012000	# Location of boot image
+memory		SYSPAGE_BASE	0x80000000	# Location of system page
+
+#
+# Tunable paramters
+#
+options 	HZ=1000		# Ticks/second of the clock
+options 	TIME_SLICE=50	# Context switch ratio (msec)
+options 	OPEN_MAX=16	# Max open files per process
+options 	BUF_CACHE=32	# Blocks for buffer cache
+options 	FS_THREADS=4	# Number of file system threads
+
+#
+# Platform settings
+#
+options		ARM926EJS	# Processor core
+options 	MMU		# Memory management unit
+options 	CACHE		# Cache memory
+#options 	FPU		# Floating point unit
+#options 	ROMBOOT		# Boot from ROM
+options 	BOOTDISK	# Disk for /boot directory
+
+#
+# General setup
+#
+options 	POSIX		# POSIX support
+options 	CMDBOX		# Core utilities
+#options 	TINY		# Optimize for size
+
+#
+# Kernel hacking
+#
+#options 	KD		# Kernel debugger
+#options 	AUDIT		# Security auditing
+
+#
+# Diagnostic options
+#
+options 	DIAG_SERIAL	# Diagnostic via serial port
+
+#
+# File systems
+#
+options 	FIFOFS		# FIFO & Pipe
+options 	DEVFS		# Device file system
+options 	RAMFS		# RAM file system
+options 	ARFS		# Archive file system
+#options 	FATFS		# FAT file system
+
+#
+# Power management
+#
+options 	PM		# Power management
+#options 	PM_POWERSAVE	# Power policy: Battery optimized
+options 	PM_PERFORMANCE	# Power policy: Parformance optimized
+
+#
+# Device drivers (initialization order)
+#
+device		pm		# Power management
+device		cons		# System console
+device		serial		# Logical serial
+device  	pl011		# ARM PrimeCell PL011 UART (P:serial)
+device		rtc		# Logical RTC
+device 		pl030		# ARM PrimeCell PL030 RTC
+device		null		# NULL device
+device		zero		# Zero device
+device		ramdisk		# RAM disk
+
+#
+# Hardware configuations
+#
+options		ARM_VECTORS=0x00000000
+options		PL011_BASE=0xd6000000
+options		PL011_IRQ=1
+options		PL030_BASE=0xd5000000
+
+
+#
+# Command box
+#
+command 	cat
+command 	clear
+command 	cp
+command 	date
+command 	dmesg
+command 	echo
+command 	free
+command 	head
+command 	hostname
+command 	kill
+command 	ls
+command 	mkdir
+command 	more
+command 	mv
+command 	nice
+command 	printenv
+command 	ps
+command 	pwd
+command 	rm
+command 	rmdir
+command 	sh
+command 	sleep
+command 	sync
+#command 	test
+command 	touch
+command 	uname
+
+#
+# Adminisrative tools
+#
+command 	diskutil
+command 	install
+command 	pmctrl
+command 	ktrace
+command 	lock
+command 	debug

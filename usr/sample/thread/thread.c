@@ -31,13 +31,13 @@
  * thread.c - sample program to create three threads.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 #define VERBOSE_MODE
 
 #ifdef VERBOSE_MODE
-#define thr_printf(s) printf(s)
+#define thr_printf(s) sys_log(s)
 #else
 #define thr_printf(s)
 #endif
@@ -51,15 +51,18 @@ static char stack[3][1024];
 static int
 thread_run(void (*start)(void), void *stack)
 {
-	thread_t th;
+	thread_t t;
 
-	if (thread_create(task_self(), &th) != 0)
+	if (thread_create(task_self(), &t) != 0)
 		return -1;
 
-	if (thread_load(th, start, stack) != 0)
+	if (thread_load(t, start, stack) != 0)
 		return -1;
 
-	if (thread_resume(th) != 0)
+	if (thread_setpri(t, 128) != 0)
+		return -1;
+
+	if (thread_resume(t) != 0)
 		return -1;
 	return 0;
 }
@@ -124,15 +127,17 @@ thread_C(void)
 int
 main(int argc, char *argv[])
 {
-	int err;
+	int error;
 
 	printf("Thread sample program\n");
 	main_th = thread_self();
 
+	timer_sleep(1000, 0);
+
 	/*
 	 * Raise this thread's priority.
 	 */
-	err = thread_setprio(main_th, 100);
+	error = thread_setpri(main_th, 100);
 
 	/*
 	 * Run threads as normal priority thread.
@@ -144,8 +149,7 @@ main(int argc, char *argv[])
 	/*
 	 * Lower this thread's priority.
 	 */
-	err = thread_setprio(main_th, 254);
-
+	error = thread_setpri(main_th, 254);
 	/*
 	 * Since other threads have higher priority than
 	 * this thread, the control will come here only when

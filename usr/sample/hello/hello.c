@@ -28,11 +28,11 @@
  */
 
 #include <stdio.h>
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 int
 main(int argc, char *argv[])
 {
-	printf("Hello World!\n");
+	printf("Hello, world!\n");
 	return 0;
 }

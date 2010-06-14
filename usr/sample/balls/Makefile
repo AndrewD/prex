@@ -1,3 +1,3 @@
-TASK=	balls
+TASK=	balls.rt
 
 include $(SRCDIR)/mk/task.mk

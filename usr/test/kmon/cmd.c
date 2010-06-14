@@ -31,7 +31,7 @@
  * cmd.c - command processor
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
@@ -41,186 +41,135 @@
 #include <errno.h>
 #include <stdio.h>
 
-int cmd_help(int argc, char **argv);
-int cmd_ver(int argc, char **argv);
-int cmd_mem(int argc, char **argv);
-int cmd_clear(int argc, char **argv);
-int cmd_kill(int argc, char **argv);
-#ifdef DEBUG
-int cmd_thread(int argc, char **argv);
-int cmd_task(int argc, char **argv);
-int cmd_object(int argc, char **argv);
-int cmd_timer(int argc, char **argv);
-int cmd_irq(int argc, char **argv);
-int cmd_device(int argc, char **argv);
-int cmd_vm(int argc, char **argv);
-#endif
-int cmd_reboot(int argc, char **argv);
-int cmd_shutdown(int argc, char **argv);
-
-static const char *err_msg[] = {
-	"Syntax error",
-};
+static void cmd_help(int argc, char **argv);
+static void cmd_ver(int argc, char **argv);
+static void cmd_mem(int argc, char **argv);
+static void cmd_clear(int argc, char **argv);
+static void cmd_kill(int argc, char **argv);
+static void cmd_reboot(int argc, char **argv);
+static void cmd_shutdown(int argc, char **argv);
 
 struct cmd_entry {
-	char *cmd;
-	int (*func) (int, char **);
-	char *usage;
+	const char *cmd;
+	void	   (*func)(int, char **);
+	const char *usage;
 };
 
-static struct cmd_entry cmd_table[] = {
-	{ "help"	,cmd_help	,"help     - This help" },
-	{ "ver"	 	,cmd_ver	,"ver      - Kernel version information" },
-	{ "mem"	 	,cmd_mem	,"mem      - Show memory usage" },
-	{ "clear"	,cmd_clear	,"clear    - Clear screen" },
-	{ "kill"	,cmd_kill	,"kill     - Terminate thread" },
-#ifdef DEBUG
-	{ "thread"	,cmd_thread	,"thread   - Dump threads" },
-	{ "task"	,cmd_task	,"task     - Dump tasks" },
-	{ "vm"		,cmd_vm		,"vm       - Dump virtual memory information" },
-#endif
-	{ "reboot"	,cmd_reboot	,"reboot   - Reboot system" },
-	{ "shutdown"	,cmd_shutdown	,"shutdown - Shutdown system" },
+static const struct cmd_entry cmd_table[] = {
+	{ "ver"	 	,cmd_ver	,"Version information" },
+	{ "mem"	 	,cmd_mem	,"Show memory usage" },
+	{ "clear"	,cmd_clear	,"Clear screen" },
+	{ "kill"	,cmd_kill	,"Terminate thread" },
+	{ "reboot"	,cmd_reboot	,"Reboot system" },
+	{ "shutdown"	,cmd_shutdown	,"Shutdown system" },
+	{ "help"	,cmd_help	,"This help" },
 	{ NULL		,NULL		,NULL },
 };
 
-int
+static void
 cmd_help(int argc, char **argv)
 {
 	int i = 0;
 
 	while (cmd_table[i].cmd != NULL) {
-		puts(cmd_table[i].usage);
+		printf("%s - %s\n", cmd_table[i].cmd, cmd_table[i].usage);
 		i++;
 	}
-	return 0;
 }
 
-int
+static void
 cmd_ver(int argc, char **argv)
 {
-	struct info_kernel info;
+	struct kerninfo info;
 
 	sys_info(INFO_KERNEL, &info);
 
 	printf("Kernel version:\n");
 	printf("%s version %s for %s\n",
 	       info.sysname, info.version, info.machine);
-	return 0;
 }
 
-int
+static void
 cmd_mem(int argc, char **argv)
 {
-	struct info_memory info;
+	struct meminfo info;
 
 	sys_info(INFO_MEMORY, &info);
 
 	printf("Memory usage:\n");
-	printf("    total     used     free bootdisk\n");
-	printf(" %8d %8d %8d %d\n", (u_int)info.total,
-	       (u_int)(info.total - info.free), (u_int)info.free,
-	       (u_int)info.bootdisk);
-	return 0;
+	printf(" Used     : %8d KB\n",
+	       (u_int)((info.total - info.free) / 1024));
+	printf(" Free     : %8d KB\n", (u_int)(info.free / 1024));
+	printf(" Total    : %8d KB\n", (u_int)(info.total / 1024));
+	printf(" Bootdisk : %8d KB\n", (u_int)(info.bootdisk / 1024));
 }
 
-int
+static void
 cmd_clear(int argc, char **argv)
 {
+
 	printf("\33[2J");
-	return 0;
 }
 
-int
+static void
 cmd_kill(int argc, char **argv)
 {
-	thread_t th;
+	thread_t t;
 	char *ep;
 
-	if (argc < 2)
-		return 1;
-	th = (thread_t)strtoul(argv[1], &ep, 16);
-	printf("Kill thread id:%x\n", (u_int)th);
-	if (thread_terminate(th)) {
-		printf("Thread %x does not exist\n", (u_int)th);
-		return 1;
+	if (argc < 2) {
+		puts("Usage: kill thread");
+		return;
 	}
-	return 0;
+	t = (thread_t)strtoul(argv[1], &ep, 16);
+	printf("Kill thread id:%x\n", (u_int)t);
+
+	if (thread_terminate(t))
+		printf("Thread %x does not exist\n", (u_int)t);
 }
 
-#ifdef DEBUG
-int
-cmd_thread(int argc, char **argv)
-{
-	int item = DUMP_THREAD;
-
-	sys_debug(DCMD_DUMP, &item);
-	return 0;
-}
-
-int
-cmd_task(int argc, char **argv)
-{
-	int item = DUMP_TASK;
-
-	sys_debug(DCMD_DUMP, &item);
-	return 0;
-}
-
-int
-cmd_vm(int argc, char **argv)
-{
-	int item = DUMP_VM;
-
-	sys_debug(DCMD_DUMP, &item);
-	return 0;
-}
-#endif /* DEBUG */
-
-int
+static void
 cmd_reboot(int argc, char **argv)
 {
 	device_t pm_dev;
-	int err, state;
+	int error, state = PWR_REBOOT;
 
-	if ((err = device_open("pm", 0, &pm_dev)) == 0) {
-		state = POWER_REBOOT;
-		err = device_ioctl(pm_dev, PMIOC_SET_POWER, &state);
+	if ((error = device_open("pm", 0, &pm_dev)) == 0) {
+		error = device_ioctl(pm_dev, PMIOC_SET_POWER, &state);
 		device_close(pm_dev);
 	}
-	return err;
+	if (error)
+		printf("Error %d\n", error);
 }
 
-int
+static void
 cmd_shutdown(int argc, char **argv)
 {
 	device_t pm_dev;
-	int err, state;
+	int error, state = PWR_OFF;
 
-	if ((err = device_open("pm", 0, &pm_dev)) == 0) {
-		state = POWER_OFF;
-		err = device_ioctl(pm_dev, PMIOC_SET_POWER, &state);
+	if ((error = device_open("pm", 0, &pm_dev)) == 0) {
+		error = device_ioctl(pm_dev, PMIOC_SET_POWER, &state);
 		device_close(pm_dev);
 	}
-	return err;
+	if (error)
+		printf("Error %d\n", error);
 }
 
 int
 dispatch_cmd(int argc, char **argv)
 {
 	int i = 0;
-	int err = 0;
 
 	while (cmd_table[i].cmd != NULL) {
 		if (!strcmp(argv[0], cmd_table[i].cmd)) {
-			err = (cmd_table[i].func)(argc, argv);
+			(cmd_table[i].func)(argc, argv);
 			break;
 		}
 		i++;
 	}
 	if (cmd_table[i].cmd == NULL)
 		printf("%s: command not found\n", argv[0]);
-	if (err)
-		printf("Error %d:%s\n", err, err_msg[err - 1]);
+
 	return 0;
 }

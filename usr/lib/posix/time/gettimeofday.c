@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
@@ -37,11 +37,17 @@
 int
 gettimeofday(struct timeval *tv, struct timezone *tz)
 {
-	int fd, err;
+	int fd, error;
 
-	if ((fd = open("/dev/rtc", 0)) < 0)
-		return EPERM;
-	err = ioctl(fd, RTCIOC_GET_TIME, tv);
+	if ((fd = open("/dev/rtc", 0)) < 0) {
+		errno = EPERM;
+		return -1;
+	}
+	error = ioctl(fd, RTCIOC_GET_TIME, tv);
 	close(fd);
-	return err;
+	if (error) {
+		errno = error;
+		return -1;
+	}
+	return 0;
 }

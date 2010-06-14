@@ -31,7 +31,7 @@
  * timer.c - test kernel timer functions
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 
 int

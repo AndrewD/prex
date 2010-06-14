@@ -34,7 +34,7 @@
 sig_t
 signal(int sig, sig_t handler)
 {
-	int err;
+	int error;
 	struct sigaction act, oact;
 
 	if (sig <= 0 || sig >= NSIG || sig == SIGSTOP || sig == SIGKILL) {
@@ -48,8 +48,8 @@ signal(int sig, sig_t handler)
 	if (handler != SIG_IGN && handler != SIG_DFL)
 		act.sa_mask = sigmask(sig);
 
-	err = sigaction(sig, &act, &oact);
-	if (err)
+	error = sigaction(sig, &act, &oact);
+	if (error)
 		return SIG_ERR;
 	return oact.sa_handler;
 }

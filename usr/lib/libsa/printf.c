@@ -30,7 +30,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 extern void __console_write(char *buf, size_t len);
 
@@ -41,12 +41,12 @@ int
 printf(const char *fmt, ...)
 {
 	va_list args;
-	size_t len = LINE_MAX;
+	int len = LINE_MAX;
 	char buf[LINE_MAX];
 
 	va_start(args, fmt);
 	len = vsprintf(buf, fmt, args);
-	__console_write((char *)buf, len);
+	__console_write((char *)buf, (size_t)len);
 	va_end(args);
 	return len;
 }

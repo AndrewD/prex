@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006, Kohsuke Ohtani
+ * Copyright (c) 2005-2009, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,9 +34,8 @@
 /*
  * This is a memory allocator optimized for the low foot print
  * kernel. It works on top of the underlying page allocator, and
- * manages more smaller memory than page size. It will divide one
- * page into two or more blocks, and each page is linked as a
- * kernel page.
+ * manages more smaller memory than page size. It will divide one page
+ * into two or more blocks, and each page is linked as a kernel page.
  *
  * There are following 3 linked lists to manage used/free blocks.
  *  1) All pages allocated for the kernel memory are linked.
@@ -46,11 +45,11 @@
  * Currently, it can not handle the memory size exceeding one page.
  * Instead, a driver can use page_alloc() to allocate larger memory.
  *
- * The kmem functions are used by not only the kernel core but
- * also by the buggy drivers. If such kernel code illegally
- * writes data in exceeding the allocated area, the system will
- * crash easily. In order to detect the memory over run, each
- * free block has a magic ID.
+ * The kmem functions are used by not only the kernel core but also by
+ * the buggy drivers. If such kernel code illegally writes data in
+ * exceeding the allocated area, the system will crash easily. In
+ * order to detect the memory over run, each free block has a magic
+ * ID.
  */
 
 #include <kernel.h>
@@ -66,10 +65,10 @@
  * In addition, all free blocks within same page are also linked.
  */
 struct block_hdr {
-	u_short	magic;			/* magic number */
-	u_short	size;			/* size of this block */
-	struct	list link;		/* link to the free list */
-	struct	block_hdr *pg_next;	/* next block in same page */
+	u_short		 magic;		/* magic number */
+	u_short		 size;		/* size of this block */
+	struct list	 link;		/* link to the free list */
+	struct block_hdr *pg_next;	/* next block in same page */
 };
 
 /*
@@ -77,18 +76,22 @@ struct block_hdr {
  *
  * The page header is placed at the top of each page. This
  * header is used in order to free the page when there are no
- * used block left in the page. If nr_alloc value becomes zero,
+ * used block left in the page. If 'nallocs' value becomes zero,
  * that page can be removed from kernel page.
  */
 struct page_hdr {
-	u_short	magic;			/* magic number */
-	u_short	nallocs;		/* number of allocated blocks */
-	struct	block_hdr first_blk;	/* first block in this page */
+	u_short		 magic;		/* magic number */
+	u_short		 nallocs;	/* number of allocated blocks */
+	struct block_hdr first_blk;	/* first block in this page */
 };
 
 #define ALIGN_SIZE	16
 #define ALIGN_MASK	(ALIGN_SIZE - 1)
-#define ALLOC_ALIGN(n)	(((vaddr_t)(n) + ALIGN_MASK) & (vaddr_t)~ALIGN_MASK)
+#define ALLOC_SIZE(n)	(size_t) \
+			(((vaddr_t)(n) + ALIGN_MASK) & (vaddr_t)~ALIGN_MASK)
+
+/* number of free block list */
+#define NR_BLOCK_LIST	(PAGE_SIZE / ALIGN_SIZE)
 
 #define BLOCK_MAGIC	0xdead
 #define PAGE_MAGIC	0xbeef
@@ -100,15 +103,12 @@ struct page_hdr {
 #define MIN_BLOCK_SIZE	(BLKHDR_SIZE + 16)
 #define MAX_BLOCK_SIZE	(u_short)(PAGE_SIZE - (PGHDR_SIZE - BLKHDR_SIZE))
 
-/* macro to point the page header from specific address */
-#define PAGE_TOP(n)	(struct page_hdr *) \
+/* macro to point the page header from specific address. */
+#define PAGETOP(n)	(struct page_hdr *) \
 			    ((vaddr_t)(n) & (vaddr_t)~(PAGE_SIZE - 1))
 
-/* index of free block list */
-#define BLKIDX(b)	((u_int)((b)->size) >> 4)
-
-/* number of free block list */
-#define NR_BLOCK_LIST	(PAGE_SIZE / ALIGN_SIZE)
+/* macro to get the index of free block list. */
+#define BLKNDX(b)	((u_int)((b)->size) >> 4)
 
 /**
  * Array of the head block of free block list.
@@ -168,69 +168,89 @@ block_find(size_t size)
  *
  * This function does not fill the allocated block by 0 for performance.
  * kmem_alloc() returns NULL on failure.
+ *
+ * => must not be called from interrupt context.
  */
 void *
 kmem_alloc(size_t size)
 {
 	struct block_hdr *blk, *newblk;
 	struct page_hdr *pg;
+	paddr_t pa;
 	void *p;
 
-	ASSERT(irq_level == 0);
+	ASSERT(size != 0);
 
 	sched_lock();		/* Lock scheduler */
+
 	/*
 	 * First, the free block of enough size is searched
 	 * from the page already used. If it does not exist,
 	 * new page is allocated for free block.
 	 */
-	size = (size_t)ALLOC_ALIGN(size + BLKHDR_SIZE);
-
-	ASSERT(size && size <= MAX_ALLOC_SIZE);
+	size = ALLOC_SIZE(size + BLKHDR_SIZE);
+	if (size > MAX_ALLOC_SIZE)
+		panic("kmem_alloc: too large allocation");
 
 	blk = block_find(size);
 	if (blk) {
-		/* Block found */
+		/*
+		 * Block found.
+		 */
 		list_remove(&blk->link); /* Remove from free list */
-		pg = PAGE_TOP(blk);	 /* Get the page address */
+		pg = PAGETOP(blk);	 /* Get the page address */
 	} else {
-		/* No block found. Allocate new page */
-		if ((pg = page_alloc(PAGE_SIZE)) == NULL) {
+		/*
+		 * No block found. Allocate new page.
+		 */
+		if ((pa = page_alloc(PAGE_SIZE)) == 0) {
 			sched_unlock();
 			return NULL;
 		}
-		pg = (struct page_hdr *)phys_to_virt(pg);
+		pg = ptokv(pa);
 		pg->nallocs = 0;
 		pg->magic = PAGE_MAGIC;
 
-		/* Setup first block */
-		blk = &(pg->first_blk);
+		/*
+		 * Setup first block.
+		 */
+		blk = &pg->first_blk;
 		blk->magic = BLOCK_MAGIC;
 		blk->size = MAX_BLOCK_SIZE;
 		blk->pg_next = NULL;
 	}
-	/* Sanity check */
+
+	/*
+	 * Sanity check
+	 */
 	if (pg->magic != PAGE_MAGIC || blk->magic != BLOCK_MAGIC)
 		panic("kmem_alloc: overrun");
+
 	/*
 	 * If the found block is large enough, split it.
 	 */
 	if (blk->size - size >= MIN_BLOCK_SIZE) {
-		/* Make new block */
-		newblk = (struct block_hdr *)((char *)blk + size);
+		/*
+		 * Make new block.
+		 */
+		newblk = (struct block_hdr *)((vaddr_t)blk + size);
 		newblk->magic = BLOCK_MAGIC;
 		newblk->size = (u_short)(blk->size - size);
-		list_insert(&free_blocks[BLKIDX(newblk)], &newblk->link);
+		list_insert(&free_blocks[BLKNDX(newblk)], &newblk->link);
 
-		/* Update page list */
+		/*
+		 * Update page list.
+		 */
 		newblk->pg_next = blk->pg_next;
 		blk->pg_next = newblk;
-
 		blk->size = (u_short)size;
 	}
-	/* Increment allocation count of this page */
+	/*
+	 * Increment allocation count of this page.
+	 */
 	pg->nallocs++;
-	p = (char *)blk + BLKHDR_SIZE;
+	p = (void *)((vaddr_t)blk + BLKHDR_SIZE);
+
 	sched_unlock();
 	return p;
 }
@@ -251,14 +271,13 @@ kmem_free(void *ptr)
 	struct block_hdr *blk;
 	struct page_hdr *pg;
 
-	ASSERT(irq_level == 0);
-	ASSERT(ptr);
+	ASSERT(ptr != NULL);
 
 	/* Lock scheduler */
 	sched_lock();
 
 	/* Get the block header */
-	blk = (struct block_hdr *)((char *)ptr - BLKHDR_SIZE);
+	blk = (struct block_hdr *)((vaddr_t)ptr - BLKHDR_SIZE);
 	if (blk->magic != BLOCK_MAGIC)
 		panic("kmem_free: invalid address");
 
@@ -267,20 +286,22 @@ kmem_free(void *ptr)
 	 * request fixed size of memory block, we don't merge the
 	 * blocks to use it as cache.
 	 */
-	list_insert(&free_blocks[BLKIDX(blk)], &blk->link);
+	list_insert(&free_blocks[BLKNDX(blk)], &blk->link);
 
-	/* Decrement allocation count of this page */
-	pg = PAGE_TOP(blk);
-	if (--pg->nallocs <= 0) {
+	/*
+	 * Decrement allocation count of this page.
+	 */
+	pg = PAGETOP(blk);
+	if (--pg->nallocs == 0) {
 		/*
 		 * No allocated block in this page.
 		 * Remove all blocks and deallocate this page.
 		 */
-		for (blk = &(pg->first_blk); blk != NULL; blk = blk->pg_next) {
+		for (blk = &pg->first_blk; blk != NULL; blk = blk->pg_next) {
 			list_remove(&blk->link); /* Remove from free list */
 		}
 		pg->magic = 0;
-		page_free(virt_to_phys(pg), PAGE_SIZE);
+		page_free(kvtop(pg), PAGE_SIZE);
 	}
 	sched_unlock();
 }
@@ -292,12 +313,12 @@ kmem_free(void *ptr)
 void *
 kmem_map(void *addr, size_t size)
 {
-	void *phys;
+	paddr_t pa;
 
-	phys = vm_translate(addr, size);
-	if (phys == NULL)
+	pa = vm_translate((vaddr_t)addr, size);
+	if (pa == 0)
 		return NULL;
-	return phys_to_virt(phys);
+	return ptokv(pa);
 }
 
 void

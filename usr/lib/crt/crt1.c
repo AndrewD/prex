@@ -36,18 +36,44 @@
 #include <string.h>
 
 extern void __libc_init(void);
-extern int main(int argc, char **argv, char **envp);
+extern int main(int argc, char *argv[], char *envp[]);
 
 void	 __prex_main(int, char **, char **);
+static char *_strrchr(char *, int);
 
-char **environ;
+char	**environ;
+char	*__progname;
 
 void
-__prex_main(int argc, char **argv, char **envp)
+__prex_main(int argc, char *argv[], char *envp[])
 {
+	char *ap;
+
 	environ = envp;
+
+	if ((ap = argv[0])) {
+		if ((__progname = _strrchr(ap, '/')) == NULL)
+			__progname = ap;
+		else
+			++__progname;
+	}
 
 	__libc_init();
 
 	exit(main(argc, argv, envp));
+	/* NOTREACHED */
+}
+
+static char *
+_strrchr(char *p, int ch)
+{
+	char *save;
+
+	for (save = NULL;; ++p) {
+		if (*p == ch)
+			save = (char *)p;
+		if (!*p)
+			return(save);
+	}
+	/* NOTREACHED */
 }

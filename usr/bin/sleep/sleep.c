@@ -55,7 +55,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if ((secs = atoi(*argv)) > 0)
-		(void)sleep(secs);
+		(void)sleep((u_int)secs);
 	exit(0);
 }
 

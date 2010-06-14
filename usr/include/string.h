@@ -79,7 +79,6 @@ void	*memccpy(void *, const void *, int, size_t);
 char	*rindex(const char *, int);
 int	 strcasecmp(const char *, const char *);
 char	*strdup(const char *);
-void	 strmode(int, char *);
 int	 strncasecmp(const char *, const char *, size_t);
 char	*strsep(char **, const char *);
 void	 swab(const void *, void *, size_t);

@@ -68,10 +68,10 @@ main(int argc, char *argv[])
 	if (!rc && S_ISDIR(st2.st_mode)) {
 		p = strrchr(src, '/');
 		p = p ? p + 1 : src;
-		strcpy(path, dest);
+		strlcpy(path, dest, sizeof(path));
 		if (strcmp(dest, "/"))
-			strcat(path, "/");
-		strcat(path, p);
+			strlcat(path, "/", sizeof(path));
+		strlcat(path, p, sizeof(path));
 		dest = path;
 	}
 	if (rename(src, dest) < 0)

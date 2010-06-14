@@ -27,67 +27,42 @@
  * SUCH DAMAGE.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <termios.h>
 
 #ifdef CMDBOX
 #define main(argc, argv)	dmesg_main(argc, argv)
 #endif
 
-static int print_msg(char *buf, int size);
-
 int
 main(int argc, char *argv[])
 {
-	int size;
+	size_t size;
 	char *buf;
+	int i;
 
-	if (sys_debug(DCMD_LOGSIZE, &size) != 0) {
+	if (sys_debug(DBGC_LOGSIZE, &size) != 0) {
 		fprintf(stderr, "dmesg: not supported\n");
 		exit(1);
 	}
-
+	if (size == 0)
+		exit(1);
 	if ((buf = malloc(size)) == NULL)
 		exit(1);
 
-	if (sys_debug(DCMD_GETLOG, buf) != 0) {
+	if (sys_debug(DBGC_GETLOG, buf) != 0) {
 		free(buf);
 		exit(1);
 	}
-	print_msg(buf, size);
-	free(buf);
-	return 0;
-}
-
-static int
-print_msg(char *buf, int bufsize)
-{
-	struct winsize ws;
-	int i, row, maxrow;
-
-	/* Get screen size */
-	maxrow = 79;
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
-		maxrow = (int)ws.ws_row - 1;
-
-	row = 0;
-	for (i = 0; i < bufsize; i++) {
+	for (i = 0; i < (int)size; i++) {
 		if (*buf == '\0')
 			break;
-		if (*buf == '\n')
-			row++;
 		putc(*buf, stdout);
-		if (row >= maxrow) {
-			printf("--More-- ");
-			getc(stdin);
-			putchar('\n');
-			row = 0;
-		}
 		buf++;
 	}
+	free(buf);
 	return 0;
 }

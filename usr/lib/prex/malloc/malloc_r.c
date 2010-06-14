@@ -31,7 +31,7 @@
  * malloc_r() - this is used with multi-threaded native task.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdlib.h>
 #include "malloc.h"
 

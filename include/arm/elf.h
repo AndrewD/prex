@@ -31,7 +31,7 @@
 #define _ARM_ELF_H
 
 /*
- * Relocation type for arm
+ * Relocation type
  */
 #define	R_ARM_NONE	0
 #define	R_ARM_PC24	1

@@ -30,7 +30,7 @@
 #ifndef _FATFS_H
 #define _FATFS_H
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/vnode.h>
@@ -43,7 +43,7 @@
 
 #ifdef DEBUG_FATFS
 #define DPRINTF(a)	dprintf a
-#define ASSERT(e)	assert(e)
+#define ASSERT(e)	dassert(e)
 #else
 #define DPRINTF(a)	do {} while (0)
 #define ASSERT(e)
@@ -79,6 +79,9 @@
 #define FAT12_MASK	0x00000fff
 #define FAT16_MASK	0x0000ffff
 
+#if defined(__SUNPRO_C)
+#pragma pack(1)
+#endif
 
 /*
  * BIOS parameter block
@@ -120,6 +123,10 @@ struct fat_dirent {
 	uint32_t	size;
 } __packed;
 
+#if defined(__SUNPRO_C)
+#pragma pack()
+#endif
+
 #define SLOT_EMPTY	0x00
 #define SLOT_DELETED	0xe5
 
@@ -133,7 +140,7 @@ struct fat_dirent {
 #define FA_SYSTEM	0x04
 #define FA_VOLID	0x08
 #define FA_SUBDIR	0x10
-#define FA_ARCH	0x20
+#define FA_ARCH		0x20
 #define FA_DEVICE	0x40
 
 #define IS_DIR(de)	(((de)->attr) & FA_SUBDIR)

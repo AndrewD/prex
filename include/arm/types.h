@@ -45,7 +45,11 @@ typedef	unsigned short	 uint16_t;
 typedef	int		  int32_t;
 typedef	unsigned int	 uint32_t;
 
-typedef unsigned long	  paddr_t;	/* type for a physical address */
-typedef unsigned long	  vaddr_t;	/* type for a virtual address */
+typedef unsigned long	  paddr_t;
+typedef unsigned long	  psize_t;
+typedef unsigned long	  vaddr_t;
+typedef unsigned long	  vsize_t;
+
+typedef int		register_t;
 
 #endif	/* _ARM_TYPES_H */

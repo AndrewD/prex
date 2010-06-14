@@ -31,7 +31,7 @@
  * queue.c - generic queue management library
  */
 
-#include <queue.h>
+#include <kernel.h>
 
 /*
  * Insert element at tail of queue
@@ -39,6 +39,7 @@
 void
 enqueue(queue_t head, queue_t item)
 {
+
 	item->next = head;
 	item->prev = head->prev;
 	item->prev->next = item;
@@ -67,6 +68,7 @@ dequeue(queue_t head)
 void
 queue_insert(queue_t prev, queue_t item)
 {
+
 	item->prev = prev;
 	item->next = prev->next;
 	prev->next->prev = item;
@@ -79,6 +81,7 @@ queue_insert(queue_t prev, queue_t item)
 void
 queue_remove(queue_t item)
 {
+
 	item->prev->next = item->next;
 	item->next->prev = item->prev;
 }

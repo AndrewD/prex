@@ -31,41 +31,33 @@
 #define _IPC_H
 
 #include <sys/cdefs.h>
-#include <queue.h>
-
-struct thread;
+#include <types.h>
+#include <sys/list.h>
+#include <sys/queue.h>
+#include <ipc/ipc.h>
 
 struct object {
-	int		magic;		/* magic number */
+	struct list	link;		/* linkage for all objects in system */
 	char		name[MAXOBJNAME]; /* object name */
-	struct list	hash_link;	/* link for object hash table */
-	struct list	task_link;	/* link in same task */
+	struct list	task_link;	/* linkage on object list in task */
 	task_t		owner;		/* creator of this object */
 	struct queue	sendq;		/* queue for sender threads */
 	struct queue	recvq;		/* queue for receiver threads */
-};
-
-#define object_valid(obj)  (kern_area(obj) && ((obj)->magic == OBJECT_MAGIC))
-
-/*
- * Message header
- */
-struct msg_header {
-	task_t		task;		/* id of a sender task */
-	int		code;		/* message code */
-	int		status;		/* return status */
 };
 
 __BEGIN_DECLS
 int	 object_create(const char *, object_t *);
 int	 object_lookup(const char *, object_t *);
 int	 object_destroy(object_t);
+int	 object_valid(object_t);
+void	 object_cleanup(task_t);
 void	 object_init(void);
+
 int	 msg_send(object_t, void *, size_t);
 int	 msg_receive(object_t, void *, size_t);
 int	 msg_reply(object_t, void *, size_t);
-void	 msg_cleanup(struct thread *);
-void	 msg_cancel(struct object *);
+void	 msg_cancel(thread_t);
+void	 msg_abort(object_t);
 void	 msg_init(void);
 __BEGIN_DECLS
 

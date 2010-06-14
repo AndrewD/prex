@@ -36,26 +36,31 @@
 
 /*
  * Unlike other ANSI header files, <assert.h> may usefully be included
- * multiple times, with and without NDEBUG defined.
+ * multiple times, with and without DEBUG defined.
  */
 
 #undef assert
 #undef _assert
 
-#ifdef NDEBUG
-#define	assert(e)	((void)0)
-#define	_assert(e)	((void)0)
-#else
+#ifdef DEBUG
 #define	_assert(e)	assert(e)
 #ifdef __STDC__
 #define	assert(e)	((e) ? (void)0 : __assert(__FILE__, __LINE__, #e))
+#define	dassert(e)	((e) ? (void)0 : __dassert(__FILE__, __LINE__, #e))
 #else	/* PCC */
 #define	assert(e)	((e) ? (void)0 : __assert(__FILE__, __LINE__, "e"))
+#define	dassert(e)	((e) ? (void)0 : __dassert(__FILE__, __LINE__, "e"))
 #endif
+
+#else
+#define	assert(e)	((void)0)
+#define	_assert(e)	((void)0)
+#define	dassert(e)	((void)0)
 #endif
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 void __assert(const char *, int, const char *);
+void __dassert(const char *, int, const char *);
 __END_DECLS

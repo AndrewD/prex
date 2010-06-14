@@ -31,7 +31,7 @@
  * fdd.c - fdd driver test program.
  */
 
-#include <prex/prex.h>
+#include <sys/prex.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -41,13 +41,13 @@ test_read(int sector)
 {
 	device_t fdd;
 	size_t size;
-	int err, i, j;
+	int error, i, j;
 	static unsigned char disk_buf[512];
 	unsigned char ch;
 
 	printf("open fd0\n");
-	err = device_open("fd0", 0, &fdd);
-	if (err) {
+	error = device_open("fd0", 0, &fdd);
+	if (error) {
 		printf("open failed\n");
 		return 0;
 	}
@@ -55,8 +55,8 @@ test_read(int sector)
 
 	printf("fdd read: sector=%d buf=%x\n", sector, (u_int)disk_buf);
 	size = 512;
-	err = device_read(fdd, disk_buf, &size, sector);
-	if (err) {
+	error = device_read(fdd, disk_buf, &size, sector);
+	if (error) {
 		printf("read failed\n");
 		device_close(fdd);
 		return 0;
@@ -78,8 +78,8 @@ test_read(int sector)
 		printf("\n");
 	}
 	printf("\n");
-	err = device_close(fdd);
-	if (err)
+	error = device_close(fdd);
+	if (error)
 		printf("close failed\n");
 
 	return 0;
@@ -90,20 +90,20 @@ test_write(int sector)
 {
 	device_t fdd;
 	size_t size;
-	int err;
+	int error;
 	static unsigned char disk_buf[512];
 
 	printf("open fd0\n");
-	err = device_open("fd0", 0, &fdd);
-	if (err) {
+	error = device_open("fd0", 0, &fdd);
+	if (error) {
 		printf("open failed\n");
 		return 0;
 	}
 	printf("opened\n");
 
 	size = 512;
-	err = device_read(fdd, disk_buf, &size, sector);
-	if (err) {
+	error = device_read(fdd, disk_buf, &size, sector);
+	if (error) {
 		printf("read failed\n");
 		device_close(fdd);
 		return 0;
@@ -111,16 +111,16 @@ test_write(int sector)
 	printf("read comp sector=%d\n", sector);
 
 	size = 512;
-	err = device_write(fdd, disk_buf, &size, sector);
-	if (err) {
+	error = device_write(fdd, disk_buf, &size, sector);
+	if (error) {
 		printf("write failed\n");
 		device_close(fdd);
 		return 0;
 	}
 	printf("write comp sector=%d\n", sector);
 
-	err = device_close(fdd);
-	if (err)
+	error = device_close(fdd);
+	if (error)
 		printf("close failed\n");
 	return 0;
 }
