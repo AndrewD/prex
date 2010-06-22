@@ -160,7 +160,10 @@ relocate_section_rela(Elf32_Sym *sym_table, Elf32_Rela *rela,
 	for (i = 0; i < nr_reloc; i++, rela++) {
 		sym = &sym_table[ELF32_R_SYM(rela->r_info)];
 
-		if (sym->st_shndx != STN_UNDEF) {
+		if (sym->st_info == 0) {
+			/* Empty symbol used for R_ARM_V4BX, etc */
+			sym_val = sym->st_value;
+		} else if (sym->st_shndx != STN_UNDEF) {
 			sym_val = (Elf32_Addr)sect_addr[sym->st_shndx]
 				+ sym->st_value;
 		} else {
@@ -196,7 +199,10 @@ relocate_section_rel(Elf32_Sym *sym_table, Elf32_Rel *rel,
 	for (i = 0; i < nr_reloc; i++, rel++) {
 		sym = &sym_table[ELF32_R_SYM(rel->r_info)];
 
-		if (sym->st_shndx != STN_UNDEF) {
+		if (sym->st_info == 0) {
+			/* Empty symbol used for R_ARM_V4BX, etc */
+			sym_val = sym->st_value;
+		} else if (sym->st_shndx != STN_UNDEF) {
 			sym_val = (Elf32_Addr)sect_addr[sym->st_shndx]
 				+ sym->st_value;
 		} else {

@@ -57,6 +57,9 @@ relocate_rel(Elf32_Rel *rel, Elf32_Addr sym_val, char *target_sect)
 		*where = (*where & 0xff000000) | (tmp & 0x00ffffff);
 		ELFDBG(("R_ARM_PC24: %x -> %x\n", where, *where));
 		break;
+	case R_ARM_V4BX:
+		/* nothing to do: bx instruction is supported */
+		break;
 	default:
 		panic("relocation fail");
 		return -1;
